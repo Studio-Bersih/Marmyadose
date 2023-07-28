@@ -1,5 +1,7 @@
 <?php
 
+use App\Http\Controllers\UD84\MasterProduk as UD84_Master;
+
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Route;
 use App\Http\Controllers\Authenticate;
@@ -19,5 +21,12 @@ Route::post('/Log-In', [Authenticate::class, 'logIn'])->name('login');
 // Route::get('/Generate-Admin', [Authenticate::class, 'generateAdmin']);
 
 Route::group(['middleware' => 'auth:sanctum'], function() {
+
+    // UD84 - Alul
+    Route::get('/UD84/Master-Produk/Retrieve',[UD84_Master::class, 'getMasterProduct']);
+    Route::post('/UD84/Master-Produk/Insert', [UD84_Master::class, 'postMasterProduct']);
+    Route::post('/UD84/Master-Produk/Update', [UD84_Master::class, 'updateMasterProduct']);
+    Route::post('/UD84/Master-Produk/Delete', [UD84_Master::class, 'deleteMasterProduct']);
+
     Route::get('/Status-Check', [Authenticate::class, 'whoAmI']);
 });
