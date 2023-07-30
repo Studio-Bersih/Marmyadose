@@ -1,6 +1,7 @@
 <?php
 
 use App\Http\Controllers\UD84\MasterProduk as UD84_Master;
+use App\Http\Controllers\UD84\Penjualan as UD84_Penjualan;
 
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Route;
@@ -27,6 +28,12 @@ Route::group(['middleware' => 'auth:sanctum'], function() {
     Route::post('/UD84/Master-Produk/Insert', [UD84_Master::class, 'postMasterProduct']);
     Route::post('/UD84/Master-Produk/Update', [UD84_Master::class, 'updateMasterProduct']);
     Route::post('/UD84/Master-Produk/Delete', [UD84_Master::class, 'deleteMasterProduct']);
+
+    // UD84 - Katalog
+    Route::get('/UD84/Master-Produk/Katalog', [UD84_Master::class, 'katalogProduk']);
+
+    // UD84 - Penjualan
+    Route::post('/UD84/Penjualan/Saving-Receipt', [UD84_Penjualan::class, 'postPenjualan']);
 
     Route::get('/Status-Check', [Authenticate::class, 'whoAmI']);
 });

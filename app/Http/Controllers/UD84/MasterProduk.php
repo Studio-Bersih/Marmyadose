@@ -54,4 +54,16 @@ class MasterProduk extends Controller
             'message'   => 'Item berhasil dihapus!'
         ],200);
     }
+
+    public function katalogProduk(){
+        $data = DB::table('ud84_master_produk')->where('STATUS_JUAL','Katalog dan Penjualan')->get();
+        $listProduk = [];
+        foreach($data as $data){
+            $listProduk[] = [
+                "NAMA_PRODUK"           => $data->NAMA,
+                "KETERSEDIAAN_PRODUK"   => $data->STOK >= 0 ? 'Available' : 'Sold Out'
+            ];
+        }
+        return response()->json($listProduk,200);
+    }
 }
