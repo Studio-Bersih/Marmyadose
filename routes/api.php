@@ -1,5 +1,6 @@
 <?php
 
+use App\Http\Controllers\UD84\Report as UD84_Report;
 use App\Http\Controllers\UD84\MasterProduk as UD84_Master;
 use App\Http\Controllers\UD84\Penjualan as UD84_Penjualan;
 
@@ -34,6 +35,10 @@ Route::group(['middleware' => 'auth:sanctum'], function() {
 
     // UD84 - Penjualan
     Route::post('/UD84/Penjualan/Saving-Receipt', [UD84_Penjualan::class, 'postPenjualan']);
+
+    // UD84 - Report
+    Route::get('/UD84/Daftar-Transaksi', [UD84_Report:: class,'daftarTransaksi']);
+    Route::get('/UD84/Daftar-Transaksi/Detail-Transaksi/{ID}', [UD84_Report::class, 'detailTransaksi']);
 
     Route::get('/Status-Check', [Authenticate::class, 'whoAmI']);
 });
