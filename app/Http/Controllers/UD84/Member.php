@@ -11,7 +11,7 @@ class Member extends Controller
 {
 
     public function getMember(){
-        $data = DB::table('ud84_member')->orderByDesc('ID')->get(['NAMA','LOKASI','ALAMAT','WHATSAPP']);
+        $data = DB::table('ud84_member')->orderByDesc('ID')->get(['ID','NAMA','LOKASI','ALAMAT','WHATSAPP']);
         return response()->json($data,200);
     }
 
@@ -46,5 +46,13 @@ class Member extends Controller
             'status'    => 'success',
             'message'   => 'Data tersimpan'
         ],200);
+    }
+
+    public function deleteMember(Request $request){
+        $ID = $request->input('ID');
+        $data = DB::table('ud84_member')->where('ID',$ID)->first();
+        DB::table('ud84_member_price')->where('UNIQUE',$data->UNIQUE)->delete();
+        DB::table('ud84_member')->where('ID',$ID)->delete();
+        return response()->json("OK",200);
     }
 }

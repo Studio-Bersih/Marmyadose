@@ -13,6 +13,29 @@ class MasterProduk extends Controller
         return response()->json($data,200);
     }
 
+    public function getMemberMasterProduct(Request $request){
+        $ID = $request->input('ID');
+        $memberData = DB::table('ud84_member')->where('ID',$ID)->first();
+        $masterProdukCustom = DB::table('ud84_member_price')->where('UNIQUE',$memberData->UNIQUE)->get();
+
+        $listData = [];
+        foreach($masterProdukCustom as $data){
+            $masterProduk = DB::table('ud84_master_produk')->where('NAMA',$data->NAMA)->first();
+            $listData[] = [
+                "NAMA"          => $masterProduk->NAMA,
+                "STOK"          => $masterProduk->STOK,
+                "TIPE"          => $masterProduk->TIPE,
+                "HARGA_PABRIK"  => $masterProduk->HARGA_PABRIK,
+                "HARGA_JUAL"    => $data->HARGA_JUAL,
+            ];
+        }
+        return response()->json([
+            'status'    => 'success',
+            'message'   => 'Harga member berhasil dimuat!',
+            'data'      => $listData
+        ],200);
+    }
+
     public function postMasterProduct(Request $request){
         DB::table('ud84_master_produk')->insert([
             "NAMA"          => $request->input('NAMA'),

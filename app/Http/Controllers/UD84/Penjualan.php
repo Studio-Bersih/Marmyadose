@@ -8,6 +8,7 @@ use Illuminate\Http\Request;
 
 class Penjualan extends Controller
 {
+
     public function postPenjualan(Request $request){
         $uniqueID = uniqid();
         DB::table('ud84_penjualan_rekap')->insert([
@@ -20,17 +21,22 @@ class Penjualan extends Controller
         ]);
 
         DB::beginTransaction();
-        foreach($request->input('CART') as $data){
-            DB::table('ud84_penjualan_detail')->insert([
-                "UNIQUE"          => $uniqueID,
-                "NAMA"            => $data['NAMA'],
-                "JUMLAH"          => $data['QUANTITY'],
-                "HARGA_ASLI"      => $data['HARGA_ASLI'],
-                "HARGA_TERJUAL"   => $data['TOTAL'],
-                "POTONGAN_PERSEN" => $data['POTONGAN_PERSEN'],
-                "POTONGAN_RUPIAH" => $data['POTONGAN_RUPIAH'],
-            ]);
-        }
+            foreach($request->input('CART') as $data){
+                DB::table('ud84_penjualan_detail')->insert([
+                    "UNIQUE"          => $uniqueID,
+                    "NAMA"            => $data['NAMA'],
+                    "JUMLAH"          => $data['QUANTITY'],
+                    "HARGA_ASLI"      => $data['HARGA_ASLI'],
+                    "HARGA_TERJUAL"   => $data['TOTAL'],
+                    "POTONGAN_PERSEN" => $data['POTONGAN_PERSEN'],
+                    "POTONGAN_RUPIAH" => $data['POTONGAN_RUPIAH'],
+                ]);
+
+                $item = DB::table('ud84_master_produk')->where('NAMA',$data['NAMA'])->first();
+                DB::table('ud84_master_produk')->where('NAMA',$data['NAMA'])->update([
+                    "STOK"  => $item->STOK - $data['QUANTITY']
+                ]);
+            }
         DB::commit();
 
         return response()->json([
