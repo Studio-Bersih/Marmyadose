@@ -31,6 +31,20 @@ class Report extends Controller
         return response()->json("OK",200);
     }
 
+    public function getReportOperasional(){
+        $operationalDetail  = DB::table('ud84_operasional')->whereMonth('CREATED_AT',Carbon::now()->month)->orderByDesc('ID')->get();
+        $listOperasional = [];
+        foreach($operationalDetail as $data){
+            $listOperasional[] = [
+                "NAMA"          => $data->NAMA,
+                "TANGGAL"       => Carbon::parse($data->CREATED_AT)->translatedFormat('d F Y, H:i'),
+                "NOMINAL"       => $data->NOMINAL,
+                "KETERANGAN"    => $data->KETERANGAN
+            ];
+        }
+        return response()->json($listOperasional,200);
+    }
+
     public function omsetDetail(){
         $monthDetail = DB::table('ud84_penjualan_detail')
         ->whereMonth('CREATED_AT',Carbon::now()->month)
@@ -48,6 +62,7 @@ class Report extends Controller
         foreach($operationalDetail as $data){
             $listOperational[] = [
                 "NAMA"          => $data->NAMA,
+                "KETERANGAN"    => $data->KETERANGAN,
                 "NOMINAL"       => $data->NOMINAL,
                 "CREATED_AT"    => Carbon::parse($data->CREATED_AT)->translatedFormat('d F Y')
             ];
@@ -62,7 +77,7 @@ class Report extends Controller
     }
 
     public function daftarTransaksi(){
-        $data = DB::table('ud84_penjualan_rekap')->skip(0)->take(500)->orderByDesc('ID')->get();
+        $data = DB::table('ud84_penjualan_rekap')->skip(0)->take(2000)->orderByDesc('ID')->get();
         $listData = $nominalTransaksi = $nominalDP = $nominalBayarTunai = [];
         foreach($data as $data){
             $listData[] = [
@@ -104,7 +119,7 @@ class Report extends Controller
                 "HARGA"     => $data->HARGA_TERJUAL,
                 "JUMLAH"    => $data->HARGA_TERJUAL * $data->JUMLAH
             ];
-            $totalSum[]     = $data->HARGA_TERJUAL * $data->JUMLAH;
+            $totalSum[]     = $data->HARGA_TERJUAL;
         }
 
         return response()->json([
@@ -113,5 +128,20 @@ class Report extends Controller
             "TOTAL"     => array_sum($totalSum),
             "DATA"      => $listDetail
         ],200);
+    }
+
+    public function singleItemReport($ID){
+        $dataDetail = DB::table('ud84_penjualan_detail')->where('NAMA',$ID)->whereMonth('CREATED_AT',Carbon::now()->month)->orderByDesc('ID')->get();
+        $listData = [];
+        foreach($dataDetail as $data){
+            $listData[] = [
+                "NAMA"              => $data->NAMA,
+                "JUMLAH"            => $data->JUMLAH,
+                "HARGA_ASLI"        => $data->HARGA_ASLI,
+                "HARGA_TERJUAL"     => $data->HARGA_TERJUAL,
+                "CREATED_AT"        => Carbon::parse($data->CREATED_AT)->translatedFormat('d F Y'),
+            ];
+        }
+        return response()->json($listData,200);
     }
 }

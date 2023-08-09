@@ -45,8 +45,10 @@ Route::group(['middleware' => 'auth:sanctum'], function() {
 
     // UD84 - Report
     Route::get('/UD84/Charts',[UD84_Report::class, 'commonCharts']);
+    Route::get('/UD84/Omset/Single/{ID}',[UD84_Report::class, 'singleItemReport']);
     Route::get('/UD84/Omset',[UD84_Report::class, 'omsetDetail']);
     Route::post('/UD84/Operasional/Insert',[UD84_Report::class, 'postOperasional']);
+    Route::get('/UD84/Operasional/Retrieve',[UD84_Report::class, 'getReportOperasional']);
     Route::get('/UD84/Daftar-Transaksi', [UD84_Report::class,'daftarTransaksi']);
     Route::get('/UD84/Daftar-Transaksi/Detail-Transaksi/{ID}', [UD84_Report::class, 'detailTransaksi']);
     Route::get('/UD84/Get-Invoices/{ID}', [UD84_Report::class, 'getInvoices']);
