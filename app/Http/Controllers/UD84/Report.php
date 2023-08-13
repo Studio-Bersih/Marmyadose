@@ -144,4 +144,42 @@ class Report extends Controller
         }
         return response()->json($listData,200);
     }
+
+    public function singleItem(Request $request){
+        $getItem    = DB::table('ud84_master_produk')->where('ID',$request->input('ID'))->first();
+        $getItems   = DB::table('ud84_penjualan_detail')->where('NAMA',$getItem->NAMA)->whereBetween('CREATED_AT',[
+            $request->input('START'),
+            $request->input('FINISH'),
+        ])->get();
+
+        $listItem           = [];
+        $totalKotor         = [];
+        $potonganRupiah     = [];
+        $potonganPersen     = [];
+        $totalPieces        = [];
+
+        foreach($getItems as $data){
+            $listItem[] = [
+                "CREATED_AT"        => Carbon::parse($data->CREATED_AT)->translatedFormat('d F Y, h:i'),
+                "NAMA"              => $data->NAMA,
+                "POTONGAN_RUPIAH"   => $data->POTONGAN_RUPIAH,
+                "POTONGAN_PERSEN"   => $data->POTONGAN_PERSEN,
+                "JUMLAH"            => $data->JUMLAH,
+                "NOMINAL"           => $data->HARGA_TERJUAL
+            ];
+            $totalKotor[]        = $data->HARGA_TERJUAL;
+            $potonganRupiah[]    = $data->POTONGAN_RUPIAH;
+            $potonganPersen[]    = $data->POTONGAN_PERSEN;
+            $totalPieces[]       = $data->JUMLAH;
+        }
+
+        return response()->json([
+            'data'                      => $listItem,
+            'TOTAL_KOTOR'               => array_sum($totalKotor),
+            'TOTAL_POTONGAN_RUPIAH'     => array_sum($potonganRupiah),
+            'TOTAL_POTONGAN_PERSEN'     => array_sum($potonganPersen),
+            'TOTAL_PIECES'              => array_sum($totalPieces)
+        ],200);
+    }
+
 }

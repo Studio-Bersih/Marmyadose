@@ -32,9 +32,6 @@ Route::group(['middleware' => 'auth:sanctum'], function() {
     Route::post('/UD84/Master-Produk/Update', [UD84_Master::class, 'updateMasterProduct']);
     Route::post('/UD84/Master-Produk/Delete', [UD84_Master::class, 'deleteMasterProduct']);
 
-    // UD84 - Katalog
-    Route::get('/UD84/Master-Produk/Katalog', [UD84_Master::class, 'katalogProduk']);
-
     // UD84 - Penjualan
     Route::post('/UD84/Penjualan/Saving-Receipt', [UD84_Penjualan::class, 'postPenjualan']);
 
@@ -52,6 +49,13 @@ Route::group(['middleware' => 'auth:sanctum'], function() {
     Route::get('/UD84/Daftar-Transaksi', [UD84_Report::class,'daftarTransaksi']);
     Route::get('/UD84/Daftar-Transaksi/Detail-Transaksi/{ID}', [UD84_Report::class, 'detailTransaksi']);
     Route::get('/UD84/Get-Invoices/{ID}', [UD84_Report::class, 'getInvoices']);
+    Route::post('/UD84/Reports/Single-Item', [UD84_Report::class, 'singleItem']);
 
     Route::get('/Status-Check', [Authenticate::class, 'whoAmI']);
 });
+
+
+// Public Access
+
+    // UD84 - Katalog
+    Route::get('/UD84/Master-Produk/Katalog', [UD84_Master::class, 'katalogProduk']);

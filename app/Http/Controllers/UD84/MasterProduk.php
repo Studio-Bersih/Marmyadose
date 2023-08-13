@@ -84,6 +84,7 @@ class MasterProduk extends Controller
         foreach($data as $data){
             $listProduk[] = [
                 "NAMA_PRODUK"           => $data->NAMA,
+                "KETERANGAN"            => $data->DESKRIPSI,
                 "KETERSEDIAAN_PRODUK"   => $data->STOK >= 0 ? 'Available' : 'Sold Out'
             ];
         }
