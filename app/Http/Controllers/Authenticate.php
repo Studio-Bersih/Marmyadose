@@ -32,6 +32,7 @@ class Authenticate extends Controller
                     'status'    => 'Authenticated',
                     'message'   => 'Authorized',
                     'name'      => $data->name,
+                    'privilege' => $data->privilege
                 ];
                 // Dont forget to write access log here!
                 return response()->json($loginData,200)->withCookie($cookie);
@@ -57,6 +58,7 @@ class Authenticate extends Controller
     }
 
     public function whoAmI(){
+        return Hash::make('ud84staff');
         return response()->json(Auth::user()->name,200);    
     }
 

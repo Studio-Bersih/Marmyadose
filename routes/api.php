@@ -51,11 +51,9 @@ Route::group(['middleware' => 'auth:sanctum'], function() {
     Route::get('/UD84/Get-Invoices/{ID}', [UD84_Report::class, 'getInvoices']);
     Route::post('/UD84/Reports/Single-Item', [UD84_Report::class, 'singleItem']);
 
-    Route::get('/Status-Check', [Authenticate::class, 'whoAmI']);
+    // Public Access
+    // Route::get('/Status-Check', [Authenticate::class, 'whoAmI']);
 });
-
-
-// Public Access
 
     // UD84 - Katalog
     Route::get('/UD84/Master-Produk/Katalog', [UD84_Master::class, 'katalogProduk']);
