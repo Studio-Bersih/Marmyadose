@@ -38,14 +38,16 @@ class MasterProduk extends Controller
 
     public function postMasterProduct(Request $request){
         DB::table('ud84_master_produk')->insert([
-            "NAMA"          => $request->input('NAMA'),
-            "STOK"          => $request->input('STOK'),
-            "TIPE"          => $request->input('TIPE'),
-            "STATUS_JUAL"   => $request->input('STATUS_JUAL'),
-            "DISTRIBUTOR"   => $request->input('DISTRIBUTOR'),
-            "HARGA_PABRIK"  => $request->input('HARGA_PABRIK'),
-            "HARGA_JUAL"    => $request->input('HARGA_JUAL'),
-            "DESKRIPSI"     => $request->input('DESKRIPSI')
+            "NAMA"              => $request->input('NAMA'),
+            "STOK"              => $request->input('STOK'),
+            "TIPE"              => $request->input('TIPE'),
+            "STATUS_JUAL"       => $request->input('STATUS_JUAL'),
+            "DISTRIBUTOR"       => $request->input('DISTRIBUTOR'),
+            "HARGA_PABRIK"      => $request->input('HARGA_PABRIK'),
+            "HARGA_JUAL"        => $request->input('HARGA_JUAL'),
+            "JUMLAH_PER_ITEM"   => $request->input('JUMLAH_PER_ITEM'),
+            "HARGA_PER_ITEM"    => $request->input('HARGA_PER_ITEM'),
+            "DESKRIPSI"         => $request->input('DESKRIPSI')
         ]);
         return response()->json([
             'status'    => 'success',
@@ -55,14 +57,16 @@ class MasterProduk extends Controller
 
     public function updateMasterProduct(Request $request){
         DB::table('ud84_master_produk')->where('ID', $request->input('ID') )->update([
-            "NAMA"          => $request->input('NAMA'),
-            "STOK"          => $request->input('STOK'),
-            "TIPE"          => $request->input('TIPE'),
-            "STATUS_JUAL"   => $request->input('STATUS_JUAL'),
-            "DISTRIBUTOR"   => $request->input('DISTRIBUTOR'),
-            "HARGA_PABRIK"  => $request->input('HARGA_PABRIK'),
-            "HARGA_JUAL"    => $request->input('HARGA_JUAL'),
-            "DESKRIPSI"     => $request->input('DESKRIPSI')
+            "NAMA"              => $request->input('NAMA'),
+            "STOK"              => $request->input('STOK'),
+            "TIPE"              => $request->input('TIPE'),
+            "STATUS_JUAL"       => $request->input('STATUS_JUAL'),
+            "DISTRIBUTOR"       => $request->input('DISTRIBUTOR'),
+            "HARGA_PABRIK"      => $request->input('HARGA_PABRIK'),
+            "HARGA_JUAL"        => $request->input('HARGA_JUAL'),
+            "JUMLAH_PER_ITEM"   => $request->input('JUMLAH_PER_ITEM'),
+            "HARGA_PER_ITEM"    => $request->input('HARGA_PER_ITEM'),
+            "DESKRIPSI"         => $request->input('DESKRIPSI')
         ]);
         return response()->json([
             'status'    => 'success',

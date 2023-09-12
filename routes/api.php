@@ -23,7 +23,7 @@ use App\Http\Controllers\Authenticate;
 Route::post('/Log-In', [Authenticate::class, 'logIn'])->name('login');
 // Route::get('/Generate-Admin', [Authenticate::class, 'generateAdmin']);
 
-Route::group(['middleware' => 'auth:sanctum'], function() {
+// Route::group(['middleware' => 'auth:sanctum'], function() {
 
     // UD84 - Alul
     Route::get('/UD84/Master-Produk/Retrieve',[UD84_Master::class, 'getMasterProduct']);
@@ -53,7 +53,7 @@ Route::group(['middleware' => 'auth:sanctum'], function() {
 
     // Public Access
     // Route::get('/Status-Check', [Authenticate::class, 'whoAmI']);
-});
+// });
 
     // UD84 - Katalog
     Route::get('/UD84/Master-Produk/Katalog', [UD84_Master::class, 'katalogProduk']);

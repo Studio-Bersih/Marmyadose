@@ -42,9 +42,19 @@ class Penjualan extends Controller
                 ]);
 
                 $item = DB::table('ud84_master_produk')->where('NAMA',$data['NAMA'])->first();
-                DB::table('ud84_master_produk')->where('NAMA',$data['NAMA'])->update([
-                    "STOK"  => $item->STOK - $data['QUANTITY']
-                ]);
+                $tipeItem = $data['TIPE'];
+
+                if($tipeItem == 'Pieces'){
+                    $stokDecrease = [
+                        "STOK"  => $item->STOK - $data['QUANTITY']
+                    ];
+                } else if($tipeItem == 'Satuan'){
+                    $stokDecrease = [
+                        "STOK"  => $item->STOK - ( $data['QUANTITY'] * $item->JUMLAH_PER_ITEM )
+                    ];
+                }
+
+                DB::table('ud84_master_produk')->where('NAMA',$data['NAMA'])->update($stokDecrease);
             }
         DB::commit();
 
