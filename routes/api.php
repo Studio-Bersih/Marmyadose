@@ -31,6 +31,7 @@ Route::post('/Log-In', [Authenticate::class, 'logIn'])->name('login');
     Route::post('/UD84/Master-Produk/Insert', [UD84_Master::class, 'postMasterProduct']);
     Route::post('/UD84/Master-Produk/Update', [UD84_Master::class, 'updateMasterProduct']);
     Route::post('/UD84/Master-Produk/Delete', [UD84_Master::class, 'deleteMasterProduct']);
+    Route::post('/UD84/Master-Produk/Upload-Gambar', [UD84_Master::class, 'imageUpload']);
 
     // UD84 - Penjualan
     Route::post('/UD84/Penjualan/Saving-Receipt', [UD84_Penjualan::class, 'postPenjualan']);

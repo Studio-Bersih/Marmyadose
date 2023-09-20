@@ -82,6 +82,23 @@ class MasterProduk extends Controller
         ],200);
     }
 
+    public function imageUpload(Request $request){
+        $file   = $request->file('GAMBAR');
+        $ID     = $request->input('ID');
+
+        $fileName = $file->hashName();
+        $file->move(public_path('UD84/Images/'), $fileName);
+
+        DB::table('ud84_master_produk')->where('ID',$ID)->update([
+            "GAMBAR"    => $fileName
+        ]);
+
+        return response()->json([
+            'status'    => 'success',
+            'message'   => 'Data berhasil disimpan.',
+        ],200);
+    }
+
     public function katalogProduk(){
         $data = DB::table('ud84_master_produk')->where('STATUS_JUAL','Katalog dan Penjualan')->get();
         $listProduk = [];
@@ -89,7 +106,8 @@ class MasterProduk extends Controller
             $listProduk[] = [
                 "NAMA_PRODUK"           => $data->NAMA,
                 "KETERANGAN"            => $data->DESKRIPSI,
-                "KETERSEDIAAN_PRODUK"   => $data->STOK >= 0 ? 'Available' : 'Sold Out'
+                "KETERSEDIAAN_PRODUK"   => $data->STOK >= 0 ? 'Available' : 'Sold Out',
+                "GAMBAR"                => $data->GAMBAR
             ];
         }
         return response()->json($listProduk,200);
