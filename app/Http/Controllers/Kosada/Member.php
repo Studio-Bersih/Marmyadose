@@ -5,8 +5,9 @@ namespace App\Http\Controllers\Kosada;
 use App\Http\Controllers\Controller;
 use Illuminate\Http\Request;
 use Carbon\Carbon;
+use DB;
 
-use App\Models\AdministratorModel;
+use App\Models\Kosada\AdministratorModel;
 
 class Member extends Controller
 {
@@ -71,7 +72,7 @@ class Member extends Controller
 
         return response()->json([
             'status'    => 'success',
-            'message'   => 'Data berhasil tersimpan!'
+            'message'   => 'Data berhasil tersimpan!',
         ],200);
     }
 

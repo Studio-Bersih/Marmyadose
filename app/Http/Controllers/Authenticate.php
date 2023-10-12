@@ -40,6 +40,7 @@ class Authenticate extends Controller
     
             return response()->json([
                 'status'    => 'Unauthorized',
+                'message'   => 'Data anda tidak ditemukan'
             ],401);       
         } catch (\Throwable $e){
             return response($e,200);
@@ -48,10 +49,12 @@ class Authenticate extends Controller
 
     public function generateAdmin(){
         User::create([
-            'name'              => 'Esdelfron',
-            'email'             => 'esdelfron@studio_bersih.id',
+            'name'              => 'Ibu Heridawati',
+            'email'             => 'admin@kosada.id',
             'email_verified_at' => now(),
-            'password'          => Hash::make('Forg1verSign'),
+            'password'          => Hash::make('koperasikosada'),
+            'group'             => 'Kosada',
+            'privilege'         => 'Administrator',
             'created_at'        => now(),
             'updated_at'        => now(),
         ]);
