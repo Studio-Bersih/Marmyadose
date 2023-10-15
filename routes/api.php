@@ -31,7 +31,7 @@ Route::post('/Log-In', [Authenticate::class, 'logIn'])->name('login');
 // UD84 - Katalog
 Route::get('/UD84/Master-Produk/Katalog', [UD84_Master::class, 'katalogProduk']);
 
-Route::group(['middleware' => 'auth:sanctum'], function() {
+// Route::group(['middleware' => 'auth:sanctum'], function() {
     // UD84
     Route::get('/UD84/Master-Produk/Retrieve',[UD84_Master::class, 'getMasterProduct']);
     Route::post('/UD84/Master-Produk/Retrieve/Member', [UD84_Master::class, 'getMemberMasterProduct']);
@@ -65,6 +65,7 @@ Route::group(['middleware' => 'auth:sanctum'], function() {
     Route::post('/Kosada/Status-Lunas', [Kosada_Kredit::class, 'setLunas']);
     Route::get('/Kosada/Realisasi-Kredit', [Kosada_Kredit::class, 'getRealisasiKredit']);
     Route::get('/Kosada/Detail-Kredit/{ID}',[Kosada_Kredit::class, 'postDetailKredit']);
+    Route::post('/Kosada/Ubah-Marketing',[Kosada_Kredit::class, 'ubahMarketing']);
 
     // Kosada - Kasbon
     Route::post('/Kosada/Tambah-Kasbon',[Kosada_Kredit::class, 'addKasbon']);
@@ -72,6 +73,7 @@ Route::group(['middleware' => 'auth:sanctum'], function() {
     // Kosada - Member
     Route::get('/Kosada/Semua-Member',[Kosada_Member::class,'getMember']);
     Route::post('/Kosada/Tambah-Member',[Kosada_Member::class, 'addMember']);
+    Route::post('/Kosada/Update-Member',[Kosada_Member::class, 'updateMember']);
     Route::post('/Kosada/Hapus-Member',[Kosada_Member::class, 'deleteMember']);
 
     // Kosada - Surat Tugas
@@ -84,4 +86,4 @@ Route::group(['middleware' => 'auth:sanctum'], function() {
 
     // Public Access
     // Route::get('/Status-Check', [Authenticate::class, 'whoAmI']);
-});
+// });

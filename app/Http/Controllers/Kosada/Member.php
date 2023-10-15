@@ -76,6 +76,42 @@ class Member extends Controller
         ],200);
     }
 
+    public function updateMember(Request $request){
+        $ID                 = $request->input('ID');
+        $NAMA               = ucwords(strtolower($request->input('NAMA')));
+        $ALAMAT             = $request->input('ALAMAT');
+        $KOTA               = $request->input('KOTA');
+        $PROVINSI           = $request->input('PROVINSI');
+        $TELEPON            = $request->input('WHATSAPP');
+        $NO_KTP             = $request->input('KTP');
+        $PIN_ATM            = $request->input('PIN');
+        $GENDER             = $request->input('GENDER');
+        $DATA_MARKETING     = $request->input('MARKETING');
+        $PEKERJAAN          = $request->input('PEKERJAAN');
+        $REKOMENDASI_DARI   = $request->input('REKOMENDASI');
+        $KETERANGAN         = $request->input('KETERANGAN');
+
+        $fillme = AdministratorModel::find($ID);
+        $fillme->NAMA               = $NAMA;
+        $fillme->ALAMAT             = $ALAMAT;
+        $fillme->KOTA               = $KOTA;
+        $fillme->PROVINSI           = $PROVINSI;
+        $fillme->TELEPON            = $TELEPON;
+        $fillme->KTP                = $NO_KTP;
+        $fillme->PIN_ATM            = $PIN_ATM;
+        $fillme->GENDER             = $GENDER;
+        $fillme->DATA_MARKETING     = $DATA_MARKETING;
+        $fillme->PEKERJAAN          = $PEKERJAAN;
+        $fillme->REKOMENDASI_DARI   = $REKOMENDASI_DARI;
+        $fillme->KETERANGAN         = $KETERANGAN;
+        $fillme->save();
+
+        return response()->json([
+            'status'    => 'success',
+            'message'   => 'Data berhasil diupdate!',
+        ],200);
+    }
+
     public function deleteMember(Request $request){
         DB::table('kosada_member')->where('ID',$request->input('ID'))->delete();
         return response()->json([

@@ -38,7 +38,7 @@ class Kredit extends Controller
     }
 
     public function postDetailKredit($ID){
-        $data           = KreditModel::where('ID',$ID)->first(['ID','NAMA','ALAMAT','NO_KREDIT']);
+        $data           = KreditModel::where('ID',$ID)->first(['ID','NAMA','ALAMAT','NO_KREDIT','KETERANGAN','MARKETING']);
         $detailCicilan  = KreditDetailModel::where('NO_KREDIT', $data->NO_KREDIT)->get(['ID','NOMINAL','KASBON','JATUH_TEMPO','LUNAS','STATUS','UPDATED_AT']);
 
         $items              = [];
@@ -48,7 +48,7 @@ class Kredit extends Controller
             $items[] = [
                 "ID"            => $loop->ID,
                 "NOMINAL"       => $loop->NOMINAL,
-                "KASBON"        => $loop->KASBON,
+                "KASBON"        => $data->KASBON,
                 "JATUH_TEMPO"   => Carbon::parse($loop->JATUH_TEMPO)->translatedFormat('d F Y'),
                 "LUNAS"         => $loop->LUNAS,
                 "STATUS"        => $loop->STATUS,
@@ -67,6 +67,8 @@ class Kredit extends Controller
                 "ID"                    => $data->ID,
                 "NAMA"                  => $data->NAMA,
                 "ALAMAT"                => $data->ALAMAT,
+                "MARKETING"             => $data->MARKETING,
+                "KETERANGAN"            => $data->KETERANGAN,
                 "NO_KREDIT"             => $data->NO_KREDIT,
                 "KASBON_BELUM_LUNAS"    => array_sum($kasbonBelumLunas),
                 "TOTAL_BELUM_LUNAS"     => array_sum($totalBelumLunas),
@@ -125,6 +127,16 @@ class Kredit extends Controller
             "KASBON"    => KreditDetailModel::where('NO_KREDIT',$getKey->NO_KREDIT)->sum('KASBON'),
         ]);
 
+        return response()->json([
+            "status" => "success",
+            "message" => "Data berhasil tersimpan!",
+        ],200);
+    }
+
+    public function ubahMarketing(Request $request){
+        KreditModel::where('ID',$request->input('ID'))->update([
+            "MARKETING" => $request->input('STATUS')
+        ]);
         return response()->json([
             "status" => "success",
             "message" => "Data berhasil tersimpan!",
