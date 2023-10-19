@@ -165,4 +165,16 @@ class Kredit extends Controller
             "lol" => $countAll - $countNotNull
         ],200);
     }
+
+    public function deleteKredit(Request $request){
+        $getRows = DB::table('kosada_kredit')->where('ID',$request->input('ID'))->first();
+        $uniqueKey = $getRows->NO_KREDIT;
+
+        DB::table('kosada_kredit')->where('NO_KREDIT',$uniqueKey)->delete();
+        DB::table('kosada_detail_kredit')->where('NO_KREDIT',$uniqueKey)->delete();
+        return response()->json([
+            "status" => "success",
+            "message" => "Data berhasil terhapus!",
+        ],200);
+    }
 }

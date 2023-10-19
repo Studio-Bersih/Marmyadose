@@ -62,6 +62,7 @@ Route::get('/UD84/Master-Produk/Katalog', [UD84_Master::class, 'katalogProduk'])
     // Kosada
     Route::get('/Kosada/Data-Kredit', [Kosada_Kredit::class,'getCustomerData']);
     Route::post('/Kosada/Tambah-Kredit',[Kosada_Kredit::class,'addKredit']);
+    Route::post('/Kosada/Hapus-Kredit',[Kosada_Kredit::class, 'deleteKredit']);
     Route::post('/Kosada/Status-Lunas', [Kosada_Kredit::class, 'setLunas']);
     Route::get('/Kosada/Realisasi-Kredit', [Kosada_Kredit::class, 'getRealisasiKredit']);
     Route::get('/Kosada/Detail-Kredit/{ID}',[Kosada_Kredit::class, 'postDetailKredit']);
