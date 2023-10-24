@@ -22,7 +22,7 @@ class Kredit extends Controller
     }
 
     public function getRealisasiKredit(){
-        $data = KreditModel::where('STATUS', 'Yes')->orderByDesc('id')->get(['CREATED_AT','NAMA','MARKETING','JUMLAH_PENGAJUAN','KETERANGAN','ID']);
+        $data = KreditModel::where('STATUS', 'Yes')->orderByDesc('id')->get(['CREATED_AT','NAMA','STATUS','MARKETING','JUMLAH_PENGAJUAN','KETERANGAN','ID']);
         $currentData = [];
         foreach($data as $data){
             $currentData[] = [
@@ -31,6 +31,7 @@ class Kredit extends Controller
                 "MARKETING"         => $data->MARKETING,
                 "JUMLAH_PENGAJUAN"  => $data->JUMLAH_PENGAJUAN,
                 "KETERANGAN"        => $data->KETERANGAN,
+                'LUNAS'             => $data->STATUS,
                 "CREATED_AT"        => Carbon::parse($data->CREATED_AT)->translatedFormat('d F Y'),
             ];
         }
@@ -163,6 +164,18 @@ class Kredit extends Controller
             "status" => "success",
             "message" => "Data berhasil tersimpan!",
             "lol" => $countAll - $countNotNull
+        ],200);
+    }
+
+    public function setKreditLunas(Request $request){
+        $ID = $request->input('ID');
+        $STATUS = $request->input('STATUS');
+        KreditModel::where('ID',$ID)->update([
+            "STATUS"    => $STATUS,
+        ]);
+        return response()->json([
+            "status" => "success",
+            "message" => "Data berhasil diupdate!",
         ],200);
     }
 

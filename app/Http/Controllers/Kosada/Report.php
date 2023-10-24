@@ -16,7 +16,7 @@ class Report extends Controller
 
         $DB = DB::table('kosada_kredit')->where('MARKETING',$dataMarketing)->whereBetween('CREATED_AT',[
             $startDate,$endDate
-        ])->orderByDesc('ID')->get(['NAMA','NO_KREDIT','LUNAS_BRP','JANGKA_WAKTU','JUMLAH_PENGAJUAN','KASBON','CREATED_AT']);
+        ])->where('STATUS','Yes')->orderByDesc('ID')->get(['NAMA','NO_KREDIT','LUNAS_BRP','JANGKA_WAKTU','JUMLAH_PENGAJUAN','KASBON','CREATED_AT']);
 
         $data = [];
         foreach($DB as $DB){

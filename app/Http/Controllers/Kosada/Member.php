@@ -16,7 +16,7 @@ class Member extends Controller
             'ID','NAMA','ALAMAT','KOTA',
             'TELEPON','CREATED_AT','KETERANGAN',
             'DATA_MARKETING','KTP','PIN_ATM',
-            'GENDER','REKOMENDASI_DARI','PEKERJAAN'
+            'GENDER','REKOMENDASI_DARI','PEKERJAAN','PROVINSI'
         ]);
         $currentData = [];
         foreach($data as $data){
@@ -33,6 +33,7 @@ class Member extends Controller
                 "PEKERJAAN"     => $data->PEKERJAAN,
                 "KETERANGAN"    => $data->KETERANGAN,
                 "MARKETING"     => $data->DATA_MARKETING,
+                "PROVINSI"      => $data->PROVINSI,
                 "CREATED_AT"    => Carbon::parse($data->CREATED_AT)->translatedFormat('d F Y'),
             ];
         }
@@ -40,13 +41,14 @@ class Member extends Controller
     }
 
     public function addMember(Request $request){
+
         $ID                 = $request->input('ID');
         $NAMA               = ucwords(strtolower($request->input('NAMA')));
         $ALAMAT             = $request->input('ALAMAT');
         $KOTA               = $request->input('KOTA');
         $PROVINSI           = $request->input('PROVINSI');
-        $TELEPON            = $request->input('WHATSAPP');
-        $NO_KTP             = $request->input('KTP');
+        $TELEPON            = strval($request->input('WHATSAPP'));
+        $NO_KTP             = strval($request->input('KTP'));
         $PIN_ATM            = $request->input('PIN');
         $GENDER             = $request->input('GENDER');
         $DATA_MARKETING     = $request->input('MARKETING');
@@ -82,8 +84,8 @@ class Member extends Controller
         $ALAMAT             = $request->input('ALAMAT');
         $KOTA               = $request->input('KOTA');
         $PROVINSI           = $request->input('PROVINSI');
-        $TELEPON            = $request->input('WHATSAPP');
-        $NO_KTP             = $request->input('KTP');
+        $TELEPON            = strval($request->input('WHATSAPP'));
+        $NO_KTP             = strval($request->input('KTP'));
         $PIN_ATM            = $request->input('PIN');
         $GENDER             = $request->input('GENDER');
         $DATA_MARKETING     = $request->input('MARKETING');
