@@ -8,6 +8,7 @@ use Illuminate\Http\Request;
 
 class MasterProduk extends Controller
 {
+    
     public function getMasterProduct(){
         $data = DB::table('ud84_master_produk')->get();
         return response()->json($data,200);
