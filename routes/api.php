@@ -33,6 +33,7 @@ Route::post('/Log-In', [Authenticate::class, 'logIn'])->name('login');
 // Clyfar - Account
 Route::post('/Clyfar/Authorize-Token', [Clyfar_Account::class, 'authorizeAccount']);
 Route::post('/Clyfar/Register-Account', [Clyfar_Account::class, 'registerAccount']);
+Route::post('/Clyfar/Log-Out', [Clyfar_Account:: class, 'logOut']);
 
 // Clyfar - Test
 Route::post('/Clyfar/Verify-Token', [Clyfar_Psychological::class, 'verifyToken']);

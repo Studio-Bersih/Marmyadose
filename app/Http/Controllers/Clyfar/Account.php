@@ -6,6 +6,7 @@ use App\Http\Controllers\Controller;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use App\DTO\Responses;
+use App\DTO\General;
 
 class Account extends Controller
 {
@@ -58,5 +59,10 @@ class Account extends Controller
                 "currentTest"   => 'DISC'
             ]
         ));
+    }
+
+    public function logOut(Request $request): JsonResponse {
+        $whatsapp = $request->input('whatsapp');
+        return response()->json(new General("success","Anda telah menyelesaikan psikotes dengan sukses!"));
     }
 }
