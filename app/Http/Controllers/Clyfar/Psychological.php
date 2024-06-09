@@ -36,6 +36,10 @@ class Psychological extends Controller
             if ($userToken === 'Sonorus') {
                 return response()->json(new General("success","Selamat mengerjakan"),200);
             }
+        }  else if ($testType === 'MSDT') {
+            if ($userToken === 'Stupefy') {
+                return response()->json(new General("success","Selamat mengerjakan"),200);
+            }
         }
 
         return response()->json(new General("error","Token anda tidak sesuai!"),200);
@@ -43,9 +47,6 @@ class Psychological extends Controller
 
     public function postTest(Request $request): JsonResponse {
         $testType = $request->input('TIPE');
-
-        $data = $request->all();
-        Log::info($data);
         
         if($testType === 'DISC') {
             $DISC = $request->input('DISC');
@@ -53,9 +54,15 @@ class Psychological extends Controller
             $PAPI = $request->input('PAPI');
         } else if ($testType === 'Kraepelin') {
             $Kraepelin = $request->input('Kraepelin');
+        } else if ($testType === 'MBTI') {
+            $MBTI = $request->input('MBTI');
+        } else if ($testType === 'MSDT') {
+            $MSDT = $request->input('MSDT');
+            $data = $request->all();
+            Log::info($data);
         }
         
-        return response()->json(new Test("success","Anda akan diarahkan ke subtes berikutnya","MSDT"));
+        return response()->json(new Test("success","Anda akan diarahkan ke subtes berikutnya","CFIT"));
     }
 
     public function postBaum(Request $request): JsonResponse {
