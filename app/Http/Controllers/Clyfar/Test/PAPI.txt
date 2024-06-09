@@ -1,0 +1,385 @@
+$array = [
+    'PAPI' => [
+        [
+            'index' => 0,
+            'value' => 'A',
+        ],
+        [
+            'index' => 1,
+            'value' => 'A',
+        ],
+        [
+            'index' => 2,
+            'value' => 'A',
+        ],
+        [
+            'index' => 3,
+            'value' => 'A',
+        ],
+        [
+            'index' => 4,
+            'value' => 'A',
+        ],
+        [
+            'index' => 5,
+            'value' => 'B',
+        ],
+        [
+            'index' => 6,
+            'value' => 'B',
+        ],
+        [
+            'index' => 7,
+            'value' => 'B',
+        ],
+        [
+            'index' => 8,
+            'value' => 'B',
+        ],
+        [
+            'index' => 9,
+            'value' => 'B',
+        ],
+        [
+            'index' => 9,
+            'value' => 'B',
+        ],
+        [
+            'index' => 10,
+            'value' => 'A',
+        ],
+        [
+            'index' => 11,
+            'value' => 'A',
+        ],
+        [
+            'index' => 12,
+            'value' => 'A',
+        ],
+        [
+            'index' => 13,
+            'value' => 'A',
+        ],
+        [
+            'index' => 14,
+            'value' => 'B',
+        ],
+        [
+            'index' => 15,
+            'value' => 'B',
+        ],
+        [
+            'index' => 16,
+            'value' => 'B',
+        ],
+        [
+            'index' => 17,
+            'value' => 'B',
+        ],
+        [
+            'index' => 18,
+            'value' => 'B',
+        ],
+        [
+            'index' => 19,
+            'value' => 'B',
+        ],
+        [
+            'index' => 19,
+            'value' => 'A',
+        ],
+        [
+            'index' => 14,
+            'value' => 'A',
+        ],
+        [
+            'index' => 19,
+            'value' => 'B',
+        ],
+        [
+            'index' => 20,
+            'value' => 'A',
+        ],
+        [
+            'index' => 21,
+            'value' => 'A',
+        ],
+        [
+            'index' => 22,
+            'value' => 'A',
+        ],
+        [
+            'index' => 23,
+            'value' => 'A',
+        ],
+        [
+            'index' => 24,
+            'value' => 'A',
+        ],
+        [
+            'index' => 25,
+            'value' => 'B',
+        ],
+        [
+            'index' => 26,
+            'value' => 'B',
+        ],
+        [
+            'index' => 27,
+            'value' => 'B',
+        ],
+        [
+            'index' => 28,
+            'value' => 'B',
+        ],
+        [
+            'index' => 29,
+            'value' => 'B',
+        ],
+        [
+            'index' => 30,
+            'value' => 'A',
+        ],
+        [
+            'index' => 31,
+            'value' => 'A',
+        ],
+        [
+            'index' => 32,
+            'value' => 'A',
+        ],
+        [
+            'index' => 33,
+            'value' => 'A',
+        ],
+        [
+            'index' => 34,
+            'value' => 'A',
+        ],
+        [
+            'index' => 35,
+            'value' => 'B',
+        ],
+        [
+            'index' => 36,
+            'value' => 'B',
+        ],
+        [
+            'index' => 37,
+            'value' => 'B',
+        ],
+        [
+            'index' => 38,
+            'value' => 'B',
+        ],
+        [
+            'index' => 39,
+            'value' => 'B',
+        ],
+        [
+            'index' => 40,
+            'value' => 'A',
+        ],
+        [
+            'index' => 41,
+            'value' => 'A',
+        ],
+        [
+            'index' => 42,
+            'value' => 'A',
+        ],
+        [
+            'index' => 43,
+            'value' => 'B',
+        ],
+        [
+            'index' => 43,
+            'value' => 'A',
+        ],
+        [
+            'index' => 44,
+            'value' => 'A',
+        ],
+        [
+            'index' => 45,
+            'value' => 'B',
+        ],
+        [
+            'index' => 46,
+            'value' => 'B',
+        ],
+        [
+            'index' => 47,
+            'value' => 'B',
+        ],
+        [
+            'index' => 48,
+            'value' => 'B',
+        ],
+        [
+            'index' => 49,
+            'value' => 'B',
+        ],
+        [
+            'index' => 50,
+            'value' => 'A',
+        ],
+        [
+            'index' => 51,
+            'value' => 'A',
+        ],
+        [
+            'index' => 52,
+            'value' => 'A',
+        ],
+        [
+            'index' => 53,
+            'value' => 'A',
+        ],
+        [
+            'index' => 54,
+            'value' => 'A',
+        ],
+        [
+            'index' => 55,
+            'value' => 'B',
+        ],
+        [
+            'index' => 56,
+            'value' => 'B',
+        ],
+        [
+            'index' => 57,
+            'value' => 'B',
+        ],
+        [
+            'index' => 58,
+            'value' => 'B',
+        ],
+        [
+            'index' => 59,
+            'value' => 'B',
+        ],
+        [
+            'index' => 61,
+            'value' => 'A',
+        ],
+        [
+            'index' => 62,
+            'value' => 'A',
+        ],
+        [
+            'index' => 63,
+            'value' => 'A',
+        ],
+        [
+            'index' => 64,
+            'value' => 'A',
+        ],
+        [
+            'index' => 65,
+            'value' => 'B',
+        ],
+        [
+            'index' => 66,
+            'value' => 'B',
+        ],
+        [
+            'index' => 67,
+            'value' => 'B',
+        ],
+        [
+            'index' => 68,
+            'value' => 'B',
+        ],
+        [
+            'index' => 69,
+            'value' => 'B',
+        ],
+        [
+            'index' => 70,
+            'value' => 'A',
+        ],
+        [
+            'index' => 71,
+            'value' => 'A',
+        ],
+        [
+            'index' => 72,
+            'value' => 'A',
+        ],
+        [
+            'index' => 73,
+            'value' => 'A',
+        ],
+        [
+            'index' => 74,
+            'value' => 'A',
+        ],
+        [
+            'index' => 75,
+            'value' => 'B',
+        ],
+        [
+            'index' => 76,
+            'value' => 'B',
+        ],
+        [
+            'index' => 77,
+            'value' => 'B',
+        ],
+        [
+            'index' => 78,
+            'value' => 'B',
+        ],
+        [
+            'index' => 79,
+            'value' => 'B',
+        ],
+        [
+            'index' => 80,
+            'value' => 'A',
+        ],
+        [
+            'index' => 81,
+            'value' => 'A',
+        ],
+        [
+            'index' => 82,
+            'value' => 'A',
+        ],
+        [
+            'index' => 83,
+            'value' => 'A',
+        ],
+        [
+            'index' => 84,
+            'value' => 'A',
+        ],
+        [
+            'index' => 85,
+            'value' => 'B',
+        ],
+        [
+            'index' => 86,
+            'value' => 'B',
+        ],
+        [
+            'index' => 87,
+            'value' => 'B',
+        ],
+        [
+            'index' => 88,
+            'value' => 'B',
+        ],
+        [
+            'index' => 89,
+            'value' => 'B',
+        ],
+        [
+            'index' => 60,
+            'value' => 'A',
+        ],
+    ],
+    'TIPE' => 'PAPI',
+];
