@@ -31,6 +31,7 @@ Route::post('/Log-In', [Authenticate::class, 'logIn'])->name('login');
 
 // Clyfar - Account
 Route::post('/Clyfar/Authorize-Token', [Clyfar_Account::class, 'authorizeAccount']);
+Route::post('/Clyfar/Register-Account', [Clyfar_Account::class, 'registerAccount']);
 
 // UD84 - Katalog
 Route::get('/UD84/Master-Produk/Katalog', [UD84_Master::class, 'katalogProduk']);

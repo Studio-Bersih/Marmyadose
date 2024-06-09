@@ -12,5 +12,4 @@ class Responses {
         $this->message = $message;
         $this->data = $data;
     }
-
 }
