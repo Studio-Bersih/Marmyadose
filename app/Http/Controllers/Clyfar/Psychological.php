@@ -13,53 +13,44 @@ class Psychological extends Controller
 {
 
     public function verifyToken(Request $request): JsonResponse {
-        $userToken  = $request->input('token');
-        $testType   = $request->input('type');
-
-        if ($testType === 'DISC') {
-            if ($userToken === 'Veritas') {
-                return response()->json(new General("success","Selamat mengerjakan"),200);
-            }
-        } else if ($testType === 'PAPI') {
-            if ($userToken === 'Lumos') {
-                return response()->json(new General("success","Selamat mengerjakan"),200);
-            }
-        }  else if ($testType === 'Kraepelin') {
-            if ($userToken === 'Reparo') {
-                return response()->json(new General("success","Selamat mengerjakan"),200);
-            }
-        }  else if ($testType === 'BAUM') {
-            if ($userToken === 'Finite') {
-                return response()->json(new General("success","Selamat mengerjakan"),200);
-            }
-        }  else if ($testType === 'MBTI') {
-            if ($userToken === 'Sonorus') {
-                return response()->json(new General("success","Selamat mengerjakan"),200);
-            }
-        }  else if ($testType === 'MSDT') {
-            if ($userToken === 'Stupefy') {
-                return response()->json(new General("success","Selamat mengerjakan"),200);
-            }
+        $validTokens = [
+            'DISC' => 'Veritas',
+            'PAPI' => 'Lumos',
+            'Kraepelin' => 'Reparo',
+            'BAUM' => 'Finite',
+            'MBTI' => 'Sonorus',
+            'MSDT' => 'Stupefy',
+        ];
+    
+        $userToken = $request->input('token');
+        $testType = $request->input('type');
+    
+        if (isset($validTokens[$testType]) && $userToken === $validTokens[$testType]) {
+            return response()->json(new General("success", "Selamat mengerjakan"), 200);
         }
-
-        return response()->json(new General("error","Token anda tidak sesuai!"),200);
+    
+        return response()->json(new General("error", "Token anda tidak sesuai!"), 200);
     }
+    
 
     public function postTest(Request $request): JsonResponse {
         $testType = $request->input('TIPE');
         
         if($testType === 'DISC') {
             $DISC = $request->input('DISC');
+            // Input $DISC to database!
         } else if ($testType === 'PAPI') {
             $PAPI = $request->input('PAPI');
+            // Input $PAPI to database!
         } else if ($testType === 'Kraepelin') {
             $Kraepelin = $request->input('Kraepelin');
+            // Input $Kraepelin to database!
         } else if ($testType === 'MBTI') {
             $MBTI = $request->input('MBTI');
+            // Input $MBTI to database!
         } else if ($testType === 'MSDT') {
             $MSDT = $request->input('MSDT');
-            $data = $request->all();
-            Log::info($data);
+            // Input $MSDT to database!
         }
         
         return response()->json(new Test("success","Anda akan diarahkan ke subtes berikutnya","CFIT"));
