@@ -11,6 +11,7 @@ use App\Http\Controllers\Kosada\Report as Kosada_Report;
 use App\Http\Controllers\Kosada\Surat as Kosada_Surat;
 
 use App\Http\Controllers\Clyfar\Account as Clyfar_Account;
+use App\Http\Controllers\Clyfar\Psychological as Clyfar_Psychological;
 
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Route;
@@ -32,6 +33,10 @@ Route::post('/Log-In', [Authenticate::class, 'logIn'])->name('login');
 // Clyfar - Account
 Route::post('/Clyfar/Authorize-Token', [Clyfar_Account::class, 'authorizeAccount']);
 Route::post('/Clyfar/Register-Account', [Clyfar_Account::class, 'registerAccount']);
+
+// Clyfar - Test
+Route::post('/Clyfar/Verify-Token', [Clyfar_Psychological::class, 'verifyToken']);
+Route::post('/Clyfar/Test-Completion', [Clyfar_Psychological::class, 'postTest']);
 
 // UD84 - Katalog
 Route::get('/UD84/Master-Produk/Katalog', [UD84_Master::class, 'katalogProduk']);

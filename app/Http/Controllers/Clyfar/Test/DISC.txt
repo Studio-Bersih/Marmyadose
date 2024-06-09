@@ -1,0 +1,101 @@
+ $array = [
+    'DISC' => [
+        [
+            'Most' => 1,
+            'Least' => 2,
+        ],
+        [
+            'Most' => 2,
+            'Least' => 3,
+        ],
+        [
+            'Most' => 2,
+            'Least' => 1,
+        ],
+        [
+            'Most' => 3,
+            'Least' => 4,
+        ],
+        [
+            'Most' => 3,
+            'Least' => 2,
+        ],
+        [
+            'Most' => 3,
+            'Least' => 4,
+        ],
+        [
+            'Most' => 4,
+            'Least' => 3,
+        ],
+        [
+            'Most' => 4,
+            'Least' => 3,
+        ],
+        [
+            'Most' => 2,
+            'Least' => 1,
+        ],
+        [
+            'Most' => 1,
+            'Least' => 2,
+        ],
+        [
+            'Most' => 1,
+            'Least' => 2,
+        ],
+        [
+            'Most' => 2,
+            'Least' => 1,
+        ],
+        [
+            'Most' => 3,
+            'Least' => 4,
+        ],
+        [
+            'Most' => 1,
+            'Least' => 2,
+        ],
+        [
+            'Most' => 2,
+            'Least' => 1,
+        ],
+        [
+            'Most' => 3,
+            'Least' => 4,
+        ],
+        [
+            'Most' => 3,
+            'Least' => 4,
+        ],
+        [
+            'Most' => 3,
+            'Least' => 2,
+        ],
+        [
+            'Most' => 3,
+            'Least' => 1,
+        ],
+        [
+            'Most' => 3,
+            'Least' => 4,
+        ],
+        [
+            'Most' => 4,
+            'Least' => 2,
+        ],
+        [
+            'Most' => 2,
+            'Least' => 4,
+        ],
+        [
+            'Most' => 3,
+            'Least' => 4,
+        ],
+        [
+            'Most' => 1,
+            'Least' => 2,
+        ],
+    ],
+    'TIPE' => 'DISC',
+];
