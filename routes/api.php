@@ -30,7 +30,7 @@ use App\Http\Controllers\Authenticate;
 Route::post('/Log-In', [Authenticate::class, 'logIn'])->name('login');
 
 // Clyfar - Account
-Route::get('/Clyfar/Authorize', [Clyfar_Account::class, 'authorizeAccount']);
+Route::post('/Clyfar/Authorize-Token', [Clyfar_Account::class, 'authorizeAccount']);
 
 // UD84 - Katalog
 Route::get('/UD84/Master-Produk/Katalog', [UD84_Master::class, 'katalogProduk']);
