@@ -32,6 +32,10 @@ class Psychological extends Controller
             if ($userToken === 'Finite') {
                 return response()->json(new General("success","Selamat mengerjakan"),200);
             }
+        }  else if ($testType === 'MBTI') {
+            if ($userToken === 'Sonorus') {
+                return response()->json(new General("success","Selamat mengerjakan"),200);
+            }
         }
 
         return response()->json(new General("error","Token anda tidak sesuai!"),200);
@@ -51,7 +55,7 @@ class Psychological extends Controller
             $Kraepelin = $request->input('Kraepelin');
         }
         
-        return response()->json(new Test("success","Anda akan diarahkan ke subtes berikutnya","BAUM"));
+        return response()->json(new Test("success","Anda akan diarahkan ke subtes berikutnya","MSDT"));
     }
 
     public function postBaum(Request $request): JsonResponse {
