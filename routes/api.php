@@ -37,6 +37,7 @@ Route::post('/Clyfar/Register-Account', [Clyfar_Account::class, 'registerAccount
 // Clyfar - Test
 Route::post('/Clyfar/Verify-Token', [Clyfar_Psychological::class, 'verifyToken']);
 Route::post('/Clyfar/Test-Completion', [Clyfar_Psychological::class, 'postTest']);
+Route::post('/Clyfar/Baum-Completion', [Clyfar_Psychological::class, 'postBaum']);
 
 // UD84 - Katalog
 Route::get('/UD84/Master-Produk/Katalog', [UD84_Master::class, 'katalogProduk']);

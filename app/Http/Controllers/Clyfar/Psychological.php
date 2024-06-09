@@ -45,15 +45,25 @@ class Psychological extends Controller
         
         if($testType === 'DISC') {
             $DISC = $request->input('DISC');
-            // Check DISC.txt di folder test di dalam Clyfar!
         } else if ($testType === 'PAPI') {
             $PAPI = $request->input('PAPI');
-            // Check PAPI.txt di folder test di dalam Clyfar!
         } else if ($testType === 'Kraepelin') {
             $Kraepelin = $request->input('Kraepelin');
-            // Check Kraepelin.txt di folder test di dalam Clyfar!
         }
         
         return response()->json(new Test("success","Anda akan diarahkan ke subtes berikutnya","BAUM"));
     }
+
+    public function postBaum(Request $request): JsonResponse {
+        if (!$request->hasFile('baum')) {
+            return response()->json(new General("error","Tidak ada file yang dilampirkan"));
+        }
+
+        $image          = $request->file('baum');
+        $imageName      = $image->hashName(); // Ntar ini diinput di database
+        $image->move(public_path('BAUM/'), $imageName);
+
+        return response()->json(new Test("success","Anda akan diarahkan ke subtes berikutnya","MBTI"));
+    }
+
 }
