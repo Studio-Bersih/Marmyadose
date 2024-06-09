@@ -24,6 +24,14 @@ class Psychological extends Controller
             if ($userToken === 'Lumos') {
                 return response()->json(new General("success","Selamat mengerjakan"),200);
             }
+        }  else if ($testType === 'Kraepelin') {
+            if ($userToken === 'Reparo') {
+                return response()->json(new General("success","Selamat mengerjakan"),200);
+            }
+        }  else if ($testType === 'BAUM') {
+            if ($userToken === 'Finite') {
+                return response()->json(new General("success","Selamat mengerjakan"),200);
+            }
         }
 
         return response()->json(new General("error","Token anda tidak sesuai!"),200);
@@ -39,10 +47,13 @@ class Psychological extends Controller
             $DISC = $request->input('DISC');
             // Check DISC.txt di folder test di dalam Clyfar!
         } else if ($testType === 'PAPI') {
-            $PAPI= $request->input('PAPI');
+            $PAPI = $request->input('PAPI');
             // Check PAPI.txt di folder test di dalam Clyfar!
+        } else if ($testType === 'Kraepelin') {
+            $Kraepelin = $request->input('Kraepelin');
+            // Check Kraepelin.txt di folder test di dalam Clyfar!
         }
         
-        return response()->json(new Test("success","Anda akan diarahkan ke subtes berikutnya","KRAEPLIN"));
+        return response()->json(new Test("success","Anda akan diarahkan ke subtes berikutnya","BAUM"));
     }
 }

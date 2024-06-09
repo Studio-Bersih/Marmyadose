@@ -33,7 +33,7 @@ class Account extends Controller
         // ),200);
     }
 
-    public function registerAccount(Request $request): JsonResponse{
+    public function registerAccount(Request $request): JsonResponse {
         $name = $request->input('name');
         $whatsapp = $request->input('whatsapp');
         $birthDate = $request->input('birthDate');
