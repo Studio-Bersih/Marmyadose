@@ -7,6 +7,7 @@ use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use App\DTO\Responses;
 use App\DTO\General;
+use DB;
 
 class Account extends Controller
 {
@@ -15,23 +16,19 @@ class Account extends Controller
 
         $userState = new Responses("error","Unauthorized");
 
-        if ($idToken === 'URXVT') {
-            return response()->json(new Responses(
-                "success", "Authorized","Administrator"
-            ),200);
+        $getUser = DB::table('users')->where('token', $idToken)->first();
+
+        if (empty($getUser)) {
+            return response()->json($userState,200);
         }
 
-        // Finding users from database!
+        if ($getUser->enable_test === 'No') {
+            $userState = new Responses("error","Anda tidak dapat mengakses sistem psikotes",null);
+        }
 
-        // $getUser = DB::table('users')->where('token', $idToken)->first();
-
-        // if (empty($getUser)) {
-        //     return response()->json($userState,200);
-        // }
-
-        // return response()->json(new Responses(
-        //     "success", "Authorized", "User"
-        // ),200);
+        return response()->json(new Responses(
+            "success", "Authorized", $getUser->level
+        ),200);
     }
 
     public function registerAccount(Request $request): JsonResponse {
