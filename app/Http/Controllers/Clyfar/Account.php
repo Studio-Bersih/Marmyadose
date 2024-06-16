@@ -16,44 +16,48 @@ class Account extends Controller
 
         $userState = new Responses("error","Unauthorized");
 
-        $getUser = DB::table('users')->where('token', $idToken)->first();
+        $getUser = DB::table('clyfar_profile')->where('TOKEN', $idToken)->first();
 
         if (empty($getUser)) {
             return response()->json($userState,200);
         }
 
-        if ($getUser->enable_test === 'No') {
+        if ($getUser->ENABLE_TEST === 'No') {
             $userState = new Responses("error","Anda tidak dapat mengakses sistem psikotes",null);
         }
 
         return response()->json(new Responses(
-            "success", "Authorized", $getUser->level
+            "success", "Authorized", [
+                "statusAccount" => $getUser->LEVEL,
+                "userCodes"     => $getUser->TOKEN
+            ]
         ),200);
     }
 
     public function registerAccount(Request $request): JsonResponse {
-        $name = $request->input('name');
-        $whatsapp = $request->input('whatsapp');
-        $birthDate = $request->input('birthDate');
-        $gender = $request->input('gender');
+        $name       = $request->input('name');
+        $whatsapp   = $request->input('whatsapp');
+        $birthDate  = $request->input('birthDate');
+        $gender     = $request->input('gender');
+        $pin        = $request->input('localPIN');
 
-        // Update users information!
+        DB::table('clyfar_profile')->updateOrInsert([
+            "TOKEN"         => $pin
+        ],[
+            "TOKEN"         => $pin,
+            "WHATSAPP"      => $whatsapp,
+            "TTL"           => $birthDate,
+            "GENDER"        => $gender,
+            "CREATED_AT"    => now(),
+        ]);
 
-        // DB::table('???')->where('token','???')->update([
-        //     "nama"          => $name,
-        //     "whatsapp"      => $whatsapp,
-        //     "tanggal"       => $birthDate,
-        //     "gender"        => $gender,
-        //     "updated_at"    => now()
-        // ]);
+        $getUser    = DB::table('clyfar_profile')->where('TOKEN', $pin)->first(['LIST']);
+        $userTrial  = json_decode($getUser->LIST,true);
 
-        // Get users test information
-        // $getUser = DB::table('users')->where('token', $idToken)->first(['test']);
-        
         return response()->json(new Responses(
             "success", "Anda dapat memulai test", [
-                "setTest"       => ['DISC','PAPI','KRAEPLIN','BAUM','MBTI','MSDT','CFIT'],
-                "currentTest"   => 'DISC'
+                "setTest"       => $userTrial,
+                "currentTest"   => $userTrial[0]
             ]
         ));
     }
