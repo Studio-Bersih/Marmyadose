@@ -42,7 +42,7 @@ class Psychological extends Controller
 
     public function postTest(Request $request): JsonResponse
     {
-        $testType = $request->input('TIPE'); // DISC
+        $testType = $request->input('TIPE');
         $pin      = $request->input('localPIN');
 
         if (empty($pin)) {
@@ -60,11 +60,16 @@ class Psychological extends Controller
 
     public function postBaum(Request $request): JsonResponse
     {
+        $pin = $request->input('localPIN');
+
+        if (empty($pin)) {
+            return response()->json(new General("error", "Sesi anda telah selesai"), 200);
+        }
+
         if (!$request->hasFile('baum')) {
             return response()->json(new General("error", "Tidak ada file yang dilampirkan"));
         }
 
-        $pin       = $request->input('localPIN');
         $image     = $request->file('baum');
         $imageName = $image->hashName();
         $image->move(public_path('BAUM/'), $imageName);
