@@ -3,11 +3,11 @@
 namespace App\Http\Controllers\Clyfar;
 
 use App\Http\Controllers\Controller;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use App\DTO\Responses;
 use App\DTO\General;
-use DB;
 
 class Account extends Controller
 {
