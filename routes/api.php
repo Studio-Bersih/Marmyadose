@@ -10,6 +10,7 @@ use App\Http\Controllers\Kosada\Member as Kosada_Member;
 use App\Http\Controllers\Kosada\Report as Kosada_Report;
 use App\Http\Controllers\Kosada\Surat as Kosada_Surat;
 
+use App\Http\Controllers\Clyfar\Result as Clyfar_Result;
 use App\Http\Controllers\Clyfar\Account as Clyfar_Account;
 use App\Http\Controllers\Clyfar\Psychological as Clyfar_Psychological;
 
@@ -39,6 +40,10 @@ Route::post('/Clyfar/Log-Out', [Clyfar_Account:: class, 'logOut']);
 Route::post('/Clyfar/Verify-Token', [Clyfar_Psychological::class, 'verifyToken']);
 Route::post('/Clyfar/Test-Completion', [Clyfar_Psychological::class, 'postTest']);
 Route::post('/Clyfar/Baum-Completion', [Clyfar_Psychological::class, 'postBaum']);
+
+// Clyfar- Dashboard
+Route::get('/Clyfar/Dashboard', [Clyfar_Result::class, 'getTestee']);
+Route::post('/Clyfar/Create-Account', [Clyfar_Result::class, 'createTestee']);
 
 // UD84 - Katalog
 Route::get('/UD84/Master-Produk/Katalog', [UD84_Master::class, 'katalogProduk']);

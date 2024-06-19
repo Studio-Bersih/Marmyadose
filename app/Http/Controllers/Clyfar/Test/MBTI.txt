@@ -1,4 +1,0 @@
-$data = [
-      'MBTI' => 'ENTP',
-      'TIPE' => 'MBTI',
-]
