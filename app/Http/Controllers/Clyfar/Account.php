@@ -9,15 +9,18 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Str;
 use App\DTO\Responses;
 use App\DTO\General;
+use Log;
 
 class Account extends Controller
 {
     public function authorizeAccount(Request $request): JsonResponse {
         $idToken = $request->input('id');
+        Log::info($idToken);
 
         $userState = new Responses("error","Unauthorized");
 
         $getUser = DB::table('clyfar_profile')->where('TOKEN', $idToken)->first();
+
 
         if (empty($getUser)) {
             return response()->json($userState,200);

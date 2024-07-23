@@ -44,6 +44,8 @@ Route::post('/Clyfar/Baum-Completion', [Clyfar_Psychological::class, 'postBaum']
 // Clyfar- Dashboard
 Route::get('/Clyfar/Dashboard', [Clyfar_Result::class, 'getTestee']);
 Route::post('/Clyfar/Create-Account', [Clyfar_Result::class, 'createTestee']);
+Route::post('/Clyfar/Check-Testee', [Clyfar_Result::class, 'viewTestee']);
+Route::post('/Clyfar/View-Result', [Clyfar_Result::class, 'viewResult']);
 
 // UD84 - Katalog
 Route::get('/UD84/Master-Produk/Katalog', [UD84_Master::class, 'katalogProduk']);
