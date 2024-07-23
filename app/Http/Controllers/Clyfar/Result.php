@@ -15,7 +15,7 @@ class Result extends Controller
     public function getTestee(): JsonResponse {
         $data = DB::table('clyfar_profile')->skip(0)->take(30)->orderByDesc('ID')->get();
         return response()->json(new Responses(
-            "success","Berhasil dimuat",$data
+            "success", "Berhasil dimuat", $data
         ));
     }
 
