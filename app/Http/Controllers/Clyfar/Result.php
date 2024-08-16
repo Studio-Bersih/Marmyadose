@@ -66,6 +66,7 @@ class Result extends Controller
             if (!empty($DB->PAPI)) {
                 $interpretPapikostick = $this->interpretPapikostick(json_decode($DB->PAPI));
                 $data['PAPI'] = implode(', ', array_column($interpretPapikostick, 'NILAI'));
+                $data['PAPI_TABLE'] = $interpretPapikostick;
             }
     
             if (!empty($DB->DISC)) {
@@ -1217,91 +1218,111 @@ class Result extends Controller
         "A" =>  [
           "NILAI" => isset($listDataA) ? count($listDataA) : 0 ,
           "Deskripsi" => "Work Direction" ,
+          "color" => "success",
         ],
         "N" =>  [
           "NILAI" => isset($listDataN) ? count($listDataN) : 0 ,
           "Deskripsi" => "Work Direction" ,
+          "color" => "success",
         ],
         "G" =>  [
           "NILAI" => isset($listDataG) ? count($listDataG) : 0 ,
           "Deskripsi" => "Work Direction" ,
+          "color" => "success",
         ],
       
         "C" =>  [
           "NILAI" => isset($listDataC) ? count($listDataC) : 0 ,
           "Deskripsi" => "Work Style" ,
+          "color" => "primary",
         ],
         "D" =>  [
           "NILAI" => isset($listDataD) ? count($listDataD) : 0 ,
           "Deskripsi" => "Work Style" ,
+          "color" => "primary",
         ],
         "R" =>  [
           "NILAI" => isset($listDataR) ? count($listDataR) : 0 ,
           "Deskripsi" => "Work Style" ,
+          "color" => "primary",
         ],
       
         "T" =>  [
           "NILAI" => isset($listDataT) ? count($listDataT) : 0 ,
           "Deskripsi" => "Activity" ,
+          "color" => "info",
         ],
         "V" =>  [
           "NILAI" => isset($listDataV) ? count($listDataV) : 0 ,
           "Deskripsi" => "Activity" ,
+          "color" => "info",
         ],
       
         "W" =>  [
           "NILAI" => isset($listDataW) ? count($listDataW) : 0 ,
           "Deskripsi" => "Followership" ,
+          "color" => "danger",
         ],
         "F" =>  [
           "NILAI" => isset($listDataF) ? count($listDataF) : 0 ,
           "Deskripsi" => "Followership" ,
+          "color" => "danger",
         ],
       
         "L" =>  [
           "NILAI" => isset($listDataL) ? count($listDataL) : 0 ,
           "Deskripsi" => "Leadership" ,
+          "color" => "dark",
         ],
         "P" =>  [
           "NILAI" => isset($listDataP) ? count($listDataP) : 0 ,
           "Deskripsi" => "Leadership" ,
+          "color" => "dark",
         ],
         "I" =>  [
           "NILAI" => isset($listDataI) ? count($listDataI) : 0 ,
           "Deskripsi" => "Leadership" ,
+          "color" => "dark",
         ],
         
         
         "S" =>  [
           "NILAI" => isset($listDataS) ? count($listDataS) : 0 ,
           "Deskripsi" => "Social Nature" ,
+          "color" => "warning",
         ],
         "B" =>  [
           "NILAI" => isset($listDataB) ? count($listDataB) : 0 ,
           "Deskripsi" => "Social Nature" ,
+          "color" => "warning",
         ],
         "O" =>  [
           "NILAI" => isset($listDataO) ? count($listDataO) : 0 ,
           "Deskripsi" => "Social Nature" ,
+          "color" => "warning",
         ],
         
         "X" =>  [
           "NILAI" => isset($listDataX) ? count($listDataX) : 0 ,
           "Deskripsi" => "Social Nature" ,
+          "color" => "warning",
         ],
       
         
         "E" =>  [
           "NILAI" => isset($listDataE) ? count($listDataE) : 0 ,
           "Deskripsi" => "Temperament" ,
+          "color" => "secondary",
         ],
         "K" =>  [
           "NILAI" => isset($listDataK) ? count($listDataK) : 0 ,
           "Deskripsi" => "Temperament" ,
+          "color" => "secondary",
         ],
         "Z" =>  [
           "NILAI" => isset($listDataZ) ? count($listDataZ) : 0 ,
           "Deskripsi" => "Temperament" ,
+          "color" => "secondary",
         ],
       
       ];
