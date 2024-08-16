@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers\Clyfar;
 
+use App\Http\Controllers\Clyfar\Strings;
 use App\Http\Controllers\Controller;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Http\JsonResponse;
@@ -15,7 +16,7 @@ class Result extends Controller
     public function getTestee(): JsonResponse {
         $data = DB::table('clyfar_profile')->skip(0)->take(30)->orderByDesc('ID')->get();
         return response()->json(new Responses(
-            "success","Berhasil dimuat",$data
+            "success", "Berhasil dimuat", $data
         ));
     }
 
@@ -40,4 +41,1271 @@ class Result extends Controller
             "success", "Akun berhasil dibuat"
         ));
     }
+
+    public function viewTestee(Request $request): JsonResponse {
+        $token = $request->input('token');
+        $DB = DB::table('clyfar_test')->where('KODE',$token)->first();
+        
+        if (empty($DB)) {
+            return response()->json(new Responses(
+                "error","Kandidat belum melakukan tes."
+            ));
+        }
+
+        return response()->json(new Responses(
+            "success","Data berhasil dimuat", $DB->ID
+        ));
+    }
+
+    public function viewResult(Request $request): JsonResponse {
+        $id = $request->input('id');
+        $DB = DB::table('clyfar_test')->where('ID', $id)->first();
+        $data = [];
+    
+        if ($DB) {
+            if (!empty($DB->PAPI)) {
+                $interpretPapikostick = $this->interpretPapikostick(json_decode($DB->PAPI));
+                $data['PAPI'] = implode(', ', array_column($interpretPapikostick, 'NILAI'));
+            }
+    
+            if (!empty($DB->DISC)) {
+                $data['DISC'] = $this->interpretDISC(json_decode($DB->DISC, true));
+            }
+    
+            if (!empty($DB->KRAEPLIN)) {
+                $data['KRAEPLIN'] = $this->interpretKraeplin(json_decode($DB->KRAEPLIN, true));
+            }
+    
+            if (!empty($DB->MSDT)) {
+                $data['MSDT'] = $this->interpretMSDT(json_decode($DB->MSDT, true));
+            }
+
+            if(!empty($DB->MBTI)) {
+                $data['MBTI'] = json_decode($DB->MBTI, true);
+            }
+
+        }
+    
+        return response()->json(new Responses(
+            "success", "Data berhasil dimuat", $data
+        ));
+    }
+
+    public function interpretMSDT($rawMSDT){
+        $interpretMSDT = Strings::MSDT;
+
+        //Perhitungan MSDT
+        $total   = 0;
+
+        $A       = array_fill(0, 8, 0); // Initialize $A with zeros
+        $B       = array_fill(0, 8, 0); // Initialize $B with zeros
+        $jumlah  = array_fill(0, 8, 0);
+        $koreksi = [1,2,1,0,3,-1,0,-4];
+
+        //Membuat Matrix Dari Input Jawaban
+        for($baris = 0 ; $baris < 8; $baris++){
+            for($kolom = 0 ; $kolom < 8; $kolom++){
+                $jawaban[$baris][$kolom] = $rawMSDT[$total];
+                if($rawMSDT[$total] == 'A'){
+                    $A[$baris] += 1;
+                } else {
+                    $B[$kolom] += 1;
+                }
+                $total++;
+            }
+        }
+
+        //Menyimpan Data Hasil Penjumlahan Variabel A, B, dan Koreksi 
+        for ($i=0; $i < 8 ; $i++) { 
+            $jumlah[$i] += $A[$i] + $B[$i] + $koreksi[$i];
+        }
+
+        $O  = 0;
+        $E  = 0;
+        $RO = 0;
+        $TO = 0;
+
+        //Menghitung Total Skor TO,RO,E,O
+        foreach($jumlah as $key => $skor){
+            switch ($key) {
+                case 0:
+                    $O += $skor;
+                    break;
+                case 1:
+                    $RO += $skor;
+                    break;
+                case 2:
+                    $TO += $skor;
+                    break;
+                case 3:
+                    $TO += $skor;
+                    $RO += $skor;
+                    break;
+                case 4:
+                    $E += $skor;
+                    break;
+                case 5:
+                    $RO += $skor;
+                    $E  += $skor;
+                    break;
+                case 6:
+                    $TO += $skor;
+                    $E  += $skor;
+                    break;
+                case 7:
+                    $TO += $skor;
+                    $RO += $skor;
+                    $E  += $skor;
+                    break;
+
+                default:
+                    
+                    break;
+            }
+        }
+
+        $indexMSDT= [
+            "0" => range(0, 29),
+            "0.6" => range(30, 31),
+            "1.2" => range(32,32),
+            "1.8" => range(33,33),
+            "2.4" => range(34,34),
+            "3.0" => range(35,35),
+            "3.6" => range(36,37),
+            "4.0" => range(38,100)
+        ];
+
+        foreach($indexMSDT as $key => $indexMSDT){
+            if(in_array($TO,$indexMSDT)){
+                $konversiTO = floatval( $key );
+            }
+            if(in_array($RO,$indexMSDT)){
+                $konversiRO = floatval( $key );
+            }
+            if(in_array($E,$indexMSDT)){
+                $konversiE = floatval( $key );
+            }
+        }
+
+        //Interpetasi hasil konversi TO,RO,E
+        if($konversiTO > 2){
+            if($konversiRO > 2){
+                if($konversiE > 2){
+                    $hasil = "Executive";
+                    $deskripsi = $interpretMSDT["Executive"];
+                } else {
+                    $hasil = "Compromiser";
+                    $deskripsi = $interpretMSDT["Compromiser"];
+                }
+            }else{
+                if($konversiE > 2){
+                    $hasil = "Benevolent Autocrat";
+                    $deskripsi = $interpretMSDT["Benevolent Autocrat"];
+                } else {
+                    $hasil = "Autocrat";
+                    $deskripsi = $interpretMSDT["Autocrat"];
+                }
+            }
+        } else {
+                if($konversiRO > 2){
+                    if($konversiE > 2){
+                        $hasil = "Developer";
+                        $deskripsi = $interpretMSDT["Developer"];
+                    } else {
+                        $hasil = "Missionary";
+                        $deskripsi = $interpretMSDT["Missionary"];
+                        
+                    }
+                }else{
+                    if($konversiE > 2){
+                        $hasil = "Bureaucrat";
+                        $deskripsi = $interpretMSDT["Bureaucrat"];
+                        
+                    } else {
+                        $hasil = "Deserter";
+                        $deskripsi = $interpretMSDT["Deserter"];
+                        
+                    }
+                }
+            }
+
+            $line1 = ['Ds','Mi','Au','Co','Bu','Dv','Ba','E'];
+            $line2 = ['A','B','C','D','E','F','G','H'];
+
+            return [
+                'rawjawaban'       => $rawMSDT,
+                'A'                => $A,
+                'B'                => $B,
+                'koreksi'          => $koreksi,
+                'jumlah'           => $jumlah,
+                'O'                => $O,
+                'E'                => $E,
+                'RO'               => $RO,
+                'TO'               => $TO,
+                'konversiE'        => $konversiE,
+                'konversiRO'       => $konversiRO,
+                'konversiTO'       => $konversiTO,
+                'line1'            => $line1,
+                'line2'            => $line2,
+                'resultMSDT'       => $hasil,
+                'deskripsi'        => $deskripsi
+            ];
+
+    }
+
+    private function interpretKraeplin($rawKraeplin){
+        $kunciJawaban = Strings::KRAEPLIN;
+
+        foreach($rawKraeplin as $data){
+            $jumlahJawaban[] = [
+                "JAWABAN"  => array_filter($data,'strlen'),
+                "JUMLAH"   => count(array_filter($data,'strlen')),
+                "MAX"      => empty(array_filter($data,'strlen')) ? 0 : max(array_filter($data,'strlen')),
+                "MIN"      => empty(array_filter($data,'strlen')) ? 0 : min(array_filter($data,'strlen'))
+            ]; // Jumlah jawaban yang dari no 1 - 50
+        }
+        
+        $nilaiTertinggi = max(array_column($jumlahJawaban,'JUMLAH'));         // Memuat nilai ter- dari no 1-50
+        $nilaiTerendah  = min(array_column($jumlahJawaban,'JUMLAH'));         // Memuat nilai ter- dari no 1-50
+        $nilaiSemua     = array_sum(array_column($jumlahJawaban,'JUMLAH'));   // Memuat nilai semua jawaban
+        
+        
+        /* Proses pencocokan jawaban dengan kunci jawaban */
+        for($i = 0; $i < count($kunciJawaban);$i++){
+            for($subNilai = 0 ; $subNilai < 27; $subNilai++){
+
+                $keyAnswer = isset($rawKraeplin[$i][$subNilai]) ? $rawKraeplin[$i][$subNilai] : 0;
+
+                if($keyAnswer == $kunciJawaban[$i][$subNilai]){
+                    $tipeJawaban[$i][$subNilai] = "BENAR";
+                } else if($keyAnswer == NULL){
+                    $tipeJawaban[$i][$subNilai] = "TIDAK DIISI";
+                } else if($keyAnswer != $kunciJawaban[$i][$subNilai]){
+                    $tipeJawaban[$i][$subNilai] = "SALAH";
+                } else {
+                    $tipeJawaban[$i][$subNilai] = "TIDAK DIISI";
+                }
+            }
+        }
+        
+        $indeksAwal = 0;
+        
+        foreach($tipeJawaban as $data){
+            for($subNilai = 0 ; $subNilai < 27 ; $subNilai++){
+                if($data[$subNilai] == "BENAR"){
+                    $dataBenar[] = $data[$subNilai];
+                    if($indeksAwal < 16){
+                        $tahapKebenaran[] = "BENAR TAHAP 1";
+                    } else if($indeksAwal >= 16 && $indeksAwal <= 35 ){
+                        $tahapKebenaran[] = "BENAR TAHAP 2";
+                    } else if($indeksAwal >= 35 && $indeksAwal <= 50){
+                        $tahapKebenaran[] = "BENAR TAHAP 3";
+                    }
+                } else if($data[$subNilai] == "SALAH"){
+                    $dataSalah[] = $data[$subNilai];
+                    if($indeksAwal < 16){
+                        $tahapKesalahan[] = "SALAH TAHAP 1";
+                    } else if($indeksAwal >= 16 && $indeksAwal <= 34 ){
+                        $tahapKesalahan[] = "SALAH TAHAP 2";
+                    } else if($indeksAwal >= 34 && $indeksAwal <= 50){
+                        $tahapKesalahan[] = "SALAH TAHAP 3";
+                    }
+                } else if($data[$subNilai] == "TIDAK DIISI"){
+                    $dataTidakDiisi[] = $data[$subNilai];
+                }
+                $semuaJawaban[] = $data[$subNilai];
+            }
+            $indeksAwal++;
+        }
+        
+        if(!isset($dataSalah)){
+            $dataSalahProcessed = 0;
+            $tahapKesalahan = [
+                "SALAH TAHAP 1" => 0,
+                "SALAH TAHAP 2" => 0,
+                "SALAH TAHAP 3" => 0,
+            ];
+        } else {
+            $dataSalahProcessed = count($dataSalah);
+            $tahapKesalahan     = $tahapKesalahan;
+        }
+        
+        $jawabanBenar = count($dataBenar);
+        $jawabanSalah = $dataSalahProcessed;
+        $totalJawaban = $jawabanBenar + $jawabanSalah;
+        
+        /*
+        | Mulai mendapatkan nilai untuk FASE
+        */
+        
+        $klasifikasiFaseBenar = array_count_values($tahapKebenaran);
+        $klasifikasiFaseSalah = array_count_values($tahapKesalahan);
+        
+        /* Mendapatkan nilai Fase dengan perulangan */
+        foreach($tipeJawaban as $key => $val){
+            foreach($val as $insideVal){
+                if($key < 16 ){
+                    if($insideVal != "TIDAK DIISI"){
+                        $tahapSatuJumlah[] = "TERJAWAB";
+                    }
+                } else if( $key >= 16 && $key <= 34 ){
+                    if($insideVal != "TIDAK DIISI"){
+                        $tahapDuaJumlah[] = "TERJAWAB";
+                    }
+                } else if( $key >= 34 && $key < 50 ){
+                    if($insideVal != "TIDAK DIISI"){
+                        $tahapTigaJumlah[] = "TERJAWAB";
+                    }
+                }
+            }
+        }
+        
+        /* Mendapatkan nilai JANKER dengan limit per tahap */
+        foreach($jumlahJawaban as $key => $value){
+            if($key < 16 ){
+                $nilaiMaksimumMinimumTahapSatu[] = $value['JUMLAH'];
+            } else if( $key >= 16 && $key <= 34 ){
+                $nilaiMaksimumMinimumTahapDua[] = $value['JUMLAH'];
+            } else if( $key >= 34 && $key < 50 ){
+                $nilaiMaksimumMinimumTahapTiga[] = $value['JUMLAH'];
+            }
+            $graphKraeplin[] = $value['JUMLAH'];
+        }
+        
+        return $finalKraeplin = [
+            "MEAN"            => $totalJawaban / 50,
+            "RANGE"           => $nilaiTertinggi - $nilaiTerendah ,
+            "AV_DEVIATION"    => $totalJawaban / (50-0),
+            "SUM_OF_ERROR"    => $jawabanSalah,
+            "SUM_OF_SKIPPED"  => 0,
+            "SUM_OF_RIGHT"    => $jawabanBenar,
+            "SUM_OF_ANSWER"   => $totalJawaban,
+            "MIN"             => $nilaiTerendah,
+            "MAX"             => $nilaiTertinggi,
+            "SUM_OF_TEST"     => 50,
+            "FASE"    => [
+            "FASE_1"  =>  empty($klasifikasiFaseSalah['SALAH TAHAP 1']) ? 0 : round( (float) $klasifikasiFaseSalah['SALAH TAHAP 1'] / count($tahapSatuJumlah) * 10,3),
+            "FASE_2"  =>  empty($klasifikasiFaseSalah['SALAH TAHAP 2']) ? 0 : round( (float) $klasifikasiFaseSalah['SALAH TAHAP 2'] / count($tahapDuaJumlah) * 10,3),
+            "FASE_3"  =>  empty($klasifikasiFaseSalah['SALAH TAHAP 3']) ? 0 : round( (float) $klasifikasiFaseSalah['SALAH TAHAP 3'] / count($tahapTigaJumlah) * 10,3),
+            "SEMUA"   =>  round( (float) $jawabanSalah / $totalJawaban ,3),
+            ],
+            "PANKER"  =>  [
+                "NILAI"   =>  $totalJawaban / 50,
+                "FASE_1"  =>  count($tahapSatuJumlah) / 16,
+                "FASE_2"  =>  count($tahapDuaJumlah) / 16,
+                "FASE_3"  =>  count($tahapTigaJumlah) / 16,
+            ],
+            "TINKER"  =>  [
+                "NILAI"   =>  round( (float) $jawabanSalah / $totalJawaban ,3),
+                "FASE_1"  =>  empty($klasifikasiFaseSalah['SALAH TAHAP 1']) ? 0 : round( (float) $klasifikasiFaseSalah['SALAH TAHAP 1'] / count($tahapSatuJumlah) * 10,3) ,
+                "FASE_2"  =>  empty($klasifikasiFaseSalah['SALAH TAHAP 2']) ? 0 : round( (float) $klasifikasiFaseSalah['SALAH TAHAP 2'] / count($tahapDuaJumlah) * 10,3) ,
+                "FASE_3"  =>  empty($klasifikasiFaseSalah['SALAH TAHAP 3']) ? 0 : round( (float) $klasifikasiFaseSalah['SALAH TAHAP 3'] / count($tahapTigaJumlah) * 10,3) ,
+            ],
+            "JANKER"  =>  [
+                "NILAI"   => $nilaiTertinggi - $nilaiTerendah ,
+                "FASE_1"  => max($nilaiMaksimumMinimumTahapSatu) - min($nilaiMaksimumMinimumTahapSatu) ,
+                "FASE_2"  => max($nilaiMaksimumMinimumTahapDua) - min($nilaiMaksimumMinimumTahapDua) ,
+                "FASE_3"  => max($nilaiMaksimumMinimumTahapTiga) - min($nilaiMaksimumMinimumTahapTiga) ,
+            ],
+            "GRAPH"     => $graphKraeplin , 
+        ];
+    }
+
+    private function interpretDISC($rawDISC){
+        $soalDISC = Strings::DISC;
+
+        for($i = 0; $i < 24; $i++){
+            $varMost =  $rawDISC[$i]['Most'];
+            $rawMost["M". $i + 1] = $varMost;
+
+            $varLeast =  $rawDISC[$i]['Least'];
+            $rawLeast["L". $i + 1] = $varLeast;
+        }
+
+
+        // Loop agar matching dengan kunci jawaban
+        $i = 1;
+        foreach($soalDISC['RAW_MOST'] as $data){
+
+            if($rawMost['M'.$i] == $data['D']){
+                $olahMost[] = "D";
+            } else if($rawMost['M'.$i] == $data['I']){
+                $olahMost[] = "I";
+            } elseif($rawMost['M'.$i] == $data['S']){
+                $olahMost[] = "S";
+            } else if($rawMost['M'.$i] == $data['C']){
+                $olahMost[] = "C";
+            } else {
+                $olahMost[] = "*";
+            }
+            
+            $i++;
+
+        }
+
+        $i = 1;
+        foreach($soalDISC['RAW_LEAST'] as $data){
+
+            if($rawLeast['L'.$i] == $data['D']){
+                $olahLeast[] = "D";
+            } else if($rawLeast['L'.$i] == $data['I']){
+                $olahLeast[] = "I";
+            } elseif($rawLeast['L'.$i] == $data['S']){
+                $olahLeast[] = "S";
+            } else if($rawLeast['L'.$i] == $data['C']){
+                $olahLeast[] = "C";
+            } else {
+                $olahLeast[] = "*";
+            }
+
+            $i++;
+
+        }
+
+
+        foreach($olahMost as $data){
+            if($data == "D"){
+                $pureMostD[] = "D";
+            } else if($data == "I"){
+                $pureMostI[] = "I";
+            } else if($data == "S"){
+                $pureMostS[] = "S";
+            } else if($data == "C"){
+                $pureMostC[] = "C";
+            }  else {
+                $pureMostBlank[] = "*";
+            }
+
+        }
+
+        foreach($olahLeast as $data){
+            if($data == "D"){
+                $pureLeastD[] = "D";
+            } else if($data == "I"){
+                $pureLeastI[] = "I";
+            } else if($data == "S"){
+                $pureLeastS[] = "S";
+            } else if($data == "C"){
+                $pureLeastC[] = "C";
+            } else {
+                $pureLeastBlank[] = "*";
+            }
+        }
+
+
+        $countData = [
+            "Most"  =>  [
+                "D" =>  isset($pureMostD) ? count($pureMostD) : 0,
+                "I" =>  isset($pureMostI) ? count($pureMostI) : 0,
+                "S" =>  isset($pureMostS) ? count($pureMostS) : 0,
+                "C" =>  isset($pureMostC) ? count($pureMostC) : 0,
+            ],
+            "Least" =>  [
+                "D" =>  isset($pureLeastD) ? count($pureLeastD) : 0,
+                "I" =>  isset($pureLeastI) ? count($pureLeastI) : 0,
+                "S" =>  isset($pureLeastS) ? count($pureLeastS) : 0,
+                "C" =>  isset($pureLeastC) ? count($pureLeastC) : 0,
+            ],
+            "Change"=>  [
+                "D" => (isset($pureMostD) ? count($pureMostD) : 0) - (isset($pureLeastD) ? count($pureLeastD) : 0),
+                "I" => (isset($pureMostI) ? count($pureMostI) : 0) - (isset($pureLeastI) ? count($pureLeastI) : 0),
+                "S" => (isset($pureMostS) ? count($pureMostS) : 0) - (isset($pureLeastS) ? count($pureLeastS) : 0),
+                "C" => (isset($pureMostC) ? count($pureMostC) : 0) - (isset($pureLeastC) ? count($pureLeastC) : 0),
+            ]
+        ];
+
+        $positionMostD = [0,1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,21]; // 18
+        $positionMostI = [0,1,2,3,4,5,6,7,8,9,11,19]; // 12
+        $positionMostS = [0,1,2,3,4,5,6,7,8,9,10,12,14,20]; // 14
+        $positionMostC = [0,1,2,3,4,5,6,7,8,9,11,13,17]; // 13
+
+        $realPositionMostD = [5,8,10,13,16,17,19,21,22,24,26,27,28,30,31,35,36,37];
+        $realPositionMostI = [6,9,13,17,22,26,27,31,32,34,36,37];
+        $realPositionMostS = [6,9,11,16,18,21,22,25,26,28,30,32,35,37];
+        $realPositionMostC = [5,9,11,16,22,24,26,31,32,33,35,36,37];
+
+
+        for($i = 0;$i <count($positionMostD);$i++){
+            if($countData['Most']['D'] == $positionMostD[$i]){
+                $pureMostD = $realPositionMostD[$i];
+                break;
+            }
+        }
+
+        for($i = 0;$i <count($positionMostI);$i++){
+            if($countData['Most']['I'] == $positionMostI[$i]){
+                $pureMostI = $realPositionMostI[$i];
+                break;
+            }
+        }
+
+        for($i = 0;$i <count($positionMostS);$i++){
+            if($countData['Most']['S'] == $positionMostS[$i]){
+                $pureMostS = $realPositionMostS[$i];
+                break;
+            }
+        }
+
+        for($i = 0;$i <count($positionMostC);$i++){
+            if($countData['Most']['C'] == $positionMostC[$i]){
+                $pureMostC = $realPositionMostC[$i];
+                break;
+            }
+        }
+
+        $positionLeastD = [17,16,15,14,13,12,11,10,9,8,7,6,5,4,3,2,1,0]; // 18
+        $positionLeastI = [13,12,11,10,9,8,7,6,5,4,3,2,1,0]; // 14
+        $positionLeastS = [19,16,13,12,11,10,9,8,7,6,5,4,3,2,1,0]; // 16
+        $positionLeastC = [16,15,13,12,11,10,9,8,7,6,5,4,3,2,1,0]; // 16
+
+        $realPositionLeastD = [1,3,5,6,7,9,11,12,13,16,17,19,21,23,25,29,35,37];
+        $realPositionLeastI = [1,2,3,5,7,9,11,14,19,21,25,28,33,36];
+        $realPositionLeastS = [1,2,3,5,7,9,12,14,17,21,23,25,28,33,36,37];
+        $realPositionLeastC = [1,2,5,6,7,11,13,17,19,21,23,25,28,32,36,37];
+
+        for($i = 0;$i <count($positionLeastD);$i++){
+            if($countData['Least']['D'] == $positionLeastD[$i]){
+                $pureLeastD = $realPositionLeastD[$i];
+                break;
+            }
+        }
+
+        for($i = 0;$i <count($positionLeastI);$i++){
+            if($countData['Least']['I'] == $positionLeastI[$i]){
+                $pureLeastI = $realPositionLeastI[$i];
+                break;
+            }
+        }
+
+        for($i = 0;$i <count($positionLeastS);$i++){
+            if($countData['Least']['S']== $positionLeastS[$i]){
+                $pureLeastS = $realPositionLeastS[$i];
+                break;
+            }
+        }
+
+        for($i = 0;$i <count($positionLeastC);$i++){
+            if($countData['Least']['C'] == $positionLeastC[$i]){
+                $pureLeastC = $realPositionLeastC[$i];
+                break;
+            }
+        }
+
+        $positionChangeD = [-20,-16,-13,-12,-11,-10,-9,-7,-6,-4,-3,-2,0,1,3,5,7,8,9,10,12,13,14,15,18,21]; // 26
+        $positionChangeI = [-16,-10,-9,-8,-7,-6,-5,-4,-3,-2,-1,0,1,2,3,4,5,6,7,8,10,18]; // 22
+        $positionChangeS = [-16,-15,-10,-9,-8,-7,-6,-5,-4,-3,-2,-1,0,1,2,3,4,5,6,7,8,9,10,11,15,20]; // 26 
+        $positionChangeC = [-22,-18,-15,-14,-13,-10,-9,-8,-7,-6,-5,-4,-3,-2,-1,0,1,2,3,4,5,6,10,17]; // 24
+
+        $realPositionChangeD = [2,3,4,6,7,9,11,12,13,16,17,18,19,21,22,23,25,27,28,30,31,32,34,35,36,37];
+        $realPositionChangeI = [2,3,5,6,8,9,11,12,15,16,19,21,22,23,26,28,29,31,32,35,36,37];
+        $realPositionChangeS = [1,2,5,8,9,11,12,15,16,17,18,19,22,23,24,26,27,28,29,30,31,32,34,35,36,37];
+        $realPositionChangeC = [1,2,3,4,5,6,8,9,11,12,13,18,19,21,22,23,26,28,29,32,34,35,36,37];
+
+        for($i = 0;$i <count($positionChangeD);$i++){
+            if($countData['Change']['D'] == $positionChangeD[$i]){
+                $pureChangeD = $realPositionChangeD[$i];
+                break;
+            } else {
+                $pureChangeD = NULL;
+        }
+        }
+
+        for($i = 0;$i <count($positionChangeI);$i++){
+            if($countData['Change']['I'] == $positionChangeI[$i]){
+                $pureChangeI = $realPositionChangeI[$i];
+                break;
+            } else {
+                $pureChangeI = NULL;
+            }
+        }
+
+        for($i = 0;$i <count($positionChangeS);$i++){
+            if($countData['Change']['S'] == $positionChangeS[$i]){
+                $pureChangeS = $realPositionChangeS[$i];
+                break;
+            } else {
+                $pureChangeS = NULL;
+            }
+        }
+
+        for($i = 0;$i <count($positionChangeC);$i++){
+            if($countData['Change']['C'] == $positionChangeC[$i]){
+                $pureChangeC = $realPositionChangeC[$i];
+                break;
+            } else {
+                $pureChangeC = NULL;
+            }
+        }
+
+        return $finalDISC = [
+            "Most"  =>  [
+                "D" => is_array($pureMostD) ? count($pureMostD) : $pureMostD  ,
+                "I" => is_array($pureMostI) ? count($pureMostI) : $pureMostI  ,
+                "S" => is_array($pureMostS) ? count($pureMostS) : $pureMostS  ,
+                "C" => is_array($pureMostC) ? count($pureMostC) : $pureMostC  ,
+            ],
+            "Least" =>  [
+                "D" => is_array($pureLeastD) ? count($pureLeastD) : $pureLeastD,
+                "I" => is_array($pureLeastI) ? count($pureLeastI) : $pureLeastI,
+                "S" => is_array($pureLeastS) ? count($pureLeastS) : $pureLeastS,
+                "C" => is_array($pureLeastC) ? count($pureLeastC) : $pureLeastC,
+            ],
+            "Change"=>  [
+                "D" => is_array($pureChangeD) ? count($pureChangeD) : $pureChangeD ,
+                "I" => is_array($pureChangeI) ? count($pureChangeI) : $pureChangeI ,
+                "S" => is_array($pureChangeS) ? count($pureChangeS) : $pureChangeS ,
+                "C" => is_array($pureChangeC) ? count($pureChangeC) : $pureChangeC ,
+            ]
+        ];
+    }
+
+    private function interpretPapikostick($rawPapi){
+        $G = [
+          $rawPapi[0]->value,
+          $rawPapi[10]->value,
+          $rawPapi[20]->value,
+          $rawPapi[30]->value,
+          $rawPapi[40]->value,
+          $rawPapi[50]->value,
+          $rawPapi[60]->value,
+          $rawPapi[70]->value,
+          $rawPapi[80]->value,
+      ];
+      
+      
+      $A = [
+        "A" =>  [
+          $rawPapi[1]->value,
+        ],
+        "B" =>  [
+          $rawPapi[79]->value,
+          $rawPapi[68]->value,
+          $rawPapi[57]->value,
+          $rawPapi[46]->value,
+          $rawPapi[35]->value,
+          $rawPapi[24]->value,
+          $rawPapi[13]->value,
+          $rawPapi[2]->value,
+        ]
+      ];
+      
+      $L = [
+        "A" =>  [
+          $rawPapi[11]->value,
+          $rawPapi[21]->value,
+          $rawPapi[31]->value,
+          $rawPapi[41]->value,
+          $rawPapi[51]->value,
+          $rawPapi[61]->value,
+          $rawPapi[71]->value,
+          $rawPapi[81]->value,
+        ],
+        "B" =>  [
+          $rawPapi[80]->value,
+        ]
+      ];
+      
+      $P = [
+        "A" =>  [
+          $rawPapi[12]->value,
+          $rawPapi[2]->value,
+        ],
+        "B" =>  [
+          $rawPapi[69]->value,
+          $rawPapi[58]->value,
+          $rawPapi[47]->value,
+          $rawPapi[36]->value,
+          $rawPapi[25]->value,
+          $rawPapi[14]->value,
+          $rawPapi[3]->value,
+        ]
+      ];
+      
+      $I = [
+        "A" =>  [
+          $rawPapi[22]->value,
+          $rawPapi[32]->value,
+          $rawPapi[42]->value,
+          $rawPapi[52]->value,
+          $rawPapi[62]->value,
+          $rawPapi[72]->value,
+          $rawPapi[82]->value,
+        ],
+        "B" =>  [
+          $rawPapi[70]->value,
+          $rawPapi[81]->value,
+        ]
+      ];
+      
+      $T = [
+        "A" =>  [
+          $rawPapi[33]->value,
+          $rawPapi[43]->value,
+          $rawPapi[53]->value,
+          $rawPapi[63]->value,
+          $rawPapi[73]->value,
+          $rawPapi[83]->value,
+        ],
+        "B" =>  [
+          $rawPapi[60]->value,
+          $rawPapi[71]->value,
+          $rawPapi[82]->value,
+        ]
+      ];
+      
+      $V = [
+        "A" =>  [
+          $rawPapi[44]->value,
+          $rawPapi[54]->value,
+          $rawPapi[64]->value,
+          $rawPapi[74]->value,
+          $rawPapi[84]->value,
+        ],
+        "B" =>  [
+          $rawPapi[50]->value,
+          $rawPapi[61]->value,
+          $rawPapi[72]->value,
+          $rawPapi[83]->value,
+        ]
+      ];
+      
+      $X = [
+        "A" =>  [
+          $rawPapi[3]->value,
+          $rawPapi[13]->value,
+          $rawPapi[23]->value,
+        ],
+        "B" =>  [
+          $rawPapi[59]->value,
+          $rawPapi[48]->value,
+          $rawPapi[37]->value,
+          $rawPapi[26]->value,
+          $rawPapi[15]->value,
+          $rawPapi[4]->value,
+        ]
+      ];
+      
+      $S = [
+        "A" =>  [
+          $rawPapi[55]->value,
+          $rawPapi[65]->value,
+          $rawPapi[75]->value,
+          $rawPapi[85]->value,
+        ],
+        "B" =>  [
+          $rawPapi[40]->value,
+          $rawPapi[51]->value,
+          $rawPapi[62]->value,
+          $rawPapi[73]->value,
+          $rawPapi[84]->value,
+        ]
+      ];
+      
+      $B = [
+        "A" =>  [
+          $rawPapi[4]->value,
+          $rawPapi[14]->value,
+          $rawPapi[24]->value,
+          $rawPapi[34]->value,
+        ],
+        "B" =>  [
+          $rawPapi[49]->value,
+          $rawPapi[38]->value,
+          $rawPapi[27]->value,
+          $rawPapi[16]->value,
+          $rawPapi[5]->value,
+        ]
+      ];
+      
+      $O = [
+        "A" =>  [
+          $rawPapi[5]->value,
+          $rawPapi[15]->value,
+          $rawPapi[25]->value,
+          $rawPapi[35]->value,
+          $rawPapi[45]->value,
+        ],
+        "B" =>  [
+          $rawPapi[39]->value,
+          $rawPapi[28]->value,
+          $rawPapi[17]->value,
+          $rawPapi[6]->value,
+        ]
+      ];
+      
+      $R = [
+        "A" =>  [
+          $rawPapi[66]->value,
+          $rawPapi[76]->value,
+          $rawPapi[86]->value,
+        ],
+        "B" =>  [
+          $rawPapi[30]->value,
+          $rawPapi[41]->value,
+          $rawPapi[52]->value,
+          $rawPapi[63]->value,
+          $rawPapi[74]->value,
+          $rawPapi[85]->value,
+        ]
+        
+        
+      ];
+      
+      $D = [
+        "A" =>  [
+          $rawPapi[77]->value,
+          $rawPapi[87]->value,
+        ],
+        "B" =>  [
+          $rawPapi[20]->value,
+          $rawPapi[31]->value,
+          $rawPapi[42]->value,
+          $rawPapi[53]->value,
+          $rawPapi[64]->value,
+          $rawPapi[75]->value,
+          $rawPapi[86]->value,
+        ]
+      ];
+      
+      $C = [
+        "A" =>  [
+          $rawPapi[88]->value,
+        ],
+        "B" =>  [
+          $rawPapi[10]->value,
+          $rawPapi[21]->value,
+          $rawPapi[32]->value,
+          $rawPapi[43]->value,
+          $rawPapi[54]->value,
+          $rawPapi[65]->value,
+          $rawPapi[76]->value,
+          $rawPapi[87]->value,
+        ]
+        
+      ];
+      
+      $Z = [
+        "A" =>  [
+          $rawPapi[6]->value,
+          $rawPapi[16]->value,
+          $rawPapi[26]->value,
+          $rawPapi[36]->value,
+          $rawPapi[46]->value,
+          $rawPapi[56]->value,
+        ],
+        "B" =>  [
+          $rawPapi[29]->value,
+          $rawPapi[18]->value,
+          $rawPapi[7]->value,
+        ]
+      ];
+      
+      $E = [
+        "B" =>  [
+          $rawPapi[0]->value,
+          $rawPapi[11]->value,
+          $rawPapi[22]->value,
+          $rawPapi[33]->value,
+          $rawPapi[44]->value,
+          $rawPapi[55]->value,
+          $rawPapi[66]->value,
+          $rawPapi[77]->value,
+          $rawPapi[88]->value,
+        ]
+      ];
+      
+      $K = [
+        "A" =>  [
+          $rawPapi[7]->value,
+          $rawPapi[17]->value,
+          $rawPapi[27]->value,
+          $rawPapi[37]->value,
+          $rawPapi[47]->value,
+          $rawPapi[57]->value,
+          $rawPapi[67]->value,
+        ],
+        "B" =>  [
+          $rawPapi[19]->value,
+          $rawPapi[8]->value,
+        ]
+      ];
+      
+      $F = [
+        "A" =>  [
+          $rawPapi[8]->value,
+          $rawPapi[18]->value,
+          $rawPapi[28]->value,
+          $rawPapi[38]->value,
+          $rawPapi[48]->value,
+          $rawPapi[58]->value,
+          $rawPapi[68]->value,
+          $rawPapi[78]->value,
+        ],
+        "B" =>  [
+          $rawPapi[9]->value,
+        ]
+      ];
+      
+      $W = [
+        "A" =>  [
+          $rawPapi[9]->value,
+          $rawPapi[19]->value,
+          $rawPapi[29]->value,
+          $rawPapi[39]->value,
+          $rawPapi[49]->value,
+          $rawPapi[59]->value,
+          $rawPapi[69]->value,
+          $rawPapi[79]->value,
+          $rawPapi[89]->value,
+        ]
+      ];
+      
+      $N = [
+        "B" =>  [
+          $rawPapi[1]->value,
+          $rawPapi[12]->value,
+          $rawPapi[23]->value,
+          $rawPapi[34]->value,
+          $rawPapi[45]->value,
+          $rawPapi[56]->value,
+          $rawPapi[67]->value,
+          $rawPapi[78]->value,
+          $rawPapi[89]->value,
+        ]
+      ];
+      
+      foreach($G as $data){
+        if($data == "A"){
+          $listDataG[] = $data;
+        }
+      }
+      
+      // Nilai A
+      foreach($A['A'] as $data){
+        if($data == "A"){
+          $listDataA[] = $data;
+        }
+      }
+      
+      foreach($A['B'] as $data){
+        if($data == "B"){
+          $listDataA[] = $data;
+        }
+      }
+      
+      // Nilai L
+      foreach($L['A'] as $data){
+        if($data == "A"){
+          $listDataL[] = $data;
+        }
+      }
+      
+      foreach($L['B'] as $data){
+        if($data == "B"){
+          $listDataL[] = $data;
+        }
+      }
+      
+      // Nilai P
+      foreach($P['A'] as $data){
+        if($data == "A"){
+          $listDataP[] = $data;
+        }
+      }
+      
+      foreach($P['B'] as $data){
+        if($data == "B"){
+          $listDataP[] = $data;
+        }
+      }
+      
+      // Nilai I
+      foreach($I['A'] as $data){
+        if($data == "A"){
+          $listDataI[] = $data;
+        }
+      }
+      
+      foreach($I['B'] as $data){
+        if($data == "B"){
+          $listDataI[] = $data;
+        }
+      }
+      
+      // Nilai T
+      foreach($T['A'] as $data){
+        if($data == "A"){
+          $listDataT[] = $data;
+        }
+      }
+      
+      foreach($T['B'] as $data){
+        if($data == "B"){
+          $listDataT[] = $data;
+        }
+      }
+      
+      // Nilai V
+      foreach($V['A'] as $data){
+        if($data == "A"){
+          $listDataV[] = $data;
+        }
+      }
+      
+      foreach($V['B'] as $data){
+        if($data == "B"){
+          $listDataV[] = $data;
+        }
+      }
+      
+      // Nilai X
+      foreach($X['A'] as $data){
+        if($data == "A"){
+          $listDataX[] = $data;
+        }
+      }
+      
+      foreach($X['B'] as $data){
+        if($data == "B"){
+          $listDataX[] = $data;
+        }
+      }
+      
+      // Nilai S
+      foreach($S['A'] as $data){
+        if($data == "A"){
+          $listDataS[] = $data;
+        }
+      }
+      
+      foreach($S['B'] as $data){
+        if($data == "B"){
+          $listDataS[] = $data;
+        }
+      }
+      
+      // Nilai B
+      foreach($B['A'] as $data){
+        if($data == "A"){
+          $listDataB[] = $data;
+        }
+      }
+      
+      foreach($B['B'] as $data){
+        if($data == "B"){
+          $listDataB[] = $data;
+        }
+      }
+      
+      // Nilai O
+      foreach($O['A'] as $data){
+        if($data == "A"){
+          $listDataO[] = $data;
+        }
+      }
+      
+      foreach($O['B'] as $data){
+        if($data == "B"){
+          $listDataO[] = $data;
+        }
+      }
+      
+      // Nilai R
+      foreach($R['A'] as $data){
+        if($data == "A"){
+          $listDataR[] = $data;
+        }
+      }
+      
+      foreach($R['B'] as $data){
+        if($data == "B"){
+          $listDataR[] = $data;
+        }
+      }
+      
+      // Nilai D
+      foreach($D['A'] as $data){
+        if($data == "A"){
+          $listDataD[] = $data;
+        }
+      }
+      
+      foreach($D['B'] as $data){
+        if($data == "B"){
+          $listDataD[] = $data;
+        }
+      }
+      
+      // dd($listDataR);
+      
+      
+      // Nilai C
+      foreach($C['A'] as $data){
+        if($data == "A"){
+          $listDataC[] = $data;
+        }
+      }
+      
+      foreach($C['B'] as $data){
+        if($data == "B"){
+          $listDataC[] = $data;
+        }
+      }
+      
+      // Nilai Z
+      foreach($Z['A'] as $data){
+        if($data == "A"){
+          $listDataZ[] = $data;
+        }
+      }
+      
+      foreach($Z['B'] as $data){
+        if($data == "B"){
+          $listDataZ[] = $data;
+        }
+      }
+      
+      // Nilai E
+      
+      foreach($E['B'] as $data){
+        if($data == "B"){
+          $listDataE[] = $data;
+        }
+      }
+      
+      // Nilai K
+      foreach($K['A'] as $data){
+        if($data == "A"){
+          $listDataK[] = $data;
+        }
+      }
+      
+      foreach($K['B'] as $data){
+        if($data == "B"){
+          $listDataK[] = $data;
+        }
+      }
+      
+      // Nilai F
+      foreach($F['A'] as $data){
+        if($data == "A"){
+          $listDataF[] = $data;
+        }
+      }
+      
+      foreach($F['B'] as $data){
+        if($data == "B"){
+          $listDataF[] = $data;
+        }
+      }
+      
+      // Nilai W
+      foreach($W['A'] as $data){
+        if($data == "A"){
+          $listDataW[] = $data;
+        }
+      }
+      
+      // Nilai A
+      foreach($N['B'] as $data){
+        if($data == "B"){
+          $listDataN[] = $data;
+        }
+      }
+      
+      return $finalPapi = [
+        "A" =>  [
+          "NILAI" => isset($listDataA) ? count($listDataA) : 0 ,
+          "Deskripsi" => "Work Direction" ,
+        ],
+        "N" =>  [
+          "NILAI" => isset($listDataN) ? count($listDataN) : 0 ,
+          "Deskripsi" => "Work Direction" ,
+        ],
+        "G" =>  [
+          "NILAI" => isset($listDataG) ? count($listDataG) : 0 ,
+          "Deskripsi" => "Work Direction" ,
+        ],
+      
+        "C" =>  [
+          "NILAI" => isset($listDataC) ? count($listDataC) : 0 ,
+          "Deskripsi" => "Work Style" ,
+        ],
+        "D" =>  [
+          "NILAI" => isset($listDataD) ? count($listDataD) : 0 ,
+          "Deskripsi" => "Work Style" ,
+        ],
+        "R" =>  [
+          "NILAI" => isset($listDataR) ? count($listDataR) : 0 ,
+          "Deskripsi" => "Work Style" ,
+        ],
+      
+        "T" =>  [
+          "NILAI" => isset($listDataT) ? count($listDataT) : 0 ,
+          "Deskripsi" => "Activity" ,
+        ],
+        "V" =>  [
+          "NILAI" => isset($listDataV) ? count($listDataV) : 0 ,
+          "Deskripsi" => "Activity" ,
+        ],
+      
+        "W" =>  [
+          "NILAI" => isset($listDataW) ? count($listDataW) : 0 ,
+          "Deskripsi" => "Followership" ,
+        ],
+        "F" =>  [
+          "NILAI" => isset($listDataF) ? count($listDataF) : 0 ,
+          "Deskripsi" => "Followership" ,
+        ],
+      
+        "L" =>  [
+          "NILAI" => isset($listDataL) ? count($listDataL) : 0 ,
+          "Deskripsi" => "Leadership" ,
+        ],
+        "P" =>  [
+          "NILAI" => isset($listDataP) ? count($listDataP) : 0 ,
+          "Deskripsi" => "Leadership" ,
+        ],
+        "I" =>  [
+          "NILAI" => isset($listDataI) ? count($listDataI) : 0 ,
+          "Deskripsi" => "Leadership" ,
+        ],
+        
+        
+        "S" =>  [
+          "NILAI" => isset($listDataS) ? count($listDataS) : 0 ,
+          "Deskripsi" => "Social Nature" ,
+        ],
+        "B" =>  [
+          "NILAI" => isset($listDataB) ? count($listDataB) : 0 ,
+          "Deskripsi" => "Social Nature" ,
+        ],
+        "O" =>  [
+          "NILAI" => isset($listDataO) ? count($listDataO) : 0 ,
+          "Deskripsi" => "Social Nature" ,
+        ],
+        
+        "X" =>  [
+          "NILAI" => isset($listDataX) ? count($listDataX) : 0 ,
+          "Deskripsi" => "Social Nature" ,
+        ],
+      
+        
+        "E" =>  [
+          "NILAI" => isset($listDataE) ? count($listDataE) : 0 ,
+          "Deskripsi" => "Temperament" ,
+        ],
+        "K" =>  [
+          "NILAI" => isset($listDataK) ? count($listDataK) : 0 ,
+          "Deskripsi" => "Temperament" ,
+        ],
+        "Z" =>  [
+          "NILAI" => isset($listDataZ) ? count($listDataZ) : 0 ,
+          "Deskripsi" => "Temperament" ,
+        ],
+      
+      ];
+      
+      }
+
 }
