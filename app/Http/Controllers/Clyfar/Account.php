@@ -45,10 +45,10 @@ class Account extends Controller
         $gender     = $request->input('gender');
         $pin        = $request->input('localPIN');
 
-        DB::table('clyfar_profile')->updateOrInsert([
-            "TOKEN"         => $pin
-        ],[
-            "TOKEN"         => $pin,
+        Log::info($request->all());
+
+        DB::table('clyfar_profile')->where('TOKEN',$pin)->update([
+            "NAMA"          => $name,
             "WHATSAPP"      => $whatsapp,
             "TTL"           => $birthDate,
             "GENDER"        => $gender,
