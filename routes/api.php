@@ -104,7 +104,9 @@ Route::middleware(['cors'])->group(function () {
     // Kosada - Report
     Route::post('/Kosada/Report',[Kosada_Report::class, 'getReport']);
 });
+
 // Clyfar - Account
+Route::post('/Clyfar/Create-Token', [Clyfar_Account::class, 'createAccount']);
 Route::post('/Clyfar/Authorize-Token', [Clyfar_Account::class, 'authorizeAccount']);
 Route::post('/Clyfar/Register-Account', [Clyfar_Account::class, 'registerAccount']);
 Route::post('/Clyfar/Log-Out', [Clyfar_Account:: class, 'logOut']);

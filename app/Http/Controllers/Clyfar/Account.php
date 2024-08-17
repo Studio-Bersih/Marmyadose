@@ -17,7 +17,7 @@ class Account extends Controller
         $idToken = $request->input('id');
         Log::info($idToken);
 
-        $userState = new Responses("error","Unauthorized");
+        $userState = new Responses("error","Token tidak terdaftar!");
 
         $getUser = DB::table('clyfar_profile')->where('TOKEN', $idToken)->first();
 
@@ -64,6 +64,48 @@ class Account extends Controller
                 "currentTest"   => $userTrial[0]
             ]
         ));
+    }
+
+    public function createAccount(Request $request): JsonResponse {
+        $amount = $request->input('amount');
+        $gender = $request->input('gender');
+
+        $MSDT       = $request->input('MSDT');
+        $CFIT       = $request->input('CFIT');
+        $MBTI       = $request->input('MBTI');
+        $KRAEPLIN   = $request->input('KRAEPLIN');
+        $BAUM       = $request->input('BAUM');
+        $DISC       = $request->input('DISC');
+        $PAPI       = $request->input('PAPI');
+
+        $testType = [];
+
+        $testTypes = ['MSDT', 'CFIT', 'MBTI', 'KRAEPLIN', 'BAUM', 'DISC', 'PAPI'];
+        // Filter and reindex to remove gaps
+        $testType = array_values(array_filter($testTypes, fn($type) => $request->input($type) !== null));
+
+        try {
+            $generateUser = [];
+            DB::beginTransaction();
+                for($i = 0; $i < $amount; $i++) {
+                    $generateUser[] = [
+                        "TOKEN"     => strtoupper(substr(bin2hex(random_bytes(4)), 0, 7)),
+                        "GENDER"    => $gender,
+                        "LIST"      => json_encode($testType)
+                    ];
+                }
+                DB::table('clyfar_profile')->insert($generateUser);
+            DB::commit();
+
+            return response()->json(new Responses(
+                "success", "User berhasil dibuat"
+            ));
+        } catch (\Throwable $e) {
+            DB::rollBack();
+            return response()->json(new Responses(
+                "error", "Ada kesalahan pada server!"
+            ));
+        }
     }
 
     public function logOut(Request $request): JsonResponse {
