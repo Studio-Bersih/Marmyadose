@@ -200,5 +200,4 @@ class Strings extends Controller
             "Wanita" => "dokter, ahli bedah, dokter hewan, pelatih rehabilitasi pasien, perawat orang tua."
         ]
     ];
-
 }

@@ -10,6 +10,7 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Str;
 use App\DTO\Responses;
 use App\DTO\General;
+use Log;
 
 class Result extends Controller
 {
@@ -93,11 +94,116 @@ class Result extends Controller
                 $data['RMIB'] = $this->interpretRMIB(json_decode($DB->RMIB));
             }
 
+            if(!empty($DB->CFIT)) {
+                $data['CFIT'] = $this->interpretCFIT(json_decode($DB->CFIT, true));
+            }
+
         }
     
         return response()->json(new Responses(
             "success", "Data berhasil dimuat", $data
         ));
+    }
+
+	private function interpretCFIT($rawCFIT){
+		$result = [
+			"test1" => array_column($rawCFIT['sortFirst'], 'values'),
+			"test2" => array_column($rawCFIT['sortSecond'], 'values'),
+			"test3" => array_column($rawCFIT['sortThird'], 'values'),
+			"test4" => array_column($rawCFIT['sortFourth'], 'values')
+		];
+
+		$data = Strings::CFIT;
+
+        $test1 = $result['test1'];
+        $test2 = $result['test2'];
+        $test3 = $result['test3'];
+        $test4 = $result['test4'];
+
+        $skor = 0;
+        
+        $kunci1 = $data['kunci1'];
+        $kunci2 = $data['kunci2'];
+        $kunci3 = $data['kunci3'];
+        $kunci4 = $data['kunci4'];
+        $norma  = $data['norma'];
+       
+        //cek test1
+        for($i = 0 ; $i < count($kunci1); $i++ ){
+            if(strtoupper($kunci1[$i]) == $test1[$i]){
+                $skor++;
+            }
+        }
+        //cek test2
+        for($i = 0 ; $i < count($kunci2); $i++ ){
+            if(strtoupper($kunci2[$i]) == $test2[$i] || strtoupper($kunci2[$i]) == strrev($test2[$i])){
+                $skor++;
+            }
+        }
+        //cek test3
+        for($i = 0 ; $i < count($kunci3); $i++ ){
+            if(strtoupper($kunci3[$i]) == $test3[$i]){
+                $skor++;
+            }
+        }
+        //cek test4
+        for($i = 0 ; $i < count($kunci4); $i++ ){
+            if(strtoupper($kunci4[$i]) == $test4[$i]){
+                $skor++;
+            }
+        }
+
+        if($skor == 0){
+
+          $resultScore    = 38;
+          $resultStatus   = 'Moderate Mental Retardation';
+
+        } else {
+
+          if($norma[$skor-1] >= 170){
+              $resultScore    = $norma[$skor-1];
+              $resultStatus   = 'Genius';
+          } else if ($norma[$skor-1] >= 140 && $norma[$skor-1] <= 169 ) {
+              $resultScore    = $norma[$skor-1];
+              $resultStatus   = 'Very Superior';
+          } else if ($norma[$skor-1] >= 120 && $norma[$skor-1] <= 139 ) {
+              $resultScore    = $norma[$skor-1];
+              $resultStatus   = 'Superior';
+          }else if ($norma[$skor-1] >= 110 && $norma[$skor-1] <= 119 ) {
+              $resultScore    = $norma[$skor-1];
+              $resultStatus   = 'High Average';
+          }else if ($norma[$skor-1] >= 90 && $norma[$skor-1] <= 109 ) {
+              $resultScore    = $norma[$skor-1];
+              $resultStatus   = 'Average';
+          }else if ($norma[$skor-1] >= 80 && $norma[$skor-1] <= 89 ) {
+              $resultScore    = $norma[$skor-1];
+              $resultStatus   = 'Low Average';
+          } else if ($norma[$skor-1] >= 68 && $norma[$skor-1] <= 79 ) {
+              $resultScore    = $norma[$skor-1];
+              $resultStatus   = 'Borderline Mental Retardation';
+          } else if ($norma[$skor-1] >= 52 && $norma[$skor-1] <= 67 ) {
+              $resultScore    = $norma[$skor-1];
+              $resultStatus   = 'Mild Mental Retardation';
+          } else if ($norma[$skor-1] >= 36 && $norma[$skor-1] <= 51 ) {
+              $resultScore    = $norma[$skor-1];
+              $resultStatus   = 'Moderate Mental Retardation';
+          } else if ($norma[$skor-1] >= 20 && $norma[$skor-1] <= 35 ) {
+              $resultScore    = $norma[$skor-1];
+              $resultStatus   = 'Severe Mental Retardation';
+          }else {
+              $resultScore    = $norma[$skor-1];
+              $resultStatus   = 'Profound Mental Retardation';
+          }
+
+        }
+
+
+        return $hasilCFIT = [
+            'score'       => $skor-1,
+            'resultScore' => $resultScore,
+            'resultStatus' => $resultStatus
+        ];
+
     }
 
     private function interpretRMIB($rawRMIB){

@@ -19,7 +19,8 @@ class Psychological extends Controller
         'BAUM'      => 'Finite',
         'MBTI'      => 'Sonorus',
         'MSDT'      => 'Stupefy',
-        'RMIB'      => 'Felfare'
+        'RMIB'      => 'Felfare',
+        'CFIT'      => 'Fussilini'
     ];
 
     private $testFields = [
@@ -28,7 +29,8 @@ class Psychological extends Controller
         'KRAEPLIN'  => 'KRAEPLIN',
         'MBTI'      => 'MBTI',
         'MSDT'      => 'MSDT',
-        'RMIB'      => 'RMIB'
+        'RMIB'      => 'RMIB',
+        'CFIT'      => 'CFIT'
     ];
 
     public function verifyToken(Request $request): JsonResponse
