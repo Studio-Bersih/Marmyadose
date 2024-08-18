@@ -10,7 +10,6 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Str;
 use App\DTO\Responses;
 use App\DTO\General;
-use Log;
 
 class Result extends Controller
 {

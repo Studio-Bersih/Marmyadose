@@ -9,13 +9,11 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Str;
 use App\DTO\Responses;
 use App\DTO\General;
-use Log;
 
 class Account extends Controller
 {
     public function authorizeAccount(Request $request): JsonResponse {
         $idToken = $request->input('id');
-        Log::info($idToken);
 
         $userState = new Responses("error","Token tidak terdaftar!");
 
@@ -44,8 +42,6 @@ class Account extends Controller
         $birthDate  = $request->input('birthDate');
         $gender     = $request->input('gender');
         $pin        = $request->input('localPIN');
-
-        Log::info($request->all());
 
         DB::table('clyfar_profile')->where('TOKEN',$pin)->update([
             "NAMA"          => $name,
