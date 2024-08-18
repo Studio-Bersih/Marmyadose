@@ -85,11 +85,110 @@ class Result extends Controller
                 $data['MBTI'] = json_decode($DB->MBTI, true);
             }
 
+            if(!empty($DB->BAUM)) {
+                $data['BAUM'] = $DB->BAUM;
+            }
+
+            if(!empty($DB->RMIB)) {
+                $data['RMIB'] = $this->interpretRMIB(json_decode($DB->RMIB));
+            }
+
         }
     
         return response()->json(new Responses(
             "success", "Data berhasil dimuat", $data
         ));
+    }
+
+    private function interpretRMIB($rawRMIB){
+		$out    = [$rawRMIB->A[0],$rawRMIB->B[0],$rawRMIB->C[0],$rawRMIB->D[0],$rawRMIB->E[0],$rawRMIB->F[0],$rawRMIB->G[0],$rawRMIB->H[0],$rawRMIB->I[0],];
+		$me     = [$rawRMIB->A[1],$rawRMIB->B[1],$rawRMIB->C[1],$rawRMIB->D[1],$rawRMIB->E[1],$rawRMIB->F[1],$rawRMIB->G[1],$rawRMIB->H[1],$rawRMIB->I[1],];
+		$comp   = [$rawRMIB->A[2],$rawRMIB->B[2],$rawRMIB->C[2],$rawRMIB->D[2],$rawRMIB->E[2],$rawRMIB->F[2],$rawRMIB->G[2],$rawRMIB->H[2],$rawRMIB->I[2],];
+		$sci    = [$rawRMIB->A[3],$rawRMIB->B[3],$rawRMIB->C[3],$rawRMIB->D[3],$rawRMIB->E[3],$rawRMIB->F[3],$rawRMIB->G[3],$rawRMIB->H[3],$rawRMIB->I[3],];
+		$prs    = [$rawRMIB->A[4],$rawRMIB->B[4],$rawRMIB->C[4],$rawRMIB->D[4],$rawRMIB->E[4],$rawRMIB->F[4],$rawRMIB->G[4],$rawRMIB->H[4],$rawRMIB->I[4],];
+		$aesth  = [$rawRMIB->A[5],$rawRMIB->B[5],$rawRMIB->C[5],$rawRMIB->D[5],$rawRMIB->E[5],$rawRMIB->F[5],$rawRMIB->G[5],$rawRMIB->H[5],$rawRMIB->I[5],];
+		$lit    = [$rawRMIB->A[6],$rawRMIB->B[6],$rawRMIB->C[6],$rawRMIB->D[6],$rawRMIB->E[6],$rawRMIB->F[6],$rawRMIB->G[6],$rawRMIB->H[6],$rawRMIB->I[6],];
+		$mus    = [$rawRMIB->A[7],$rawRMIB->B[7],$rawRMIB->C[7],$rawRMIB->D[7],$rawRMIB->E[7],$rawRMIB->F[7],$rawRMIB->G[7],$rawRMIB->H[7],$rawRMIB->I[7],];
+		$ss     = [$rawRMIB->A[8],$rawRMIB->B[8],$rawRMIB->C[8],$rawRMIB->D[8],$rawRMIB->E[8],$rawRMIB->F[8],$rawRMIB->G[8],$rawRMIB->H[8],$rawRMIB->I[8],];
+		$cler   = [$rawRMIB->A[9],$rawRMIB->B[9],$rawRMIB->C[9],$rawRMIB->D[9],$rawRMIB->E[9],$rawRMIB->F[9],$rawRMIB->G[9],$rawRMIB->H[9],$rawRMIB->I[9],];
+		$prac   = [$rawRMIB->A[10],$rawRMIB->B[10],$rawRMIB->C[10],$rawRMIB->D[10],$rawRMIB->E[10],$rawRMIB->F[10],$rawRMIB->G[10],$rawRMIB->H[10],$rawRMIB->I[10],];
+		$med    = [$rawRMIB->A[11],$rawRMIB->B[11],$rawRMIB->C[11],$rawRMIB->D[11],$rawRMIB->E[11],$rawRMIB->F[11],$rawRMIB->G[11],$rawRMIB->H[11],$rawRMIB->I[11],];
+
+		$finalRMIB = [
+				"out"   => $out,
+				"me"    => $me,
+				"comp"  => $comp,
+				"sci"   => $sci,
+				"prs"   => $prs,
+				"aesth" => $aesth,
+				"lit"   => $lit,
+				"mus"   => $mus,
+				"ss"    => $ss,
+				"cler"  => $cler,
+				"prac"  => $prac,
+				"med"   => $med,
+			"VALUE" => [
+				"out"   =>  array_sum($out),
+				"me"    =>  array_sum($me),
+				"comp"  =>  array_sum($comp),
+				"sci"   =>  array_sum($sci),
+				"prs"   =>  array_sum($prs),
+				"aesth" =>  array_sum($aesth),
+				"lit"   =>  array_sum($lit),
+				"mus"   =>  array_sum($mus),
+				"ss"    =>  array_sum($ss),
+				"cler"  =>  array_sum($cler),
+				"prac"  =>  array_sum($prac),
+				"med"   =>  array_sum($med),
+			],
+			"SORTED_VALUE"  =>  [
+				"out"   =>  array_sum($out),
+				"me"    =>  array_sum($me),
+				"comp"  =>  array_sum($comp),
+				"sci"   =>  array_sum($sci),
+				"prs"   =>  array_sum($prs),
+				"aesth" =>  array_sum($aesth),
+				"lit"   =>  array_sum($lit),
+				"mus"   =>  array_sum($mus),
+				"ss"    =>  array_sum($ss),
+				"cler"  =>  array_sum($cler),
+				"prac"  =>  array_sum($prac),
+				"med"   =>  array_sum($med),
+			],
+		];
+
+		arsort($finalRMIB['SORTED_VALUE']);
+
+		$sortedKeys = array_keys($finalRMIB['SORTED_VALUE']);
+		$sortedValues = array_values($finalRMIB['SORTED_VALUE']);
+
+        $interpretRMIB = Strings::RMIB;
+
+		$finalRMIB['DESC'] = [
+			[
+				"Key"   	=> $sortedKeys[0],
+				"Value" 	=> $sortedValues[0],
+				"PRIA"		=> $interpretRMIB[$sortedKeys[0]]['Pria'],
+				"WANITA"	=> $interpretRMIB[$sortedKeys[0]]['Wanita'],
+				"DESC" 		=> $interpretRMIB[$sortedKeys[0]]['DESC']
+			],
+			[
+				"Key"   	=> $sortedKeys[1],
+				"Value" 	=> $sortedValues[1],
+				"PRIA"		=> $interpretRMIB[$sortedKeys[1]]['Pria'],
+				"WANITA"	=> $interpretRMIB[$sortedKeys[1]]['Wanita'],
+				"DESC" 		=> $interpretRMIB[$sortedKeys[1]]['DESC']
+			],
+			[
+				"Key"   	=> $sortedKeys[1],
+				"Value" 	=> $sortedValues[1],
+				"PRIA"		=> $interpretRMIB[$sortedKeys[1]]['Pria'],
+				"WANITA"	=> $interpretRMIB[$sortedKeys[1]]['Wanita'],
+				"DESC" 		=> $interpretRMIB[$sortedKeys[1]]['DESC']
+			],
+		];
+
+      return $finalRMIB;
     }
 
     public function interpretMSDT($rawMSDT){

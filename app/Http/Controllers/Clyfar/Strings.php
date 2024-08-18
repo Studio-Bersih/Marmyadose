@@ -62,69 +62,6 @@ class Strings extends Controller
         ]
     ];
 
-    const RMIB = [
-        "out" => [
-            "DESC" => "Pekerjaan yang aktivitasnya dilakukan di luar atau di lapangan terbuka",
-            "Pria" => "petani, juru ukur, nelayan, supir.",
-            "Wanita" => "ahli pertamanan, peternak, petani bunga dan tukang kebun"
-        ],
-        "me" => [
-            "DESC" => "Pekerjaan yang berhubungan dengan mesin, alat-alat dan daya mekanik.",
-            "Pria" => "insinyur sipil, montir, pembuat arloji, tukang las.",
-            "Wanita" => "ahli kacamata, petugas mesin sulam, ahli reparasi permata, ahli reparasi jam."
-        ],
-        "comp" => [
-            "DESC" => "Pekerjaan yang berhubungan dengan angka-angka.",
-            "Pria" => "akuntan, auditor, kasir, petugas pajak.",
-            "Wanita" => "pegawai urusan gaji, juru bayar, pegawai pajak, guru ilmu pasti."
-        ],
-        "sci" => [
-            "DESC" => "Pekerjaan yang dapat disebut sebagai keaktifan dalam hal analisa dan penyelidikan, eksperimen, kimia dan ilmu pengetahuan pada umumnya.",
-            "Pria" => "ilmuwan, ahli biologi, ahli astronomi dan insinyur kimia industri",
-            "Wanita" => "-"
-        ],
-        "prs" => [
-            "DESC" => "Pekerjaan yang berhubungan dengan manusia, diskusi, membujuk, bergaul dengan orang lain. Pada dasarnya adalah suatu pekerjaan yang membutuhkan kontak dengan orang lain.",
-            "Pria" => "penyiar radio, petugas wawancara, sales asuransi, pedagang keliling.",
-            "Wanita" => "sales girl, pegawai rumah mode, penyiar radio, petugas humas."
-        ],
-        "aesth" => [
-            "DESC" => "Pekerjaan yang berhubungan dengan hal-hal yang bersifat seni dan menciptakan sesuatu.",
-            "Pria" => "artis, arsitek, dekorator, fotografer dan piñata panggung",
-            "Wanita" => "seniwati, guru kesenian, artis, piñata panggung"
-        ],
-        "lit" => [
-            "DESC" => "Pekerjaan yang berhubungan dengan buku-buku, kegiatan membaca dan mengarang.",
-            "Pria" => "wartawan, pengarang, penulis skenario, ahli perpustakaan, penulis majalah.",
-            "Wanita" => "wartawan, kritikus buku, penyair, penulis sandiwara radio."
-        ],
-        "mus" => [
-            "DESC" => "Minat memainkan alat-alat musik atau untuk mendengarkan orang lain, bernyanyi atau membaca sesuatu yang berhubungan musik.",
-            "Pria" => "pianis konser, komponis, pemain organ, ahli pustaka dan pramuniaga toko musik.",
-            "Wanita" => "pemain organ, guru musik, komponis, pianis konser, pramuniaga toko musik"
-        ],
-        "ss" => [
-            "DESC" => "Minat terhadap kesejahteraan penduduk dengan keinginan untuk menolong dan membimbing atau menasehati tentang problem dan kesulitan mereka. Keinginan untuk mengerti orang lain, dan mempunyai ide yang besar atau kuat tentang pelayanan.",
-            "Pria" => "guru SD, psikolog pendidikan, kepala sekolah, penyebar agama, petugas palang merah.",
-            "Wanita" => "guru SD, psikolog pendidikan, petugas kesejahteraan sosial, ahli penyuluh jabatan, petugas palang merah."
-        ],
-        "cler" => [
-            "DESC" => "Minat terhadap tugas-tugas rutin yang menuntut ketepatan dan ketelitian.",
-            "Pria" => "manajer bank, petugas arsip, petugas pengiriman barang, pegawai kantor, petugas pos, petugas ekspedisi (surat).",
-            "Wanita" => "sekretaris pribadi, juru ketik, penulis steno, pegawai kantor, penyusun arsip."
-        ],
-        "prac" => [
-            "DESC" => "Minat terhadap pekerjaan-pekerjaan yang praktis, karya pertukangan, dan yang memerlukan keterampilan.",
-            "Pria" => "tukang kayu, ahli bangunan, ahli mebel, tukang cat, tukang batu, tukang sepatu.",
-            "Wanita" => "ahli piñata rambut, tukang bungkus coklat, tukang binatu, penjahit, petugas mesin sulam, juru masak"
-        ],
-        "med" => [
-            "DESC" => "Minat terhadap pengobatan, mengurangi akibat dari penyakit, penyembuhan, dan di dalam bidang medis, serta terhadap hal-hal biologis pada umumnya.",
-            "Pria" => "dokter, ahli bedah, dokter hewan, ahli farmasi, dokter gigi, ahli kacamata, ahli rontgen.",
-            "Wanita" => "dokter, ahli bedah, dokter hewan, pelatih rehabilitasi pasien, perawat orang tua."
-        ]
-    ];
-
     const KRAEPLIN = [
         [3, 1, 9, 1, 0, 4, 7, 1, 1, 4, 1, 8, 4, 0, 9, 2, 3, 4, 1, 5, 2, 0, 1, 6, 6, 4, 9], 
         [1, 9, 7, 7, 8, 2, 3, 4, 8, 6, 0, 1, 4, 1, 7, 8, 9, 9, 8, 4, 0, 8, 3, 5, 5, 1, 4], 
@@ -200,4 +137,68 @@ class Strings extends Controller
             155, 160, 163, 165, 168, 169, 173, 176, 179, 183
         ]
     ];
+
+    const RMIB = [
+        "out" => [
+            "DESC" => "Pekerjaan yang aktivitasnya dilakukan di luar atau di lapangan terbuka.",
+            "Pria" => "petani, juru ukur, nelayan, supir.",
+            "Wanita" => "ahli pertamanan, peternak, petani bunga, tukang kebun."
+        ],
+        "me" => [
+            "DESC" => "Pekerjaan yang berhubungan dengan mesin, alat-alat, dan daya mekanik.",
+            "Pria" => "insinyur sipil, montir, pembuat arloji, tukang las.",
+            "Wanita" => "ahli kacamata, petugas mesin sulam, ahli reparasi permata, ahli reparasi jam."
+        ],
+        "comp" => [
+            "DESC" => "Pekerjaan yang berhubungan dengan angka-angka.",
+            "Pria" => "akuntan, auditor, kasir, petugas pajak.",
+            "Wanita" => "pegawai urusan gaji, juru bayar, pegawai pajak, guru ilmu pasti."
+        ],
+        "sci" => [
+            "DESC" => "Pekerjaan yang melibatkan analisis, penelitian, eksperimen, kimia, dan ilmu pengetahuan secara umum.",
+            "Pria" => "ilmuwan, ahli biologi, ahli astronomi, insinyur kimia industri.",
+            "Wanita" => "-"
+        ],
+        "prs" => [
+            "DESC" => "Pekerjaan yang berhubungan dengan interaksi manusia, diskusi, persuasi, dan sosialisasi. Pada dasarnya, pekerjaan ini memerlukan kontak dengan orang lain.",
+            "Pria" => "penyiar radio, petugas wawancara, sales asuransi, pedagang keliling.",
+            "Wanita" => "sales girl, pegawai rumah mode, penyiar radio, petugas humas."
+        ],
+        "aesth" => [
+            "DESC" => "Pekerjaan yang berhubungan dengan seni dan kreativitas.",
+            "Pria" => "artis, arsitek, dekorator, fotografer, penata panggung.",
+            "Wanita" => "seniwati, guru kesenian, artis, penata panggung."
+        ],
+        "lit" => [
+            "DESC" => "Pekerjaan yang berhubungan dengan buku, membaca, dan menulis.",
+            "Pria" => "wartawan, pengarang, penulis skenario, ahli perpustakaan, penulis majalah.",
+            "Wanita" => "wartawan, kritikus buku, penyair, penulis sandiwara radio."
+        ],
+        "mus" => [
+            "DESC" => "Minat terhadap musik, baik memainkan alat musik, mendengarkan, bernyanyi, atau membaca sesuatu yang berhubungan dengan musik.",
+            "Pria" => "pianis konser, komponis, pemain organ, ahli pustaka musik, pramuniaga toko musik.",
+            "Wanita" => "pemain organ, guru musik, komponis, pianis konser, pramuniaga toko musik."
+        ],
+        "ss" => [
+            "DESC" => "Minat terhadap kesejahteraan masyarakat, dengan keinginan menolong, membimbing, atau menasehati orang lain. Memiliki rasa empati dan semangat pelayanan.",
+            "Pria" => "guru SD, psikolog pendidikan, kepala sekolah, penyebar agama, petugas Palang Merah.",
+            "Wanita" => "guru SD, psikolog pendidikan, petugas kesejahteraan sosial, ahli penyuluh jabatan, petugas Palang Merah."
+        ],
+        "cler" => [
+            "DESC" => "Minat terhadap tugas rutin yang membutuhkan ketepatan dan ketelitian.",
+            "Pria" => "manajer bank, petugas arsip, petugas pengiriman barang, pegawai kantor, petugas pos, petugas ekspedisi surat.",
+            "Wanita" => "sekretaris pribadi, juru ketik, penulis steno, pegawai kantor, penyusun arsip."
+        ],
+        "prac" => [
+            "DESC" => "Minat terhadap pekerjaan praktis yang membutuhkan keterampilan tangan.",
+            "Pria" => "tukang kayu, ahli bangunan, ahli mebel, tukang cat, tukang batu, tukang sepatu.",
+            "Wanita" => "penata rambut, tukang bungkus coklat, tukang binatu, penjahit, petugas mesin sulam, juru masak."
+        ],
+        "med" => [
+            "DESC" => "Minat terhadap bidang medis, pengobatan, dan kesehatan, serta hal-hal yang berkaitan dengan biologi.",
+            "Pria" => "dokter, ahli bedah, dokter hewan, apoteker, dokter gigi, ahli kacamata, ahli rontgen.",
+            "Wanita" => "dokter, ahli bedah, dokter hewan, pelatih rehabilitasi pasien, perawat orang tua."
+        ]
+    ];
+
 }
