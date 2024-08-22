@@ -16,9 +16,12 @@ class Account extends Controller
         $idToken = $request->input('id');
 
         $userState = new Responses("error","Token tidak terdaftar!");
+        $continueFrom = [
+            "writeForm"     => true,
+            "continueTest"  => null
+        ];
 
         $getUser = DB::table('clyfar_profile')->where('TOKEN', $idToken)->first();
-
 
         if (empty($getUser)) {
             return response()->json($userState,200);
@@ -28,10 +31,19 @@ class Account extends Controller
             $userState = new Responses("error","Anda tidak dapat mengakses sistem psikotes",null);
         }
 
+        if (!empty($getUser->NAMA)) {
+            $userTrial  = json_decode($getUser->LIST,true);
+            $continueFrom = [
+                "writeForm"     => false,
+                "continueTest"  => $userTrial[0]
+            ];
+        }
+
         return response()->json(new Responses(
             "success", "Authorized", [
                 "statusAccount" => $getUser->LEVEL,
-                "userCodes"     => $getUser->TOKEN
+                "userCodes"     => $getUser->TOKEN,
+                "continueFrom"  => $continueFrom
             ]
         ),200);
     }
@@ -73,10 +85,11 @@ class Account extends Controller
         $BAUM       = $request->input('BAUM');
         $DISC       = $request->input('DISC');
         $PAPI       = $request->input('PAPI');
+        $RMIB       = $request->input('RMIB');
 
         $testType = [];
 
-        $testTypes = ['MSDT', 'CFIT', 'MBTI', 'KRAEPLIN', 'BAUM', 'DISC', 'PAPI'];
+        $testTypes = ['MSDT', 'CFIT', 'MBTI', 'KRAEPLIN', 'BAUM', 'DISC', 'PAPI','RMIB'];
         // Filter and reindex to remove gaps
         $testType = array_values(array_filter($testTypes, fn($type) => $request->input($type) !== null));
 
