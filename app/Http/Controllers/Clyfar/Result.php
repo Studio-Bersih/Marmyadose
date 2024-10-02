@@ -209,7 +209,6 @@ class Result extends Controller
 				'resultScore' => $resultScore,
 				'resultStatus' => $resultStatus
 			];
-
 		}
 
 		private function interpretRMIB($rawRMIB){
