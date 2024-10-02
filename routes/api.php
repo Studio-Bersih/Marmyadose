@@ -108,6 +108,7 @@ Route::post('/Kosada/Report',[Kosada_Report::class, 'getReport']);
 // Layescent
 Route::get('/POS/List-Item', [POS_Master::class, 'getItem']);
 Route::post('/POS/Create-Item', [POS_Master::class, 'createItem']);
+Route::post('/POS/Delete-Item', [POS_Master::class, 'deleteItem']);
 
 // Route::middleware(['cors'])->group(function () {
 

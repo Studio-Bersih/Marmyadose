@@ -48,4 +48,11 @@ class Master extends Controller
             "success","Item berhasil dibuat!"
         ));
     }
+
+    public function deleteItem(Request $request): JsonResponse {
+        DB::table('pos_master_produk')->where('ID', $request->input('id'))->delete();
+        return response()->json(new Responses(
+            "success", "Item berhasil dihapus!"
+        ), 200);
+    }
 }
