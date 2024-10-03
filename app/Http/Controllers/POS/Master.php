@@ -2,7 +2,6 @@
 
 namespace App\Http\Controllers\POS;
 
-use Log;
 use App\DTO\Responses;
 use Illuminate\Http\Request;
 use Illuminate\Http\JsonResponse;
@@ -11,7 +10,6 @@ use App\Http\Controllers\Controller;
 
 class Master extends Controller
 {
-
     public function getItem(): JsonResponse {
         $data = DB::table('pos_master_produk')->orderBy('NAMA')->get([
             "ID","NAMA","BARCODE","JENIS","STOK_ITEM","HARGA_STOK","HARGA_JUAL","KETERANGAN"

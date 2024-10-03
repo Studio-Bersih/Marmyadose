@@ -15,6 +15,7 @@ use App\Http\Controllers\Clyfar\Account as Clyfar_Account;
 use App\Http\Controllers\Clyfar\Psychological as Clyfar_Psychological;
 
 use App\Http\Controllers\POS\Master as POS_Master;
+use App\Http\Controllers\POS\Penjualan as POS_Penjualan;
 
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Route;
@@ -109,6 +110,7 @@ Route::post('/Kosada/Report',[Kosada_Report::class, 'getReport']);
 Route::get('/POS/List-Item', [POS_Master::class, 'getItem']);
 Route::post('/POS/Create-Item', [POS_Master::class, 'createItem']);
 Route::post('/POS/Delete-Item', [POS_Master::class, 'deleteItem']);
+Route::post('/POS/Post-Transaction', [POS_Penjualan::class, 'saveTransaction']);
 
 // Route::middleware(['cors'])->group(function () {
 
