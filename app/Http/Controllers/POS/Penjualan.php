@@ -17,6 +17,7 @@ class Penjualan extends Controller
             $totalTransaksi = $request->input('totalTransaksi');
             $kembali        = $request->input('kembalian');
             $keterangan     = $request->input('keterangan');
+            $staff          = $request->input('pic');
     
             if (empty($carts)) {
                 return response()->json(new Responses(
@@ -39,10 +40,16 @@ class Penjualan extends Controller
                         "error", "Produk dengan nama " . $cart['name'] . " tidak ditemukan."
                     ));
                 }
+
+                if ($product->STOK_ITEM < $cart['amount']) {
+                    return response()->json(new Responses(
+                        "error", "Stok produk " . $cart['name'] . " tidak mencukupi."
+                    ));
+                }
     
                 $data[] = [
                     "KEYS"          => $uniqueId,
-                    "TOKEN"         => "AAA",
+                    "TOKEN"         => $staff,
                     "KODE"          => $cart['id'],
                     "NAMA"          => $cart['name'],
                     "JUMLAH"        => $cart['amount'],
@@ -60,7 +67,7 @@ class Penjualan extends Controller
             DB::beginTransaction();
                 DB::table('pos_penjualan_rekap')->insert([
                     "KEYS"              => $uniqueId,
-                    "TOKEN"             => "AAA",
+                    "TOKEN"             => $staff,
                     "CASH"              => $tunai,
                     "KEMBALI"           => $kembali,
                     "TOTAL_TRANSAKSI"   => $totalTransaksi,

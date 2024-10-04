@@ -10,6 +10,25 @@ use App\DTO\Responses;
 
 class Users extends Controller
 {
+    public function checkToken(Request $request){
+        $token = $request->input('token');
+
+        $DB = DB::table('pos_users')->where('TOKEN', $token)->first();
+
+        if(empty($DB)) {
+            return response()->json(new Responses(
+                "error", "Token tidak ditemukan!"
+            ));
+        }
+
+        return response()->json(new Responses(
+            "success","Authorized",[
+                "token" => $token,
+                "roles" => $DB->ROLE
+            ]
+        ));
+    }
+
     public function getUsers(): JsonResponse {
         $DB = DB::table('pos_users')->get(['ID','TOKEN','ROLE']);
         return response()->json(new Responses(

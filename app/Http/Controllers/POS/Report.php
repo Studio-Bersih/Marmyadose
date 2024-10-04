@@ -18,7 +18,7 @@ class Report extends Controller
             $date   = $request->input('date');
             $pic    = $request->input('pic');
 
-            $DB = DB::table('pos_penjualan_detail')->where('TOKEN','AAA')->whereDate('created_at', DB::raw('CURDATE()'))->get();
+            $DB = DB::table('pos_penjualan_detail')->where('TOKEN',$pic)->whereDate('created_at', DB::raw('CURDATE()'))->get();
 
             $data = [];
             foreach($DB as $DB) {

@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers\POS;
 
+use Log;
 use App\DTO\Responses;
 use Illuminate\Http\Request;
 use Illuminate\Http\JsonResponse;
@@ -10,9 +11,11 @@ use App\Http\Controllers\Controller;
 
 class Transaksi extends Controller
 {
-    public function transaksiPenjualan(): JsonResponse {
-        $DB = DB::table('pos_penjualan_detail')->where('TOKEN','AAA')->whereDate('created_at', DB::raw('CURDATE()'))->get();
-
+    public function transaksiPenjualan(Request $request): JsonResponse {
+        $staff = $request->input('staff');
+        $DB = DB::table('pos_penjualan_detail')->where('TOKEN', $staff)->whereDate('CREATED_AT', DB::raw('CURDATE()'))->get();
+        
+        Log::info($DB);
         $data = [];
         foreach($DB as $DB) {
             $originalPrice = DB::table('pos_master_produk')->where('ID', $DB->KODE)->first('HARGA_STOK');
@@ -29,7 +32,7 @@ class Transaksi extends Controller
         }
 
         return response()->json(new Responses(
-            "status", 'Data berhasil dimuat!', $data
+            "success", 'Data berhasil dimuat!', $data
         ));
     }
 
