@@ -116,6 +116,7 @@ Route::post('/POS/Delete-Item', [POS_Master::class, 'deleteItem']);
 Route::post('/POS/Post-Transaction', [POS_Penjualan::class, 'saveTransaction']);
 
 // Layescent - Riwayat Transaksi
+Route::post('/POS/Delete-Detail-Penjualan', [POS_Transaksi::class, 'deleteDetailPenjualan']);
 Route::get('/POS/Riwayat-Penjualan', [POS_Transaksi::class, 'transaksiPenjualan']);
 
 // Route::middleware(['cors'])->group(function () {

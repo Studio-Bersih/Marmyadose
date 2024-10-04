@@ -17,18 +17,26 @@ class Transaksi extends Controller
         foreach($DB as $DB) {
             $originalPrice = DB::table('pos_master_produk')->where('ID', $DB->KODE)->first('HARGA_STOK');
             $data[] = [
-                "NAMA" => $DB->NAMA,
-                "TERJUAL" => $DB->JUMLAH,
-                "SISA_STOK" => $DB->SISA_STOK,
-                "HARGA_BELI" => $originalPrice->HARGA_STOK,
-                "HARGA_JUAL" => $DB->HARGA_JUAL,
-                "TOTAL_TRANSAKSI" => $DB->JUMLAH * $DB->HARGA_JUAL,
-                "WAKTU_TRANSAKSI" => date("d/m/Y H:i", strtotime($DB->CREATED_AT)),
+                "ID"                => $DB->ID,
+                "NAMA"              => $DB->NAMA,
+                "TERJUAL"           => $DB->JUMLAH,
+                "SISA_STOK"         => $DB->SISA_STOK,
+                "HARGA_BELI"        => $originalPrice->HARGA_STOK,
+                "HARGA_JUAL"        => $DB->HARGA_JUAL,
+                "TOTAL_TRANSAKSI"   => $DB->JUMLAH * $DB->HARGA_JUAL,
+                "WAKTU_TRANSAKSI"   => date("d/m/Y H:i", strtotime($DB->CREATED_AT)),
             ];
         }
 
         return response()->json(new Responses(
             "status", 'Data berhasil dimuat!', $data
         ));
+    }
+
+    public function deleteDetailPenjualan(Request $request): JsonResponse{
+        DB::table('pos_penjualan_detail')->where('ID', $request->input('id'))->delete();
+        return response()->json(new Responses(
+            "success", "Item berhasil dihapus!"
+        ), 200);
     }
 }
