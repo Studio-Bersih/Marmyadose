@@ -110,6 +110,7 @@ Route::post('/Kosada/Report',[Kosada_Report::class, 'getReport']);
 // Layescent - Master Product
 Route::get('/POS/List-Item', [POS_Master::class, 'getItem']);
 Route::post('/POS/Create-Item', [POS_Master::class, 'createItem']);
+Route::post('/POS/Update-Item', [POS_Master::class, 'updateItem']);
 Route::post('/POS/Delete-Item', [POS_Master::class, 'deleteItem']);
 
 // Layescent - Transaksi

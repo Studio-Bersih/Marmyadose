@@ -47,6 +47,15 @@ class Master extends Controller
         ));
     }
 
+    public function updateItem(Request $request): JsonResponse {
+        DB::table('pos_master_produk')->where('ID', $request->input('id'))->update([
+            "STOK_ITEM" => $request->input('stock')
+        ]);
+        return response()->json(new Responses(
+            "success", "Stok berhasil diupdate!"
+        ), 200);
+    }
+
     public function deleteItem(Request $request): JsonResponse {
         DB::table('pos_master_produk')->where('ID', $request->input('id'))->delete();
         return response()->json(new Responses(
