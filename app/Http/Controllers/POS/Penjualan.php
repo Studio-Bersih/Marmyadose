@@ -2,7 +2,6 @@
 
 namespace App\Http\Controllers\POS;
 
-use Log;
 use App\DTO\Responses;
 use Illuminate\Http\Request;
 use Illuminate\Http\JsonResponse;
@@ -47,7 +46,8 @@ class Penjualan extends Controller
                     "KODE"          => $cart['id'],
                     "NAMA"          => $cart['name'],
                     "JUMLAH"        => $cart['amount'],
-                    "HARGA"         => $cart['hargaJual'],
+                    "HARGA_STOK"    => $product->HARGA_STOK,
+                    "HARGA_JUAL"    => $cart['hargaJual'],
                     "SISA_STOK"     => $product->STOK_ITEM - $cart['amount'],
                     "CREATED_AT"    => $timestamp
                 ];
