@@ -17,6 +17,7 @@ use App\Http\Controllers\Clyfar\Psychological as Clyfar_Psychological;
 use App\Http\Controllers\POS\Master as POS_Master;
 use App\Http\Controllers\POS\Penjualan as POS_Penjualan;
 use App\Http\Controllers\POS\Transaksi as POS_Transaksi;
+use App\Http\Controllers\POS\Report as POS_Report;
 
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Route;
@@ -119,6 +120,9 @@ Route::post('/POS/Post-Transaction', [POS_Penjualan::class, 'saveTransaction']);
 // Layescent - Riwayat Transaksi
 Route::post('/POS/Delete-Detail-Penjualan', [POS_Transaksi::class, 'deleteDetailPenjualan']);
 Route::get('/POS/Riwayat-Penjualan', [POS_Transaksi::class, 'transaksiPenjualan']);
+
+// Layescent - Report
+Route::post('/POS/Report', [POS_Report::class, 'downloadReport']);
 
 // Route::middleware(['cors'])->group(function () {
 
