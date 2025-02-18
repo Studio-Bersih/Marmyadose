@@ -113,4 +113,27 @@ class MasterProduk extends Controller
         }
         return response()->json($listProduk,200);
     }
+
+    public function singleItems(Request $request) {
+        $productName   = $request->input('productName');
+
+        $data = DB::table('ud84_master_produk')->where('STATUS_JUAL','!=','Tidak Aktif')->where('NAMA','LIKE','%' . $productName . '%')
+        ->get(['ID', 'NAMA', 'STOK', 'TIPE', 'HARGA_PER_ITEM', 'JUMLAH_PER_ITEM'])
+        ->map(function($item) {
+            return [
+                'ID'    => $item->ID,
+                'NAMA'  => $item->NAMA,
+                'STOK'  => $item->STOK,
+                'SATUAN'=> $item->TIPE,
+                'HARGA' => $item->HARGA_PER_ITEM,
+                'JUMLAH_PER_ITEM'=> $item->JUMLAH_PER_ITEM
+            ];
+        });
+
+        return response()->json([
+            "status"    => "error",
+            "message"   => "Data tidak ditemukan",
+            "data"      => $data
+        ],200);
+    }
 }

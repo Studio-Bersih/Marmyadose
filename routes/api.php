@@ -108,6 +108,7 @@ Route::post('/POS/Update-Users', [POS_Users::class, 'updateUsers']);
 Route::get('/UD84/Master-Produk/Katalog', [UD84_Master::class, 'katalogProduk']);
 
 // UD84
+Route::post('/UD84/Master-Produk/Single', [UD84_Master::class, 'singleItems']);
 Route::get('/UD84/Master-Produk/Retrieve',[UD84_Master::class, 'getMasterProduct']);
 Route::post('/UD84/Master-Produk/Retrieve/Member', [UD84_Master::class, 'getMemberMasterProduct']);
 Route::post('/UD84/Master-Produk/Insert', [UD84_Master::class, 'postMasterProduct']);
