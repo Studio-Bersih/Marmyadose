@@ -12,13 +12,14 @@ class Report extends Controller
 {
     public function downloadReport(Request $request): JsonResponse {
         $type = $request->input('type');
+
         
         $data = [];
         if($type === 'dailyReport') {
             $date   = $request->input('date');
             $pic    = $request->input('pic');
 
-            $DB = DB::table('pos_penjualan_detail')->where('TOKEN',$pic)->whereDate('created_at', DB::raw('CURDATE()'))->get();
+            $DB = DB::table('pos_penjualan_detail')->where('TOKEN',$pic)->whereDate('created_at', '=' , $date)->get();
 
             $data = [];
             foreach($DB as $DB) {
@@ -30,7 +31,7 @@ class Report extends Controller
                     "Harga Beli"        => $originalPrice->HARGA_STOK,
                     "Harga Jual"        => $DB->HARGA_JUAL,
                     "Total Transaksi"   => $DB->JUMLAH * $DB->HARGA_JUAL,
-                    "Waktu Transaksi"   => date("d/m/Y H:i", strtotime($DB->CREATED_AT)),
+                    "Waktu Transaksi"   => date('d/m/Y H:i', strtotime($DB->CREATED_AT)),
                 ];
             }
 
@@ -40,7 +41,7 @@ class Report extends Controller
         }
 
         return response()->json(new Responses(
-            "success","Data berhasil dimuat!", $data
+            "error","Tidak ada data!!", $data
         ));
     }
 }

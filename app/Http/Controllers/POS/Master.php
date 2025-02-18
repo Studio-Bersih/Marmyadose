@@ -47,7 +47,32 @@ class Master extends Controller
         ));
     }
 
+    public function detailItem(Request $request): JsonResponse {
+        $DB = DB::table('pos_master_produk')->where('ID', $request->input('id'))->first();
+        return response()->json(new Responses(
+            "success","Item berhasil dimuat!", $DB
+        ));
+    }
+
     public function updateItem(Request $request): JsonResponse {
+        DB::beginTransaction();
+            DB::table('pos_master_produk')->where('ID', $request->input('id'))->update([
+                "NAMA"          => $request->input('name'),
+                "BARCODE"       => $request->input('barcode'),
+                "JENIS"         => $request->input('jenis'),
+                "STOK_ITEM"     => $request->input('stok'),
+                "HARGA_STOK"    => $request->input('hargaStok'),
+                "HARGA_JUAL"    => $request->input('hargaJual'),
+                "KETERANGAN"    => $request->input('keterangan'),
+            ]);
+        DB::commit();
+
+        return response()->json(new Responses(
+            "success","Item berhasil diupdate!"
+        ));
+    }
+
+    public function updateStock(Request $request): JsonResponse {
         DB::table('pos_master_produk')->where('ID', $request->input('id'))->update([
             "STOK_ITEM" => $request->input('stock')
         ]);
