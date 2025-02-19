@@ -117,6 +117,28 @@ class MasterProduk extends Controller
     public function singleItems(Request $request) {
         $productName   = $request->input('productName');
 
+        if(is_numeric($productName)) {
+            $data = DB::table('ud84_master_produk')->where('STATUS_JUAL','!=','Tidak Aktif')->where('ID',$productName)
+            ->first(['ID', 'NAMA', 'STOK', 'TIPE', 'HARGA_PER_ITEM', 'JUMLAH_PER_ITEM']);
+
+            if ($data) {
+                $data = [
+                    'ID'    => $data->ID,
+                    'NAMA'  => $data->NAMA,
+                    'STOK'  => $data->STOK,
+                    'SATUAN'=> $data->TIPE,
+                    'HARGA' => $data->HARGA_PER_ITEM,
+                    'JUMLAH_PER_ITEM'=> $data->JUMLAH_PER_ITEM
+                ];
+            }
+
+            return response()->json([
+                "status"    => "success",
+                "message"   => "Data ditemukan",
+                "data"      => $data
+            ],200);
+        }
+
         $data = DB::table('ud84_master_produk')->where('STATUS_JUAL','!=','Tidak Aktif')->where('NAMA','LIKE','%' . $productName . '%')
         ->get(['ID', 'NAMA', 'STOK', 'TIPE', 'HARGA_PER_ITEM', 'JUMLAH_PER_ITEM'])
         ->map(function($item) {
