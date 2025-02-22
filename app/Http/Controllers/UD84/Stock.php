@@ -4,6 +4,7 @@ namespace App\Http\Controllers\UD84;
 
 use App\Http\Controllers\Controller;
 use Illuminate\Http\Request;
+use Log;
 
 class Stock extends Controller
 {
@@ -25,6 +26,14 @@ class Stock extends Controller
                     "NAMA" => "Caca"
                 ]
             ]
+        ],200);
+    }
+
+    public function stocksAdmin(Request $request){
+        Log::info($request->all());
+        return response()->json([
+            "status" => "success",
+            "message" => "Data tersimpan",
         ],200);
     }
 }

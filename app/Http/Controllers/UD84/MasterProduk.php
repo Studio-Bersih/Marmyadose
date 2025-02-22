@@ -119,7 +119,7 @@ class MasterProduk extends Controller
 
         if(is_numeric($productName)) {
             $data = DB::table('ud84_master_produk')->where('STATUS_JUAL','!=','Tidak Aktif')->where('ID',$productName)
-            ->first(['ID', 'NAMA', 'STOK', 'TIPE', 'HARGA_PER_ITEM', 'JUMLAH_PER_ITEM']);
+            ->first(['ID', 'NAMA', 'STOK', 'TIPE', 'HARGA_PER_ITEM', 'JUMLAH_PER_ITEM', 'DISTRIBUTOR', 'DESKRIPSI']);
 
             if ($data) {
                 $data = [
@@ -128,7 +128,10 @@ class MasterProduk extends Controller
                     'STOK'  => $data->STOK,
                     'SATUAN'=> $data->TIPE,
                     'HARGA' => $data->HARGA_PER_ITEM,
-                    'JUMLAH_PER_ITEM'=> $data->JUMLAH_PER_ITEM
+                    'JUMLAH_PER_ITEM'=> $data->JUMLAH_PER_ITEM,
+                    'DISTRIBUTOR' => $data->DISTRIBUTOR,
+                    'INPUT_STOK' => 1,
+                    'DESKRIPSI' => $data->DESKRIPSI,
                 ];
             }
 
@@ -140,7 +143,7 @@ class MasterProduk extends Controller
         }
 
         $data = DB::table('ud84_master_produk')->where('STATUS_JUAL','!=','Tidak Aktif')->where('NAMA','LIKE','%' . $productName . '%')
-        ->get(['ID', 'NAMA', 'STOK', 'TIPE', 'HARGA_PER_ITEM', 'JUMLAH_PER_ITEM'])
+        ->get(['ID', 'NAMA', 'STOK', 'TIPE', 'HARGA_PER_ITEM', 'JUMLAH_PER_ITEM','DISTRIBUTOR', 'DESKRIPSI'])
         ->map(function($item) {
             return [
                 'ID'    => $item->ID,
@@ -148,7 +151,10 @@ class MasterProduk extends Controller
                 'STOK'  => $item->STOK,
                 'SATUAN'=> $item->TIPE,
                 'HARGA' => $item->HARGA_PER_ITEM,
-                'JUMLAH_PER_ITEM'=> $item->JUMLAH_PER_ITEM
+                'JUMLAH_PER_ITEM'=> $item->JUMLAH_PER_ITEM,
+                'DISTRIBUTOR' => $item->DISTRIBUTOR,
+                'INPUT_STOK' => 1,
+                'DESKRIPSI' => $item->DESKRIPSI,
             ];
         });
 
