@@ -137,6 +137,7 @@ Route::post('/UD84/Reports/Single-Item', [UD84_Report::class, 'singleItem']);
 
 // UD84 - Stocks 
 Route::post('/UD84/Stocks/Dashboard', [UD84_Stocks::class, 'dashboard']);
+Route::post('/UD84/Stocks/Detail', [UD84_Stocks::class, 'view']);
 
 // UD84 - Stocks Input
 Route::get('/UD84/Stocks/Staff', [UD84_Stocks::class, 'getUser']);

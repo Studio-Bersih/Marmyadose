@@ -84,6 +84,67 @@ class Stock extends Controller
             ], 500);
         }
     }
+
+    public function view(Request $request) {
+        try {
+            $logisticsId = $request->input('ID');
+    
+            $logisticsRecord = DB::table('ud84_logistics')->where('ID', $logisticsId)->first();
+            
+            if (!$logisticsRecord) {
+                return response()->json([
+                    "status"  => "error",
+                    "message" => "Logistics record not found"
+                ], 404);
+            }
+    
+            $logisticsType = $logisticsRecord->TIPE;
+            
+            $logisticsDetails = DB::table('ud84_logistics_detail')->where('KEY', $logisticsRecord->KEY)->get();
+    
+            $cartItems = [];
+            foreach ($logisticsDetails as $detail) {
+                $cartItems[] = [
+                    "NAMA"       => $detail->NAMA,
+                    "STOK"       => $detail->STOK,
+                    "TIPE"       => $detail->TIPE,
+                    "CREATED_AT" => $detail->CREATED_AT
+                ];
+            }
+    
+            $responseData = [
+                "TIPE"  => $logisticsType,
+                "CARTS" => $cartItems,
+                "NOTES" => $logisticsRecord->KETERANGAN
+            ];
+    
+            if ($logisticsType === "Item Keluar") {
+                $responsiblePersons = DB::table('ud84_afkir_responsible')->where('KEY', $logisticsRecord->KEY)->get();
+                
+                $personInChargeList = [];
+                foreach ($responsiblePersons as $person) {
+                    $personInChargeList[] = [
+                        "NAMA"       => $person->NAMA,
+                        "NOMINAL"    => $person->NOMINAL,
+                        "CREATED_AT" => $person->CREATED_AT
+                    ];
+                }
+    
+                $responseData['PIC'] = $personInChargeList;
+            }
+    
+            return response()->json([
+                "status"  => "success",
+                "message" => "Data retrieved successfully",
+                "data"    => $responseData
+            ], 200);
+        } catch (Exception $e) {
+            return response()->json([
+                "status"  => "error",
+                "message" => "An error occurred: " . $e->getMessage()
+            ], 500);
+        }
+    }
     
     public function stocksAdmin(Request $request){
         $tipe = $request->input('tipe');
