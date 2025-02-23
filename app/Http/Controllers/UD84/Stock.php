@@ -30,6 +30,61 @@ class Stock extends Controller
         ],200);
     }
 
+    public function dashboard(Request $request) {
+        try {
+            $keyWords  = $request->input('searchBar');
+            $startDate = $request->input('start');
+            $endDate   = $request->input('end');
+            $tipe      = $request->input('tipe'); // 'Item Masuk' or 'Item Keluar'
+
+            // Validasi tanggal tidak kosong
+            if (!$startDate || !$endDate) {
+                return response()->json([
+                    "status"  => "error",
+                    "message" => "Harap masukkan tanggal awal dan akhir."
+                ], 400);
+            }
+
+            // Pastikan endDate tidak lebih awal dari startDate
+            if (strtotime($endDate) < strtotime($startDate)) {
+                return response()->json([
+                    "status"  => "error",
+                    "message" => "Tanggal akhir tidak boleh lebih awal dari tanggal mulai."
+                ], 400);
+            }
+
+            // Query Data dari Database
+            $query = DB::table('ud84_logistics')->where('TIPE', $tipe)->where('CREATED_AT', '>=', $startDate)->where('CREATED_AT', '<=', $endDate);
+
+            // Filter berdasarkan ID jika ada kata kunci
+            if (!empty($keyWords)) {
+                $query->where('ID', $keyWords);
+            }
+
+            // Ambil data & format hasil
+            $data = $query->get(['ID', 'KETERANGAN', 'CREATED_AT'])
+                ->map(fn ($item) => [
+                    "ID"           => $item->ID,
+                    "NO_TRANSAKSI" => ($tipe === "Item Masuk" ? "LOG/IM/" : "LOG/IK/") . $item->ID,
+                    "KETERANGAN"   => $item->KETERANGAN,
+                    "CREATED_AT"   => $item->CREATED_AT
+                ]);
+
+            return response()->json([
+                "status"  => "success",
+                "message" => "Berhasil dimuat.",
+                "data"    => $data
+            ], 200);
+
+        } catch (\Exception $e) {
+            Log::info($e);
+            return response()->json([
+                "status"  => "error",
+                "message" => "Terjadi kesalahan, silakan coba lagi."
+            ], 500);
+        }
+    }
+    
     public function stocksAdmin(Request $request){
         $tipe = $request->input('tipe');
         $catatan = $request->input('catatan');

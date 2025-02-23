@@ -135,6 +135,9 @@ Route::get('/UD84/Daftar-Transaksi/Detail-Transaksi/{ID}', [UD84_Report::class, 
 Route::get('/UD84/Get-Invoices/{ID}', [UD84_Report::class, 'getInvoices']);
 Route::post('/UD84/Reports/Single-Item', [UD84_Report::class, 'singleItem']);
 
-// UD84 - Stocks
+// UD84 - Stocks 
+Route::post('/UD84/Stocks/Dashboard', [UD84_Stocks::class, 'dashboard']);
+
+// UD84 - Stocks Input
 Route::get('/UD84/Stocks/Staff', [UD84_Stocks::class, 'getUser']);
 Route::post('/UD84/Stocks/Manipulate', [UD84_Stocks::class, 'stocksAdmin']);
