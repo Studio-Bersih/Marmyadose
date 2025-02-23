@@ -5,6 +5,7 @@ namespace App\Http\Controllers\UD84;
 use App\Http\Controllers\Controller;
 use Illuminate\Http\Request;
 use Log;
+use DB;
 
 class Stock extends Controller
 {
@@ -39,12 +40,13 @@ class Stock extends Controller
         DB::beginTransaction();
 
         try {
-            // If "Item Keluar" and responsible persons exist, log them
+            // Insert responsible persons if "Item Keluar"
             if ($tipe === "Item Keluar" && !empty($penanggungJawab)) {
                 $setAfkir = array_map(fn($pj) => [
                     "KEY"     => $key,
+                    "NAMA"    => $pj['NAMA'],
                     "USER"    => $pj['ID'],
-                    "NOMINAL" => $pj['NOMINAL']
+                    "NOMINAL" => preg_replace('/\D/', '', $pj['NOMINAL'])
                 ], $penanggungJawab);
 
                 DB::table('ud84_afkir_responsible')->insert($setAfkir);
@@ -58,8 +60,9 @@ class Stock extends Controller
                 "CREATED_AT" => now()
             ]);
 
-            // Prepare stock update and logging
+            // Prepare stock update, logging, and transaction logs
             $stocksUpdate = [];
+            $logEntries = [];
 
             foreach ($carts as $cart) {
                 // Update stock
@@ -71,15 +74,32 @@ class Stock extends Controller
 
                 // Prepare log data
                 $stocksUpdate[] = [
+                    "KODE" => $cart['ID'],
+                    "NAMA" => $cart['NAMA'],
                     "STOK"  => $cart['INPUT_STOK'],
                     "TIPE"  => $tipe,
                     "KEY"   => $key
                 ];
+
+                // Prepare transaction logs for history (no updates, only inserts)
+                $logEntries[] = [
+                    "KODE_ITEM" => $cart['ID'],
+                    "NAMA_ITEM" => $cart['NAMA'],
+                    "ASAL"      => $tipe,
+                    "MASUK"     => $tipe === "Item Masuk" ? $cart['INPUT_STOK'] : 0,
+                    "KELUAR"    => $tipe === "Item Keluar" ? $cart['INPUT_STOK'] : 0,
+                    "CREATED_AT"=> now()
+                ];
             }
 
-            // Batch insert for logging
+            // Batch insert for stock logs
             if (!empty($stocksUpdate)) {
                 DB::table('ud84_logistics_detail')->insert($stocksUpdate);
+            }
+
+            // Batch insert for transaction logs (history)
+            if (!empty($logEntries)) {
+                DB::table('ud84_logs')->insert($logEntries);
             }
 
             DB::commit();
@@ -89,6 +109,7 @@ class Stock extends Controller
                 "message" => "Data tersimpan"
             ], 200);
         } catch (\Exception $e) {
+            Log::info($e);
             DB::rollBack();
             return response()->json([
                 "status"  => "error",
@@ -97,6 +118,7 @@ class Stock extends Controller
             ], 500);
         }
     }
+
 
     
 }
