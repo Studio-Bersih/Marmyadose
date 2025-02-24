@@ -7,25 +7,15 @@ use Illuminate\Http\Request;
 use Log;
 use DB;
 
-class Stock extends Controller
-{
+class Stock extends Controller {
     public function getUser(){
         return response()->json([
             "status"    => "success",
             "message"   => "OK",
             "data"      => [
-                [
-                    "ID" => 1,
-                    "NAMA" => "Agus"
-                ],
-                [
-                    "ID" => 2,
-                    "NAMA" => "Budi"
-                ],
-                [
-                    "ID" => 3,
-                    "NAMA" => "Caca"
-                ]
+                [ "ID" => 1, "NAMA" => "Agus" ],
+                [ "ID" => 2, "NAMA" => "Budi" ],
+                [ "ID" => 3, "NAMA" => "Caca" ]
             ]
         ],200);
     }
@@ -181,30 +171,41 @@ class Stock extends Controller
             $logEntries = [];
 
             foreach ($carts as $cart) {
-                // Update stock
+                // Ambil stok sebelumnya
+                $previousStock = DB::table('ud84_master_produk')
+                    ->where('ID', $cart['ID'])
+                    ->value('STOK'); // Menggunakan value() agar langsung mendapatkan nilai integer
+            
+                // Hitung stok akhir
+                $finalStock = ($tipe === "Item Keluar")
+                    ? $previousStock - $cart['INPUT_STOK']
+                    : $previousStock + $cart['INPUT_STOK'];
+            
+                // Update stok di database
                 DB::table('ud84_master_produk')
                     ->where('ID', $cart['ID'])
                     ->update([
-                        'STOK' => DB::raw("STOK " . ($tipe === "Item Keluar" ? "-" : "+") . " {$cart['INPUT_STOK']}")
+                        'STOK' => $finalStock
                     ]);
-
+            
                 // Prepare log data
                 $stocksUpdate[] = [
                     "KODE" => $cart['ID'],
                     "NAMA" => $cart['NAMA'],
-                    "STOK"  => $cart['INPUT_STOK'],
-                    "TIPE"  => $tipe,
-                    "KEY"   => $key
+                    "STOK" => $cart['INPUT_STOK'],
+                    "TIPE" => $tipe,
+                    "KEY"  => $key
                 ];
-
+            
                 // Prepare transaction logs for history (no updates, only inserts)
                 $logEntries[] = [
-                    "KODE_ITEM" => $cart['ID'],
-                    "NAMA_ITEM" => $cart['NAMA'],
-                    "ASAL"      => $tipe,
-                    "MASUK"     => $tipe === "Item Masuk" ? $cart['INPUT_STOK'] : 0,
-                    "KELUAR"    => $tipe === "Item Keluar" ? $cart['INPUT_STOK'] : 0,
-                    "CREATED_AT"=> now()
+                    "KODE_ITEM"  => $cart['ID'],
+                    "NAMA_ITEM"  => $cart['NAMA'],
+                    "ASAL"       => $tipe,
+                    "MASUK"      => $tipe === "Item Masuk" ? $cart['INPUT_STOK'] : 0,
+                    "KELUAR"     => $tipe === "Item Keluar" ? $cart['INPUT_STOK'] : 0,
+                    "STOK_FINAL" => $finalStock,
+                    "CREATED_AT" => now()
                 ];
             }
 
@@ -235,6 +236,52 @@ class Stock extends Controller
         }
     }
 
+    public function kartuStok(Request $request) {
+        try {
+            $kodeItem = $request->input('searchBar');
+            $start = $request->input('startDate');
+            $end = $request->input('endDate');
+        
+            // Validate required parameters
+            if (!$kodeItem || !$start || !$end) {
+                return response()->json([
+                    "status" => "error",
+                    "message" => "Missing required parameters."
+                ], 400);
+            }
+        
+            // Fetch data
+            $DB = DB::table('ud84_logs')
+                ->where('KODE_ITEM', $kodeItem)
+                ->where('CREATED_AT', '>=', $start)
+                ->where('CREATED_AT', '<=', $end)
+                ->get(['NAMA_ITEM', 'ASAL', 'MASUK', 'KELUAR', 'CREATED_AT','STOK_FINAL'])
+                ->map(fn ($item) => [
+                    "NAMA"       => $item->NAMA_ITEM,
+                    "ASAL"       => $item->ASAL,
+                    "MASUK"      => $item->MASUK,
+                    "KELUAR"     => $item->KELUAR,
+                    "STOK"       => $item->STOK_FINAL,
+                    "CREATED_AT" => $item->CREATED_AT,
+                ]);
 
-    
+            Log::info($DB);
+        
+            return response()->json([
+                "status"  => "success",
+                "message" => "Loaded",
+                "data"    => $DB
+            ], 200);
+        } catch (\Illuminate\Database\QueryException $e) {
+            return response()->json([
+                "status"  => "error",
+                "message" => "Database query error: " . $e->getMessage()
+            ], 500);
+        } catch (\Exception $e) {
+            return response()->json([
+                "status"  => "error",
+                "message" => "An unexpected error occurred: " . $e->getMessage()
+            ], 500);
+        }
+    }
 }

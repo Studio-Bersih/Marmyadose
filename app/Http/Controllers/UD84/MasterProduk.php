@@ -8,10 +8,13 @@ use Illuminate\Http\Request;
 
 class MasterProduk extends Controller
 {
-    
     public function getMasterProduct(){
-        $data = DB::table('ud84_master_produk')->get();
-        return response()->json($data,200);
+        $data = DB::table('ud84_master_produk')->orderBy('NAMA')->get();
+        return response()->json([
+            "status"    => "success",
+            "message"   => "Loaded",
+            "data"      => $data
+        ],200);
     }
 
     public function getMemberMasterProduct(Request $request){
