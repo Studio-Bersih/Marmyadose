@@ -167,4 +167,18 @@ class MasterProduk extends Controller
             "data"      => $data
         ],200);
     }
+
+    public function getSatuan() {
+        return response()->json([
+            "status" => "success",
+            "message" => "Data ditemukan",
+            "data" => [
+                "Pieces","Jasa","Biaya","Varian","Kg",
+                "Liter","Dus","Set","Bal","Meter","Kwintal",
+                "Lembar","Lusin","Helai","Krat", "Slop", 
+                "Renceng", "Botol", "Sak", "Karton", "Kantong", 
+                "Kaleng", "Box"
+            ]
+        ],200);
+    }
 }

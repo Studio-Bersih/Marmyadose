@@ -12,7 +12,11 @@ class Member extends Controller
 
     public function getMember(){
         $data = DB::table('ud84_member')->orderByDesc('ID')->get(['ID','NAMA','LOKASI','ALAMAT','WHATSAPP']);
-        return response()->json($data,200);
+        return response()->json([
+            "status" => "success",
+            "message" => "Loaded",
+            "data" => $data
+        ],200);
     }
 
     public function postMember(Request $request){

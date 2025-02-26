@@ -115,6 +115,7 @@ Route::post('/UD84/Master-Produk/Insert', [UD84_Master::class, 'postMasterProduc
 Route::post('/UD84/Master-Produk/Update', [UD84_Master::class, 'updateMasterProduct']);
 Route::post('/UD84/Master-Produk/Delete', [UD84_Master::class, 'deleteMasterProduct']);
 Route::post('/UD84/Master-Produk/Upload-Gambar', [UD84_Master::class, 'imageUpload']);
+Route::get('/UD84/Master-Produk/Satuan', [UD84_Master::class, 'getSatuan']);
 
 // UD84 - Penjualan
 Route::post('/UD84/Penjualan/Saving-Receipt', [UD84_Penjualan::class, 'postPenjualan']);
