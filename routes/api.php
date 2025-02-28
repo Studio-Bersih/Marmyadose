@@ -131,8 +131,12 @@ Route::get('/UD84/Omset/Single/{ID}',[UD84_Report::class, 'singleItemReport']);
 Route::get('/UD84/Omset',[UD84_Report::class, 'omsetDetail']);
 Route::post('/UD84/Operasional/Insert',[UD84_Report::class, 'postOperasional']);
 Route::get('/UD84/Operasional/Retrieve',[UD84_Report::class, 'getReportOperasional']);
+
+// UD84 - Daftar Transaksi
 Route::get('/UD84/Daftar-Transaksi', [UD84_Report::class,'daftarTransaksi']);
 Route::get('/UD84/Daftar-Transaksi/Detail-Transaksi/{ID}', [UD84_Report::class, 'detailTransaksi']);
+Route::post('/UD84/Daftar-Transaksi/Update-DP', [UD84_Report::class, 'updateDP']);
+
 Route::get('/UD84/Get-Invoices/{ID}', [UD84_Report::class, 'getInvoices']);
 Route::post('/UD84/Reports/Single-Item', [UD84_Report::class, 'singleItem']);
 

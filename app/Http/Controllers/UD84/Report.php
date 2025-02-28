@@ -94,16 +94,29 @@ class Report extends Controller
             $nominalBayarTunai[]    = $data->CASH;
         }
         return response()->json([
-            "data"          => $listData,
-            "DP"            => array_sum($nominalDP),
-            "TRANSAKSI"     => array_sum($nominalTransaksi),
-            "BAYAR_TUNAI"   => array_sum($nominalBayarTunai)
+            "status" => "success",
+            "message" => "Loaded",
+            "data" => [
+                "data"          => $listData,
+                "DP"            => array_sum($nominalDP),
+                "TRANSAKSI"     => array_sum($nominalTransaksi),
+                "BAYAR_TUNAI"   => array_sum($nominalBayarTunai)
+            ]
         ],200);
     }
 
     public function detailTransaksi($ID){
-        $data = DB::table('ud84_penjualan_detail')->where('UNIQUE',$ID)->get();
-        return response()->json($data,200);
+        $rekap  = DB::table('ud84_penjualan_rekap')->where('UNIQUE',$ID)->first();
+        $detail = DB::table('ud84_penjualan_detail')->where('UNIQUE',$ID)->get();
+
+        return response()->json([
+            "status"    => "success",
+            "message"   => "Loaded",
+            "data"      => [
+                "rekap"     => $rekap,
+                "detail"    => $detail
+            ]
+        ],200);
     }
 
     public function getInvoices($ID){
@@ -123,10 +136,14 @@ class Report extends Controller
         }
 
         return response()->json([
-            "TANGGAL"   => Carbon::parse($dataRekap->CREATED_AT)->translatedFormat('d F Y'),
-            "TUAN"      => $dataRekap->NAMA,
-            "TOTAL"     => array_sum($totalSum),
-            "DATA"      => $listDetail
+            "status" => "success",
+            "message" => "Loaded",
+            "data"  => [
+                "TANGGAL"   => Carbon::parse($dataRekap->CREATED_AT)->translatedFormat('d F Y'),
+                "TUAN"      => $dataRekap->NAMA,
+                "TOTAL"     => array_sum($totalSum),
+                "DATA"      => $listDetail
+            ]
         ],200);
     }
 
@@ -179,6 +196,16 @@ class Report extends Controller
             'TOTAL_POTONGAN_RUPIAH'     => array_sum($potonganRupiah),
             'TOTAL_POTONGAN_PERSEN'     => array_sum($potonganPersen),
             'TOTAL_PIECES'              => array_sum($totalPieces)
+        ],200);
+    }
+
+    public function updateDP(Request $request){
+        DB::table('ud84_penjualan_rekap')->where('UNIQUE',$request->input('KODE'))->update([
+            "DP"    => $request->input('DP') + $request->input('OLD_DP')
+        ]);
+        return response()->json([
+            "status"    => "success",
+            "message"   => "DP Updated!"
         ],200);
     }
 
