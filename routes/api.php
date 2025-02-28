@@ -134,6 +134,7 @@ Route::get('/UD84/Operasional/Retrieve',[UD84_Report::class, 'getReportOperasion
 
 // UD84 - Daftar Transaksi
 Route::get('/UD84/Daftar-Transaksi', [UD84_Report::class,'daftarTransaksi']);
+Route::post('/UD84/Daftar-Transaksi/Search', [UD84_Report::class,'searchTransaksi']);
 Route::get('/UD84/Daftar-Transaksi/Detail-Transaksi/{ID}', [UD84_Report::class, 'detailTransaksi']);
 Route::post('/UD84/Daftar-Transaksi/Update-DP', [UD84_Report::class, 'updateDP']);
 

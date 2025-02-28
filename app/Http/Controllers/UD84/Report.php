@@ -77,7 +77,7 @@ class Report extends Controller
     }
 
     public function daftarTransaksi(){
-        $data = DB::table('ud84_penjualan_rekap')->skip(0)->take(2000)->orderByDesc('ID')->get();
+        $data = DB::table('ud84_penjualan_rekap')->skip(0)->take(10)->orderByDesc('ID')->get();
         $listData = $nominalTransaksi = $nominalDP = $nominalBayarTunai = [];
         foreach($data as $data){
             $listData[] = [
@@ -93,6 +93,62 @@ class Report extends Controller
             $nominalTransaksi[]     = $data->TOTAL;
             $nominalBayarTunai[]    = $data->CASH;
         }
+
+        return response()->json([
+            "status" => "success",
+            "message" => "Loaded",
+            "data" => [
+                "data"          => $listData,
+                "DP"            => array_sum($nominalDP),
+                "TRANSAKSI"     => array_sum($nominalTransaksi),
+                "BAYAR_TUNAI"   => array_sum($nominalBayarTunai)
+            ]
+        ],200);
+    }
+
+    public function searchTransaksi(Request $request) {
+        $startDate = $request->input('start');
+        $endDate   = $request->input('end');
+
+        // Validasi tanggal tidak kosong
+        if (!$startDate || !$endDate) {
+            return response()->json([
+                "status"  => "error",
+                "message" => "Harap masukkan tanggal awal dan akhir."
+            ], 400);
+        }
+
+        // Pastikan endDate tidak lebih awal dari startDate
+        if (strtotime($endDate) < strtotime($startDate)) {
+            return response()->json([
+                "status"  => "error",
+                "message" => "Tanggal akhir tidak boleh lebih awal dari tanggal mulai."
+            ], 400);
+        }
+
+        // Query pencarian data
+        $data = DB::table('ud84_penjualan_rekap')
+            ->whereBetween('CREATED_AT', [$startDate, $endDate])
+            ->orderByDesc('ID')
+            ->get();
+
+        // Inisialisasi variabel
+        $listData = $nominalTransaksi = $nominalDP = $nominalBayarTunai = [];
+        foreach($data as $data){
+            $listData[] = [
+                "ID"            => $data->UNIQUE,
+                "TANGGAL"       => Carbon::parse($data->CREATED_AT)->translatedFormat('d F Y'),
+                "JATUH_TEMPO"   => empty($data->JATUH_TEMPO) ? '-' : Carbon::parse($data->JATUH_TEMPO)->translatedFormat('d F Y'),
+                "NAMA"          => empty($data->NAMA) ? 'UMUM' : ucwords(trans($data->NAMA)),
+                "NOMINAL"       => $data->TOTAL,
+                "DP"            => empty($data->DP) ? 0 : $data->DP,
+                "BAYAR_TUNAI"   => empty($data->CASH) ? 0 : $data->CASH,
+            ];
+            $nominalDP[]            = $data->DP;
+            $nominalTransaksi[]     = $data->TOTAL;
+            $nominalBayarTunai[]    = $data->CASH;
+        }
+
         return response()->json([
             "status" => "success",
             "message" => "Loaded",
@@ -139,10 +195,11 @@ class Report extends Controller
             "status" => "success",
             "message" => "Loaded",
             "data"  => [
-                "TANGGAL"   => Carbon::parse($dataRekap->CREATED_AT)->translatedFormat('d F Y'),
-                "TUAN"      => $dataRekap->NAMA,
-                "TOTAL"     => array_sum($totalSum),
-                "DATA"      => $listDetail
+                "tanggal"   => !empty($dataRekap->CREATED_AT) ? Carbon::parse($dataRekap->CREATED_AT)->translatedFormat('d F Y') : Carbon::now()->translatedFormat('d F Y'),
+                "tuan"      => $dataRekap->NAMA ?? '-',
+                "total"     => array_sum($totalSum) ?? 0,
+                "data"      => $listDetail ?? [],
+                "rekap"     => $dataRekap
             ]
         ],200);
     }
