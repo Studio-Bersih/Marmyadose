@@ -10,14 +10,34 @@ use App\Http\Controllers\Controller;
 class Report extends Controller
 {
 
+    public function confirmPassword(Request $request) {
+        $password = $request->input('password');
+
+        if($password === "UD84-Alul") {
+            return response()->json([
+                "status" => "success",
+                "message" => "Authenticated"
+            ],200);
+        }
+
+        return response()->json([
+            "status" => "error",
+            "message" => "Password anda salah."
+        ],200);
+    }
+
     public function commonCharts(){
         $dataOmset          = DB::table('ud84_penjualan_rekap')->whereMonth('CREATED_AT',Carbon::now()->month)->sum('TOTAL');
         $dataOperasional    = DB::table('ud84_operasional')->whereMonth('CREATED_AT',Carbon::now()->month)->sum('NOMINAL');
         return response()->json([
-            "BULAN"         => Carbon::parse(now())->translatedFormat('F Y'),
-            "OMSET"         => $dataOmset,
-            "OPERASIONAL"   => $dataOperasional,
-            "BERSIH"        => $dataOmset - $dataOperasional,
+            "status"    => "success",
+            "message"   => "Loaded",
+            "data"      => [
+                "BULAN"         => Carbon::parse(now())->translatedFormat('F Y'),
+                "OMSET"         => $dataOmset,
+                "OPERASIONAL"   => $dataOperasional,
+                "BERSIH"        => $dataOmset - $dataOperasional,
+            ]
         ],200);
     }
 
@@ -69,10 +89,14 @@ class Report extends Controller
         }
 
         return response()->json([
-            "BULAN"             => Carbon::parse(now())->translatedFormat('F Y'),
-            "OMSET"             => $monthDetail,
-            "OPERASIONAL"       => $listOperational,
-            "OPERASIONAL_SUM"   => $operationalSum
+            "status" => "success",
+            "message" => "Loaded",
+            "data" => [
+                "BULAN"             => Carbon::parse(now())->translatedFormat('F Y'),
+                "OMSET"             => $monthDetail,
+                "OPERASIONAL"       => $listOperational,
+                "OPERASIONAL_SUM"   => $operationalSum
+            ]
         ],200);
     }
 
@@ -216,7 +240,11 @@ class Report extends Controller
                 "CREATED_AT"        => Carbon::parse($data->CREATED_AT)->translatedFormat('d F Y'),
             ];
         }
-        return response()->json($listData,200);
+        return response()->json([
+            "status"    => "success",
+            "message"   => "Loaded",
+            "data"      => $listData
+        ],200);
     }
 
     public function singleItem(Request $request){

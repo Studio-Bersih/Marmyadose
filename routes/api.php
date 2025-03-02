@@ -126,6 +126,7 @@ Route::post('/UD84/Member/Insert', [UD84_Member::class, 'postMember']);
 Route::post('/UD84/Member/Delete', [UD84_Member::class, 'deleteMember']);
 
 // UD84 - Report
+Route::post('UD84/Charts/Password', [UD84_Report::class, 'confirmPassword']);
 Route::get('/UD84/Charts',[UD84_Report::class, 'commonCharts']);
 Route::get('/UD84/Omset/Single/{ID}',[UD84_Report::class, 'singleItemReport']);
 Route::get('/UD84/Omset',[UD84_Report::class, 'omsetDetail']);
