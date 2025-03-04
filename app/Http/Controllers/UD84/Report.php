@@ -276,11 +276,15 @@ class Report extends Controller
         }
 
         return response()->json([
-            'data'                      => $listItem,
-            'TOTAL_KOTOR'               => array_sum($totalKotor),
-            'TOTAL_POTONGAN_RUPIAH'     => array_sum($potonganRupiah),
-            'TOTAL_POTONGAN_PERSEN'     => array_sum($potonganPersen),
-            'TOTAL_PIECES'              => array_sum($totalPieces)
+            "status"    => "success",
+            "message"   => "Loaded",
+            "data"      => [
+                'data'                      => $listItem,
+                'TOTAL_KOTOR'               => array_sum($totalKotor),
+                'TOTAL_POTONGAN_RUPIAH'     => array_sum($potonganRupiah),
+                'TOTAL_POTONGAN_PERSEN'     => array_sum($potonganPersen),
+                'TOTAL_PIECES'              => array_sum($totalPieces)
+            ]
         ],200);
     }
 

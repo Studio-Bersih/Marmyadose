@@ -119,6 +119,7 @@ Route::get('/UD84/Master-Produk/Satuan', [UD84_Master::class, 'getSatuan']);
 
 // UD84 - Penjualan
 Route::post('/UD84/Penjualan/Saving-Receipt', [UD84_Penjualan::class, 'postPenjualan']);
+Route::post('/UD84/Penjualan/Order-Online', [UD84_Penjualan::class, 'postPesanan']);
 
 // UD84 - Member
 Route::get('/UD84/Member/Retrieve', [UD84_Member::class,'getMember']);

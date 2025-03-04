@@ -104,17 +104,23 @@ class MasterProduk extends Controller
     }
 
     public function katalogProduk(){
-        $data = DB::table('ud84_master_produk')->where('STATUS_JUAL','Katalog dan Penjualan')->get();
-        $listProduk = [];
-        foreach($data as $data){
-            $listProduk[] = [
-                "NAMA_PRODUK"           => $data->NAMA,
-                "KETERANGAN"            => $data->DESKRIPSI,
-                "KETERSEDIAAN_PRODUK"   => $data->STOK >= 0 ? 'Available' : 'Sold Out',
-                "GAMBAR"                => $data->GAMBAR
+        $DB = DB::table('ud84_master_produk')->where('STATUS_JUAL','Katalog dan Penjualan')->orderBy('NAMA')->get([
+                "ID", "NAMA", "DESKRIPSI", "STOK", "GAMBAR"
+            ])->map(function ($data) {
+            return [
+                "ID"                  => $data->ID,
+                "NAMA_PRODUK"         => $data->NAMA,
+                "KETERANGAN"          => $data->DESKRIPSI,
+                "KETERSEDIAAN_PRODUK" => $data->STOK >= 0 ? 'Available' : 'Sold Out',
+                "GAMBAR"              => $data->GAMBAR,
             ];
-        }
-        return response()->json($listProduk,200);
+        });
+        
+        return response()->json([
+            "status"    => "success",
+            "message"   => "Loaded",
+            "data"      => $DB
+        ],200);
     }
 
     public function singleItems(Request $request) {

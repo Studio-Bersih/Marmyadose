@@ -13,9 +13,8 @@ class Stock extends Controller {
             "status"    => "success",
             "message"   => "OK",
             "data"      => [
-                [ "ID" => 1, "NAMA" => "Agus" ],
-                [ "ID" => 2, "NAMA" => "Budi" ],
-                [ "ID" => 3, "NAMA" => "Caca" ]
+                [ "ID" => 1, "NAMA" => "Adi" ],
+                [ "ID" => 2, "NAMA" => "Andik" ],
             ]
         ],200);
     }
