@@ -5,7 +5,6 @@ namespace App\Http\Controllers\UD84;
 use DB;
 use App\Http\Controllers\Controller;
 use Illuminate\Http\Request;
-use Log;
 
 class Penjualan extends Controller
 {
@@ -82,38 +81,5 @@ class Penjualan extends Controller
         ],200);
     }
 
-    public function postPesanan(Request $request) {
-        // [2025-03-04 23:01:26] local.INFO: array (
-        //     'NAMA' => 'Gilby Dhilega Yodiaz',
-        //     'WHATSAPP' => 'Gilby Dhilega Yodiaz',
-        //     'SALES' => 'Gilby Dhilega Yodiaz',
-        //     'CARTS' => 
-        //     array (
-        //       0 => 
-        //       array (
-        //         'ID' => 419,
-        //         'NAMA' => 'ABC KCP ASIN 131 ML',
-        //         'QUANTITY' => 5,
-        //       ),
-        //       1 => 
-        //       array (
-        //         'ID' => 434,
-        //         'NAMA' => 'ABC KECAP ASIN 620ML',
-        //         'QUANTITY' => 10,
-        //       ),
-        //       2 => 
-        //       array (
-        //         'ID' => 473,
-        //         'NAMA' => 'ABON TOPLES',
-        //         'QUANTITY' => 15,
-        //       ),
-        //     ),
-        //   )  
-        Log::info($request->all());
-        return response()->json([
-            'status'    => 'success',
-            'message'   => 'Pesanan tersimpan!',
-            "data"      => $request->all()
-        ],200);
-    }
+    
 }

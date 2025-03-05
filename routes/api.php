@@ -4,6 +4,7 @@ use App\Http\Controllers\UD84\Report as UD84_Report;
 use App\Http\Controllers\UD84\Member as UD84_Member;
 use App\Http\Controllers\UD84\MasterProduk as UD84_Master;
 use App\Http\Controllers\UD84\Penjualan as UD84_Penjualan;
+use App\Http\Controllers\UD84\Pesanan as UD84_Pesanan;
 use App\Http\Controllers\UD84\Stock as UD84_Stocks;
 
 use App\Http\Controllers\Kosada\Kredit as Kosada_Kredit;
@@ -119,7 +120,9 @@ Route::get('/UD84/Master-Produk/Satuan', [UD84_Master::class, 'getSatuan']);
 
 // UD84 - Penjualan
 Route::post('/UD84/Penjualan/Saving-Receipt', [UD84_Penjualan::class, 'postPenjualan']);
-Route::post('/UD84/Penjualan/Order-Online', [UD84_Penjualan::class, 'postPesanan']);
+
+// UD84 - Pesanan
+Route::post('/UD84/Penjualan/Order-Online', [UD84_Pesanan::class, 'postPesanan']);
 
 // UD84 - Member
 Route::get('/UD84/Member/Retrieve', [UD84_Member::class,'getMember']);
