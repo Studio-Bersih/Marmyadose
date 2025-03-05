@@ -9,13 +9,11 @@ use DB;
 
 class Stock extends Controller {
     public function getUser(){
+        $DB = DB::table('ud84_sales')->get();
         return response()->json([
             "status"    => "success",
-            "message"   => "OK",
-            "data"      => [
-                [ "ID" => 1, "NAMA" => "Adi" ],
-                [ "ID" => 2, "NAMA" => "Andik" ],
-            ]
+            "message"   => "Loaded",
+            "data"      => $DB
         ],200);
     }
 
