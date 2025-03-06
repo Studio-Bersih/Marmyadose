@@ -62,8 +62,27 @@ class Pesanan extends Controller
         }
     }
 
-    public function getPesanan() {
-        $DB = DB::table('ud84_pesanan_rekap')->orderByDesc('ID')->get();
+    public function getPesanan(Request $request) {
+        $startDate = $request->input('start');
+        $endDate   = $request->input('end');
+
+        // Validasi tanggal tidak kosong
+        if (!$startDate || !$endDate) {
+            return response()->json([
+                "status"  => "error",
+                "message" => "Harap masukkan tanggal awal dan akhir."
+            ], 400);
+        }
+
+        // Pastikan endDate tidak lebih awal dari startDate
+        if (strtotime($endDate) < strtotime($startDate)) {
+            return response()->json([
+                "status"  => "error",
+                "message" => "Tanggal akhir tidak boleh lebih awal dari tanggal mulai."
+            ], 400);
+        }
+
+        $DB = DB::table('ud84_pesanan_rekap')->where('CREATED_AT', '>=', $startDate)->where('CREATED_AT', '<=', $endDate)->orderByDesc('ID')->get();
 
         $useDB = [];
         foreach($DB as $DB) {
@@ -74,6 +93,7 @@ class Pesanan extends Controller
                 "SALES"         => $salesName->NAMA,
                 "CATATAN"       => $DB->CATATAN,
                 "KODE"          => $DB->KODE,
+                "VALID"         => $DB->VALID,
                 "CREATED_AT"    => $DB->CREATED_AT
             ];
         }
@@ -117,5 +137,26 @@ class Pesanan extends Controller
                 "message" => "Ada kesalahan pada server."
             ], 500);
         }
+    }
+
+    public function removeItem(Request $request){
+        $id = $request->input('ID');
+        DB::table('ud84_pesanan_rekap')->where('KODE', $id)->delete();
+        DB::table('ud84_pesanan_detail')->where('KODE', $id)->delete();
+        return response()->json([
+            "status"  => "success",
+            "message" => "Pesanan berhasil dihapus."
+        ], 200);
+    }
+
+    public function validateItem(Request $request){
+        $id = $request->input('ID');
+        DB::table('ud84_pesanan_rekap')->where('KODE', $id)->update([
+            "VALID" => "Verified"
+        ]);
+        return response()->json([
+            "status"  => "success",
+            "message" => "Pesanan berhasil dihapus."
+        ], 200);
     }
 }
