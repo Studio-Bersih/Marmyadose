@@ -119,7 +119,7 @@ class Report extends Controller
 
     public function daftarTransaksi(){
         $data = DB::table('ud84_penjualan_rekap')->skip(0)->take(10)->orderByDesc('ID')->get();
-        $listData = $nominalTransaksi = $nominalDP = $nominalBayarTunai = [];
+        $listData = $nominalTransaksi = $nominalDP = $nominalBayarTunai = $nominalPotongan = [];
         foreach($data as $data){
             $listData[] = [
                 "ID"            => $data->UNIQUE,
@@ -180,7 +180,7 @@ class Report extends Controller
             ->get();
 
         // Inisialisasi variabel
-        $listData = $nominalTransaksi = $nominalDP = $nominalBayarTunai = [];
+        $listData = $nominalTransaksi = $nominalDP = $nominalBayarTunai = $nominalPotongan = [];
         foreach($data as $data){
             $listData[] = [
                 "ID"            => $data->UNIQUE,
