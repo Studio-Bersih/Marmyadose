@@ -59,4 +59,35 @@ class Member extends Controller
         DB::table('ud84_member')->where('ID',$ID)->delete();
         return response()->json("OK",200);
     }
+
+    public function salesCreate(Request $request) {
+        try {
+            $unique = uniqid();
+            $nama = $request->input('NAMA');
+            $whatsApp = $request->input('WHATSAPP');
+            $sales = $request->input('SALES');
+            $notes = $request->input('NOTES');
+
+            DB::table('ud84_member')->updateOrInsert([
+                "WHATSAPP" => $whatsApp
+            ],[
+                "UNIQUE"        => $unique,
+                "NAMA"          => $nama,
+                "LOKASI"        => NULL,
+                "ALAMAT"        => $notes,
+                "WHATSAPP"      => $whatsApp,
+                "CREATED_BY"    => $sales
+            ]);
+
+            return response()->json([
+                'status'    => 'success',
+                'message'   => 'Data tersimpan'
+            ],200);
+        } catch (\Exception $e) {
+            return response()->json([
+                'status'    => 'error',
+                'message'   => "Ada kesalahan server"
+            ],500);
+        }
+    }
 }

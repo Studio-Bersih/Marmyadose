@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\UD84;
 
 use DB;
+use Log;
 use Carbon\Carbon;
 use Illuminate\Http\Request;
 use App\Http\Controllers\Controller;
@@ -296,6 +297,84 @@ class Report extends Controller
             "status"    => "success",
             "message"   => "DP Updated!"
         ],200);
+    }
+
+    public function reportSales(Request $request) {
+        try {
+            $sales = $request->input('SALES');
+
+            $startDate = $request->input('START');
+            $endDate   = $request->input('END');
+
+            // Validasi tanggal tidak kosong
+            if (!$startDate || !$endDate) {
+                return response()->json([
+                    "status"  => "error",
+                    "message" => "Harap masukkan tanggal awal dan akhir."
+                ], 400);
+            }
+
+            // Pastikan endDate tidak lebih awal dari startDate
+            if (strtotime($endDate) < strtotime($startDate)) {
+                return response()->json([
+                    "status"  => "error",
+                    "message" => "Tanggal akhir tidak boleh lebih awal dari tanggal mulai."
+                ], 400);
+            }
+
+            $DB = DB::table('ud84_analisa_sales')->where('CREATED_AT', '>=', $startDate)->where('CREATED_AT', '<=', $endDate)->where('SALES', $sales)->get();
+
+            return response()->json([
+                "status"  => "success",
+                "message" => "Data berhasil dimuat!.",
+                "data" => $DB
+            ], 200);
+        } catch(\Throwable $e) {
+            return response()->json([
+                "status"  => "error",
+                "message" => "Ada kesalahan pada server"
+            ], 400);
+        }
+    }
+
+    public function salesMember(Request $request) {
+        try {
+            $sales = $request->input('SALES');
+
+            $startDate = $request->input('START');
+            $endDate   = $request->input('END');
+
+            // Validasi tanggal tidak kosong
+            if (!$startDate || !$endDate) {
+                return response()->json([
+                    "status"  => "error",
+                    "message" => "Harap masukkan tanggal awal dan akhir."
+                ], 400);
+            }
+
+            // Pastikan endDate tidak lebih awal dari startDate
+            if (strtotime($endDate) < strtotime($startDate)) {
+                return response()->json([
+                    "status"  => "error",
+                    "message" => "Tanggal akhir tidak boleh lebih awal dari tanggal mulai."
+                ], 400);
+            }
+
+            $DB = DB::table('ud84_member')->where('CREATED_BY', $sales)
+            ->where('CREATED_AT', '>=', $startDate)->where('CREATED_AT', '<=', $endDate)->get();
+
+            return response()->json([
+                "status"    => "success",
+                "message"   => "Data berhasil dimuat!.",
+                "data"      => $DB
+            ], 200);
+        } catch(\Throwable $e) {
+            Log::info($e);
+            return response()->json([
+                "status"  => "error",
+                "message" => "Ada kesalahan pada server"
+            ], 400);
+        }
     }
 
 }

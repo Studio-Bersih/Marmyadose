@@ -132,6 +132,7 @@ Route::post('/UD84/Penjualan/Order-Online', [UD84_Pesanan::class, 'postPesanan']
 Route::get('/UD84/Member/Retrieve', [UD84_Member::class,'getMember']);
 Route::post('/UD84/Member/Insert', [UD84_Member::class, 'postMember']);
 Route::post('/UD84/Member/Delete', [UD84_Member::class, 'deleteMember']);
+Route::post('/UD84/Member/Create-Sales', [UD84_Member::class, 'salesCreate']);
 
 // UD84 - Report
 Route::post('UD84/Charts/Password', [UD84_Report::class, 'confirmPassword']);
@@ -140,6 +141,8 @@ Route::get('/UD84/Omset/Single/{ID}',[UD84_Report::class, 'singleItemReport']);
 Route::get('/UD84/Omset',[UD84_Report::class, 'omsetDetail']);
 Route::post('/UD84/Operasional/Insert',[UD84_Report::class, 'postOperasional']);
 Route::get('/UD84/Operasional/Retrieve',[UD84_Report::class, 'getReportOperasional']);
+Route::post('/UD84/Reports/Sales', [UD84_Report::class, 'reportSales']);
+Route::post('/UD84/Reports/Sales-Member', [UD84_Report::class, 'salesMember']);
 
 // UD84 - Daftar Transaksi
 Route::get('/UD84/Daftar-Transaksi', [UD84_Report::class,'daftarTransaksi']);

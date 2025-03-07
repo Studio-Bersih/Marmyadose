@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\UD84;
 
 use DB;
+use Log;
 use App\Http\Controllers\Controller;
 use Illuminate\Http\Request;
 
@@ -19,21 +20,23 @@ class Penjualan extends Controller
             $namaMember = empty($dataMember->NAMA) ? 'UMUM' : $dataMember->NAMA;
         }
 
-        DB::table('ud84_penjualan_rekap')->insert([
-            "UNIQUE"            => $uniqueID,
-            "NAMA"              => $namaMember,
-            "DP"                => $request->input('DP'),
-            "CASH"              => $request->input('CASH'),
-            "JATUH_TEMPO"       => $request->input('JATUH_TEMPO') ?? NULL,
-            "TOTAL"             => $request->input('TOTAL'),
-            "KETERANGAN"        => $request->input('KETERANGAN'),
-        ]);
-
         DB::beginTransaction();
+        try {
+            DB::table('ud84_penjualan_rekap')->insert([
+                "UNIQUE"            => $uniqueID,
+                "NAMA"              => $namaMember,
+                "DP"                => $request->input('DP'),
+                "CASH"              => $request->input('CASH'),
+                "POTONGAN"          => $request->input('POTONGAN'),
+                "JATUH_TEMPO"       => $request->input('JATUH_TEMPO') ?? NULL,
+                "TOTAL"             => $request->input('TOTAL') - $request->input('POTONGAN'),
+                "KETERANGAN"        => $request->input('KETERANGAN'),
+            ]);
+
             foreach($request->input('CART') as $data){
                 DB::table('ud84_penjualan_detail')->insert([
                     "UNIQUE"          => $uniqueID,
-                    "ID"              => $data['ID'],
+                    "KODE"            => $data['ID'],
                     "NAMA"            => $data['NAMA'],
                     "JUMLAH"          => $data['QUANTITY'],
                     "HARGA_ASLI"      => $data['HARGA_ASLI'],
@@ -62,8 +65,8 @@ class Penjualan extends Controller
                     "NAMA_ITEM"  => $data['NAMA'],
                     "ASAL"       => 'Retail',
                     "MASUK"      => 0,
-                    "KELUAR"     => $stokDecrease['STOK'],
-                    "STOK_FINAL" => $item->STOK - $stokDecrease['STOK'],
+                    "KELUAR"     => $item->STOK - $stokDecrease['STOK'],
+                    "STOK_FINAL" => $stokDecrease['STOK'],
                     "CREATED_AT" => now()
                 ];
 
@@ -73,12 +76,20 @@ class Penjualan extends Controller
 
                 DB::table('ud84_master_produk')->where('NAMA',$data['NAMA'])->update($stokDecrease);
             }
-        DB::commit();
+            DB::commit();
 
-        return response()->json([
-            'status'    => 'success',
-            'message'   => 'Data tersimpan!'
-        ],200);
+            return response()->json([
+                'status'    => 'success',
+                'message'   => 'Data tersimpan!'
+            ],200);
+        } catch (\Exception $e) {
+            Log::info($e);
+            DB::rollBack();
+            return response()->json([
+                'status'    => 'error',
+                'message'   => 'Terjadi kesalahan: ' . $e->getMessage()
+            ],500);
+        }
     }
 
     
