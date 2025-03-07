@@ -3,6 +3,7 @@
 namespace App\Http\Controllers;
 
 use DB;
+use Log;
 use Hash;
 use App\Models\User;
 use Illuminate\Http\Request;
@@ -25,8 +26,6 @@ class Authenticate extends Controller
                         "MESSAGE"   => "Data anda tidak ditemukan (201)"
                     ],200);
                 }
-                $createToken    = $data->createToken('token')->plainTextToken;
-                $cookie         = cookie('jwt',$createToken, 60 * 24); // Sehari token a
     
                 $loginData = [
                     'status'    => 'Authenticated',
@@ -35,7 +34,7 @@ class Authenticate extends Controller
                     'privilege' => $data->privilege
                 ];
                 // Dont forget to write access log here!
-                return response()->json($loginData,200)->withCookie($cookie);
+                return response()->json($loginData,200);
             }
     
             return response()->json([
@@ -43,6 +42,7 @@ class Authenticate extends Controller
                 'message'   => 'Data anda tidak ditemukan'
             ],401);       
         } catch (\Throwable $e){
+            Log::info($e);
             return response($e,200);
         }
     }

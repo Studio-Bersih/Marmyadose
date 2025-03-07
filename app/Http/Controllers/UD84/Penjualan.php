@@ -22,15 +22,24 @@ class Penjualan extends Controller
 
         DB::beginTransaction();
         try {
+
+            $dp = $request->input('DP');
+            $cash = $request->input('CASH');
+            $potongan = $request->input('POTONGAN');
+            $jatuhTempo = $request->input('JATUH_TEMPO');
+            $total = $request->input('TOTAL');
+            $keterangan = $request->input('KETERANGAN');
+
             DB::table('ud84_penjualan_rekap')->insert([
                 "UNIQUE"            => $uniqueID,
                 "NAMA"              => $namaMember,
-                "DP"                => $request->input('DP'),
-                "CASH"              => $request->input('CASH'),
-                "POTONGAN"          => $request->input('POTONGAN'),
-                "JATUH_TEMPO"       => $request->input('JATUH_TEMPO') ?? NULL,
-                "TOTAL"             => $request->input('TOTAL') - $request->input('POTONGAN'),
-                "KETERANGAN"        => $request->input('KETERANGAN'),
+                "DP"                => $dp,
+                "CASH"              => $cash,
+                "KEMBALIAN"         => $cash - ($total - $potongan) ,
+                "POTONGAN"          => $potongan,
+                "JATUH_TEMPO"       => $jatuhTempo ?? NULL,
+                "TOTAL"             => $total - $potongan,
+                "KETERANGAN"        => $keterangan,
             ]);
 
             foreach($request->input('CART') as $data){

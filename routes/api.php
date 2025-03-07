@@ -136,6 +136,7 @@ Route::post('/UD84/Member/Create-Sales', [UD84_Member::class, 'salesCreate']);
 
 // UD84 - Report
 Route::post('UD84/Charts/Password', [UD84_Report::class, 'confirmPassword']);
+Route::post('UD84/Charts/Sales-Password', [UD84_Report::class, 'salesPassword']);
 Route::get('/UD84/Charts',[UD84_Report::class, 'commonCharts']);
 Route::get('/UD84/Omset/Single/{ID}',[UD84_Report::class, 'singleItemReport']);
 Route::get('/UD84/Omset',[UD84_Report::class, 'omsetDetail']);
@@ -161,3 +162,6 @@ Route::post('/UD84/Stocks/Kartu', [UD84_Stocks::class, 'kartuStok']);
 // UD84 - Stocks Input
 Route::get('/UD84/Stocks/Staff', [UD84_Stocks::class, 'getUser']);
 Route::post('/UD84/Stocks/Manipulate', [UD84_Stocks::class, 'stocksAdmin']);
+
+// UD84 - Auth
+Route::post('/UD84/Auth', [Authenticate::class, 'logIn']);

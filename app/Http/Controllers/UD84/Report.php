@@ -27,6 +27,22 @@ class Report extends Controller
         ],200);
     }
 
+    public function salesPassword(Request $request) {
+        $password = $request->input('password');
+
+        if($password === "uvx321") {
+            return response()->json([
+                "status" => "success",
+                "message" => "Authenticated"
+            ],200);
+        }
+
+        return response()->json([
+            "status" => "error",
+            "message" => "Password anda salah."
+        ],200);
+    }
+
     public function commonCharts(){
         $dataOmset          = DB::table('ud84_penjualan_rekap')->whereMonth('CREATED_AT',Carbon::now()->month)->sum('TOTAL');
         $dataOperasional    = DB::table('ud84_operasional')->whereMonth('CREATED_AT',Carbon::now()->month)->sum('NOMINAL');
@@ -111,12 +127,16 @@ class Report extends Controller
                 "JATUH_TEMPO"   => empty($data->JATUH_TEMPO) ? '-' : Carbon::parse($data->JATUH_TEMPO)->translatedFormat('d F Y'),
                 "NAMA"          => empty($data->NAMA) ? 'UMUM' : ucwords(trans($data->NAMA)),
                 "NOMINAL"       => $data->TOTAL,
+                "KEMBALIAN"     => $data->KEMBALIAN,
                 "DP"            => empty($data->DP) ? 0 : $data->DP,
                 "BAYAR_TUNAI"   => empty($data->CASH) ? 0 : $data->CASH,
+                "POTONGAN"      => empty($data->POTONGAN) ? 0 : $data->POTONGAN
             ];
             $nominalDP[]            = $data->DP;
             $nominalTransaksi[]     = $data->TOTAL;
             $nominalBayarTunai[]    = $data->CASH;
+            $nominalPotongan[]      = $data->POTONGAN;
+            $nominalKembalian[]     = $data->KEMBALIAN;
         }
 
         return response()->json([
@@ -126,7 +146,9 @@ class Report extends Controller
                 "data"          => $listData,
                 "DP"            => array_sum($nominalDP),
                 "TRANSAKSI"     => array_sum($nominalTransaksi),
-                "BAYAR_TUNAI"   => array_sum($nominalBayarTunai)
+                "BAYAR_TUNAI"   => array_sum($nominalBayarTunai),
+                "POTONGAN"      => array_sum($nominalPotongan),
+                "KEMBALIAN"     => array_sum($nominalKembalian)
             ]
         ],200);
     }
@@ -166,12 +188,16 @@ class Report extends Controller
                 "JATUH_TEMPO"   => empty($data->JATUH_TEMPO) ? '-' : Carbon::parse($data->JATUH_TEMPO)->translatedFormat('d F Y'),
                 "NAMA"          => empty($data->NAMA) ? 'UMUM' : ucwords(trans($data->NAMA)),
                 "NOMINAL"       => $data->TOTAL,
+                "KEMBALIAN"     => $data->KEMBALIAN,
                 "DP"            => empty($data->DP) ? 0 : $data->DP,
                 "BAYAR_TUNAI"   => empty($data->CASH) ? 0 : $data->CASH,
+                "POTONGAN"      => empty($data->POTONGAN) ? 0 : $data->POTONGAN
             ];
             $nominalDP[]            = $data->DP;
             $nominalTransaksi[]     = $data->TOTAL;
             $nominalBayarTunai[]    = $data->CASH;
+            $nominalPotongan[]      = $data->POTONGAN;
+            $nominalKembalian[]     = $data->KEMBALIAN;
         }
 
         return response()->json([
@@ -181,7 +207,9 @@ class Report extends Controller
                 "data"          => $listData,
                 "DP"            => array_sum($nominalDP),
                 "TRANSAKSI"     => array_sum($nominalTransaksi),
-                "BAYAR_TUNAI"   => array_sum($nominalBayarTunai)
+                "BAYAR_TUNAI"   => array_sum($nominalBayarTunai),
+                "POTONGAN"      => array_sum($nominalPotongan),
+                "KEMBALIAN"     => array_sum($nominalKembalian)
             ]
         ],200);
     }
