@@ -32,8 +32,15 @@ class Report extends Controller
 
         if($password === "uvx321") {
             return response()->json([
-                "status" => "success",
-                "message" => "Authenticated"
+                "status"    => "success",
+                "message"   => "Authenticated",
+                "data"      => "Standard"
+            ],200);
+        } else if ($password === "plm123") {
+            return response()->json([
+                "status"    => "success",
+                "message"   => "Authenticated",
+                "data"      => "Sales"
             ],200);
         }
 
@@ -231,6 +238,7 @@ class Report extends Controller
     public function getInvoices($ID){
         $dataRekap  = DB::table('ud84_penjualan_rekap')->where('UNIQUE',$ID)->first();
         $dataDetail = DB::table('ud84_penjualan_detail')->where('UNIQUE',$ID)->get();
+        $dataMember = DB::table('ud84_member')->where('NAMA', $dataRekap->NAMA)->first();
 
         $listDetail = [];
         $totalSum   = [];
@@ -252,7 +260,9 @@ class Report extends Controller
                 "tuan"      => $dataRekap->NAMA ?? '-',
                 "total"     => array_sum($totalSum) ?? 0,
                 "data"      => $listDetail ?? [],
-                "rekap"     => $dataRekap
+                "rekap"     => $dataRekap,
+                "alamat"    => empty($dataMember->ALAMAT) ? '-' : $dataMember->ALAMAT,
+                "point"     => empty($dataMember->POINT) ? 0 : $dataMember->POINT
             ]
         ],200);
     }
@@ -318,9 +328,14 @@ class Report extends Controller
     }
 
     public function updateDP(Request $request){
+        $DB = DB::table('ud84_penjualan_rekap')->where('UNIQUE',$request->input('KODE'))->first();
+
+        $nominalBaru = $request->input('DP') + $request->input('OLD_DP');
         DB::table('ud84_penjualan_rekap')->where('UNIQUE',$request->input('KODE'))->update([
-            "DP"    => $request->input('DP') + $request->input('OLD_DP')
+            "DP"        => $nominalBaru,
+            "KEMBALIAN" => empty($DB->CASH) ? 0 : $DB->KEMBALIAN + $nominalBaru
         ]);
+
         return response()->json([
             "status"    => "success",
             "message"   => "DP Updated!"

@@ -159,6 +159,9 @@ Route::post('/UD84/Stocks/Dashboard', [UD84_Stocks::class, 'dashboard']);
 Route::post('/UD84/Stocks/Detail', [UD84_Stocks::class, 'view']);
 Route::post('/UD84/Stocks/Kartu', [UD84_Stocks::class, 'kartuStok']);
 
+// UD84 - Sales
+Route::post('/UD84/History-Sales', [UD84_Pesanan::class, 'salesHistory']);
+
 // UD84 - Stocks Input
 Route::get('/UD84/Stocks/Staff', [UD84_Stocks::class, 'getUser']);
 Route::post('/UD84/Stocks/Manipulate', [UD84_Stocks::class, 'stocksAdmin']);

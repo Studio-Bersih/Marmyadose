@@ -35,12 +35,28 @@ class Penjualan extends Controller
                 "NAMA"              => $namaMember,
                 "DP"                => $dp,
                 "CASH"              => $cash,
-                "KEMBALIAN"         => $cash - ($total - $potongan) ,
+                "KEMBALIAN"         => empty($cash) ? 0 : $cash - ($total - $potongan) ,
                 "POTONGAN"          => $potongan,
                 "JATUH_TEMPO"       => $jatuhTempo ?? NULL,
                 "TOTAL"             => $total - $potongan,
                 "KETERANGAN"        => $keterangan,
+                "MEMBER"            => $namaMember
             ]);
+
+            if ($cash > 0) {
+                $poinTambahan = floor($cash / 500000);
+            
+                if ($poinTambahan > 0) {
+                    // Ensure NAMA matches and exists before incrementing
+                    $affectedRows = DB::table('ud84_member')
+                        ->whereRaw("TRIM(NAMA) = ?", [trim($namaMember)])
+                        ->increment('POINT', $poinTambahan);
+            
+                    if ($affectedRows === 0) {
+                        Log::warning("Point update failed for member: $namaMember. Check if the name exists.");
+                    }
+                }
+            }
 
             foreach($request->input('CART') as $data){
                 DB::table('ud84_penjualan_detail')->insert([

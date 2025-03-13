@@ -159,4 +159,26 @@ class Pesanan extends Controller
             "message" => "Pesanan berhasil dihapus."
         ], 200);
     }
+
+    public function salesHistory(Request $request) {
+        try {
+            $id = $request->input('ID');
+            Log::info($id);
+            $DB = DB::table('ud84_pesanan_rekap')
+                ->where('SALES', $id)
+                ->where('VALID', NULL)
+                ->get(['KODE', 'CATATAN']);
+    
+            return response()->json([
+                "status"  => "success",
+                "message" => "Data berhasil dimuat!",
+                "data"    => $DB
+            ], 200);
+        } catch (\Exception $e) {
+            return response()->json([
+                "status"  => "error",
+                "message" => "Terjadi kesalahan: " . $e->getMessage()
+            ], 500);
+        }
+    }
 }

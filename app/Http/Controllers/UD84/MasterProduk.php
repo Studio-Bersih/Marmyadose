@@ -105,7 +105,7 @@ class MasterProduk extends Controller
 
     public function katalogProduk(){
         $DB = DB::table('ud84_master_produk')->where('STATUS_JUAL','Katalog dan Penjualan')->orderBy('NAMA')->get([
-                "ID", "NAMA", "DESKRIPSI", "STOK", "GAMBAR"
+                "ID", "NAMA", "DESKRIPSI", "STOK", "GAMBAR", 'HARGA_JUAL', 'HARGA_PER_ITEM'
             ])->map(function ($data) {
             return [
                 "ID"                  => $data->ID,
@@ -113,6 +113,8 @@ class MasterProduk extends Controller
                 "KETERANGAN"          => $data->DESKRIPSI,
                 "KETERSEDIAAN_PRODUK" => $data->STOK >= 0 ? 'Available' : 'Sold Out',
                 "GAMBAR"              => $data->GAMBAR,
+                "HARGA_JUAL"          => $data->HARGA_JUAL,
+                "HARGA_PCS"           => $data->HARGA_PER_ITEM
             ];
         });
         
