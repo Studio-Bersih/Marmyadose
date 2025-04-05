@@ -22,6 +22,8 @@ use App\Http\Controllers\POS\Transaksi as POS_Transaksi;
 use App\Http\Controllers\POS\Report as POS_Report;
 use App\Http\Controllers\POS\Users as POS_Users;
 
+use App\Http\Controllers\Wedding\Comments as Wedding_Comments;
+
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Route;
 use App\Http\Controllers\Authenticate;
@@ -168,3 +170,7 @@ Route::post('/UD84/Stocks/Manipulate', [UD84_Stocks::class, 'stocksAdmin']);
 
 // UD84 - Auth
 Route::post('/UD84/Auth', [Authenticate::class, 'logIn']);
+
+// Wedding
+Route::post('/Wedding/Get-Comments', [Wedding_Comments::class, 'getComments']);
+Route::post('/Wedding/Post-Comments', [Wedding_Comments::class, 'postComments']);
