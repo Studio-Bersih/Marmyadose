@@ -7,6 +7,7 @@ use Illuminate\Support\Facades\DB;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use App\DTO\Responses;
+use Log;
 
 class Users extends Controller
 {
@@ -24,13 +25,14 @@ class Users extends Controller
         return response()->json(new Responses(
             "success","Authorized",[
                 "token" => $token,
-                "roles" => $DB->ROLE
+                "roles" => $DB->ROLE,
+                "usaha" => $DB->USAHA
             ]
         ));
     }
 
-    public function getUsers(): JsonResponse {
-        $DB = DB::table('pos_users')->get(['ID','TOKEN','ROLE']);
+    public function getUsers(Request $request): JsonResponse {
+        $DB = DB::table('pos_users')->where('USAHA', $request->input('usaha'))->get();
         return response()->json(new Responses(
             "success","Data berhasil dimuat", $DB
         ));
@@ -39,10 +41,15 @@ class Users extends Controller
     public function updateUsers(Request $request): JsonResponse {
         $id = $request->input('id');
         $token = $request->input('token');
+        $cabang = $request->input('cabang');
+        $usaha = $request->input('usaha');
 
         DB::table('pos_users')->where('ID', $id)->update([
-            "TOKEN" => $token
+            "TOKEN" => $token,
+            "CABANG" => $cabang,
+            "USAHA" => $usaha
         ]);
+
         return response()->json(new Responses(
             "success","Data berhasil diupdate!"
         ));

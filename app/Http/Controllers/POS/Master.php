@@ -10,8 +10,8 @@ use App\Http\Controllers\Controller;
 
 class Master extends Controller
 {
-    public function getItem(): JsonResponse {
-        $data = DB::table('pos_master_produk')->orderBy('NAMA')->get([
+    public function getItem(Request $request): JsonResponse {
+        $data = DB::table('pos_master_produk')->where('USAHA', $request->input('USAHA'))->orderBy('NAMA')->get([
             "ID","NAMA","BARCODE","JENIS","STOK_ITEM","HARGA_STOK","HARGA_JUAL","KETERANGAN"
         ]);
         
@@ -39,6 +39,7 @@ class Master extends Controller
                 "HARGA_STOK"    => $request->input('hargaStok'),
                 "HARGA_JUAL"    => $request->input('hargaJual'),
                 "KETERANGAN"    => $request->input('keterangan'),
+                "USAHA"         => $request->input('usaha')
             ]);
         DB::commit();
 

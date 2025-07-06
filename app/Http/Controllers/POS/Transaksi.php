@@ -15,7 +15,6 @@ class Transaksi extends Controller
         $staff = $request->input('staff');
         $DB = DB::table('pos_penjualan_detail')->where('TOKEN', $staff)->whereDate('CREATED_AT', DB::raw('CURDATE()'))->get();
         
-        Log::info($DB);
         $data = [];
         foreach($DB as $DB) {
             $originalPrice = DB::table('pos_master_produk')->where('ID', $DB->KODE)->first('HARGA_STOK');
@@ -42,4 +41,74 @@ class Transaksi extends Controller
             "success", "Item berhasil dihapus!"
         ), 200);
     }
+
+    public function trackKeuntungan(Request $request): JsonResponse
+    {
+        $staff = $request->input('staff');
+        $searchDate = $request->input('searchDate');
+
+        $query = DB::table('pos_penjualan_detail')
+            ->where('TOKEN', $staff);
+
+        if ($searchDate) {
+            $query->whereDate('CREATED_AT', $searchDate);
+        } else {
+            $query->whereDate('CREATED_AT', DB::raw('CURDATE()'));
+        }
+
+        $details = $query->get();
+
+        $result = [];
+        $totalHargaBeli = 0;
+        $totalHargaJual = 0;
+        $totalKeuntungan = 0;
+
+        foreach ($details as $detail) {
+            $produk = DB::table('pos_master_produk')->where('ID', $detail->KODE)->first(['HARGA_STOK']);
+            $hargaBeli = $produk ? $produk->HARGA_STOK : 0;
+            $hargaJual = $detail->HARGA_JUAL;
+            $jumlah = $detail->JUMLAH;
+            $keuntungan = ($hargaJual - $hargaBeli) * $jumlah;
+
+            $result[] = [
+                'ID' => $detail->ID,
+                'NAMA' => $detail->NAMA,
+                'HARGA_BELI' => $hargaBeli,
+                'HARGA_JUAL' => $hargaJual,
+                'JUMLAH' => $jumlah,
+                'KEUNTUNGAN_BERSIH' => $keuntungan,
+            ];
+
+            $totalHargaBeli += $hargaBeli * $jumlah;
+            $totalHargaJual += $hargaJual * $jumlah;
+            $totalKeuntungan += $keuntungan;
+        }
+
+        $summary = [
+            'TOTAL_HARGA_BELI' => $totalHargaBeli,
+            'TOTAL_HARGA_JUAL' => $totalHargaJual,
+            'TOTAL_KEUNTUNGAN_BERSIH' => $totalKeuntungan,
+        ];
+
+        if (empty($result)) {
+            return response()->json(new Responses(
+                "success",
+                "Tidak ada data keuntungan ditemukan.",
+                [
+                    'items' => [],
+                    'summary' => $summary
+                ]
+            ));
+        }
+
+        return response()->json(new Responses(
+            "success",
+            "Data keuntungan berhasil dimuat!",
+            [
+                'items' => $result,
+                'summary' => $summary
+            ]
+        ));
+    }
+
 }

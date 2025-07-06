@@ -84,7 +84,7 @@ Route::get('/Kosada/Surat-Tugas/Lihat/{ID}', [Kosada_Surat::class, 'lihatSurat']
 Route::post('/Kosada/Report',[Kosada_Report::class, 'getReport']);
 
 // Layescent - Master Product
-Route::get('/POS/List-Item', [POS_Master::class, 'getItem']);
+Route::post('/POS/List-Item', [POS_Master::class, 'getItem']);
 Route::post('/POS/Create-Item', [POS_Master::class, 'createItem']);
 Route::post('/POS/Update-Item', [POS_Master::class, 'updateItem']);
 Route::post('/POS/Detail-Item', [POS_Master::class, 'detailItem']);
@@ -101,10 +101,11 @@ Route::post('/POS/Riwayat-Penjualan', [POS_Transaksi::class, 'transaksiPenjualan
 
 // Layescent - Report
 Route::post('/POS/Report', [POS_Report::class, 'downloadReport']);
+Route::post('/POS/Report/Omset', [POS_Transaksi::class, 'trackKeuntungan']);
 
 // Layescent - Users
 Route::post('/POS/Check-Token', [POS_Users::class, 'checkToken']);
-Route::get('/POS/Users', [POS_Users::class, 'getUsers']);
+Route::post('/POS/Users', [POS_Users::class, 'getUsers']);
 Route::post('/POS/Update-Users', [POS_Users::class, 'updateUsers']);
 
 // UD84 - Katalog
