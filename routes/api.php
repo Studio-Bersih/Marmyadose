@@ -21,6 +21,7 @@ use App\Http\Controllers\POS\Penjualan as POS_Penjualan;
 use App\Http\Controllers\POS\Transaksi as POS_Transaksi;
 use App\Http\Controllers\POS\Report as POS_Report;
 use App\Http\Controllers\POS\Users as POS_Users;
+use App\Http\Controllers\POS\EMoney as POS_E_Money;
 
 use App\Http\Controllers\Wedding\Comments as Wedding_Comments;
 
@@ -107,6 +108,11 @@ Route::post('/POS/Report/Omset', [POS_Transaksi::class, 'trackKeuntungan']);
 Route::post('/POS/Check-Token', [POS_Users::class, 'checkToken']);
 Route::post('/POS/Users', [POS_Users::class, 'getUsers']);
 Route::post('/POS/Update-Users', [POS_Users::class, 'updateUsers']);
+
+// Layescent - Users
+Route::post('/POS/E-Money/Ranged', [POS_E_Money::class, 'getRanged']);
+Route::post('/POS/E-Money/Ranged-Types', [POS_E_Money::class, 'getRangedTypes']);
+Route::post('/POS/E-Money/Insert', [POS_E_Money::class, 'insertMoney']);
 
 // UD84 - Katalog
 Route::get('/UD84/Master-Produk/Katalog', [UD84_Master::class, 'katalogProduk']);
