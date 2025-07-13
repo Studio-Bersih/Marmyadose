@@ -100,6 +100,7 @@ Route::post('/POS/Post-Transaction', [POS_Penjualan::class, 'saveTransaction']);
 // Layescent - Riwayat Transaksi
 Route::post('/POS/Delete-Detail-Penjualan', [POS_Transaksi::class, 'deleteDetailPenjualan']);
 Route::post('/POS/Riwayat-Penjualan', [POS_Transaksi::class, 'transaksiPenjualan']);
+Route::post('/POS/Logs', [POS_Transaksi::class, 'getLogs']);
 
 // Layescent - Report
 Route::post('/POS/Report', [POS_Report::class, 'downloadReport']);

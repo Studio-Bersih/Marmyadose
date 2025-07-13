@@ -2,7 +2,7 @@
 
 namespace App\Http\Controllers\POS;
 
-use Log;
+use Carbon\Carbon;
 use App\DTO\Responses;
 use Illuminate\Http\Request;
 use Illuminate\Http\JsonResponse;
@@ -120,5 +120,35 @@ class Transaksi extends Controller
             ]
         ));
     }
+
+    public function getLogs(Request $request) {
+        $usaha = $request->input('usaha');
+        $startDate = $request->input('startDate');
+        $endDate = $request->input('endDate');
+
+        $query = DB::table('pos_log')->where('USAHA', $usaha);
+
+        if ($startDate && $endDate) {
+            try {
+                $start = Carbon::parse($startDate)->startOfDay(); // 00:00:00
+                $end = Carbon::parse($endDate)->endOfDay();       // 23:59:59
+
+                $query->whereBetween('CREATED_AT', [$start, $end]);
+            } catch (\Exception $e) {
+                return response()->json(new Responses(
+                    "error", "Tanggal yang dikirim tidak valid.", null
+                ));
+            }
+        }
+
+        $logs = $query->orderBy('CREATED_AT', 'desc')->get();
+
+        return response()->json(new Responses(
+            "success",
+            $logs->isEmpty() ? "Tidak ada log ditemukan untuk tanggal tersebut." : "Logs berhasil dimuat!",
+            $logs
+        ));
+    }
+
 
 }
