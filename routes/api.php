@@ -102,6 +102,8 @@ Route::post('/POS/Riwayat-Penjualan', [POS_Transaksi::class, 'transaksiPenjualan
 
 // Layescent - Report
 Route::post('/POS/Report', [POS_Report::class, 'downloadReport']);
+Route::post('/POS/Report/EMoney', [POS_Report::class, 'getEmoneyReport']);
+Route::post('/POS/Report/Monthly-Sales', [POS_Report::class, 'getMonthlySalesReport']);
 Route::post('/POS/Report/Omset', [POS_Transaksi::class, 'trackKeuntungan']);
 
 // Layescent - Users
@@ -109,10 +111,13 @@ Route::post('/POS/Check-Token', [POS_Users::class, 'checkToken']);
 Route::post('/POS/Users', [POS_Users::class, 'getUsers']);
 Route::post('/POS/Update-Users', [POS_Users::class, 'updateUsers']);
 
-// Layescent - Users
+// Layescent - E-Money
 Route::post('/POS/E-Money/Ranged', [POS_E_Money::class, 'getRanged']);
 Route::post('/POS/E-Money/Ranged-Types', [POS_E_Money::class, 'getRangedTypes']);
 Route::post('/POS/E-Money/Insert', [POS_E_Money::class, 'insertMoney']);
+Route::post('/POS/E-Money/Insert-Type', [POS_E_Money::class, 'addType']);
+Route::post('/POS/E-Money/Insert-Range', [POS_E_Money::class, 'addRange']);
+Route::post('/POS/E-Money/Delete-Range', [POS_E_Money::class, 'deleteRange']);
 
 // UD84 - Katalog
 Route::get('/UD84/Master-Produk/Katalog', [UD84_Master::class, 'katalogProduk']);
