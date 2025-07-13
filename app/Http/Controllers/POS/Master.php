@@ -41,6 +41,17 @@ class Master extends Controller
         ));
     }
 
+    public function masterProduct(Request $request): JsonResponse { // Belom ada rute
+        $usaha = $request->input('USAHA'); // It's string. The value is: Nick Cell
+        $data = DB::table('pos_master_produk')->where('USAHA', $usaha)->orderBy('NAMA')->get([
+            "ID","NAMA","BARCODE","JENIS","STOK_ITEM", "STOK_ITEM_SECOND", "STOK_ITEM_THIRD","HARGA_STOK","HARGA_JUAL","KETERANGAN"
+        ]);
+        
+        return response()->json(new Responses(
+            "success","Item berhasil dimuat!", $data
+        ));
+    }
+
 
     public function createItem(Request $request): JsonResponse {
         $barcode = $request->input('barcode');
@@ -97,7 +108,9 @@ class Master extends Controller
 
     public function updateStock(Request $request): JsonResponse {
         DB::table('pos_master_produk')->where('ID', $request->input('id'))->update([
-            "STOK_ITEM" => $request->input('stock')
+            "STOK_ITEM"         => $request->input('stock'),
+            "STOK_ITEM_SECOND"  => $request->input('secondStock'),
+            "STOK_ITEM_THIRD"   => $request->input('thirdStock'),
         ]);
         return response()->json(new Responses(
             "success", "Stok berhasil diupdate!"
