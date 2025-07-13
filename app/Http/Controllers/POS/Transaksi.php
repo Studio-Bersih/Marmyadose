@@ -42,13 +42,11 @@ class Transaksi extends Controller
         ), 200);
     }
 
-    public function trackKeuntungan(Request $request): JsonResponse
-    {
+    public function trackKeuntungan(Request $request): JsonResponse {
         $staff = $request->input('staff');
         $searchDate = $request->input('searchDate');
 
-        $query = DB::table('pos_penjualan_detail')
-            ->where('TOKEN', $staff);
+        $query = DB::table('pos_penjualan_detail')->where('TOKEN', $staff);
 
         if ($searchDate) {
             $query->whereDate('CREATED_AT', $searchDate);

@@ -4,7 +4,6 @@ namespace App\Http\Controllers\POS;
 
 use App\DTO\Responses;
 use Illuminate\Http\Request;
-use Illuminate\Support\Carbon;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Support\Facades\DB;
 use App\Http\Controllers\Controller;

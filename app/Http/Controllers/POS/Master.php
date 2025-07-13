@@ -11,14 +11,36 @@ use App\Http\Controllers\Controller;
 class Master extends Controller
 {
     public function getItem(Request $request): JsonResponse {
-        $data = DB::table('pos_master_produk')->where('USAHA', $request->input('USAHA'))->orderBy('NAMA')->get([
-            "ID","NAMA","BARCODE","JENIS","STOK_ITEM","HARGA_STOK","HARGA_JUAL","KETERANGAN"
-        ]);
-        
+        $usaha = $request->input('USAHA'); // e.g., 'Nick Cell'
+        $cabang = (int) $request->input('CABANG'); // 1, 2, or 3
+
+        // Determine which stock field to use based on CABANG
+        $stokField = match ($cabang) {
+            1 => 'STOK_ITEM',
+            2 => 'STOK_ITEM_SECOND',
+            3 => 'STOK_ITEM_THIRD',
+            default => 'STOK_ITEM' // fallback just in case
+        };
+
+        // Construct the query
+        $data = DB::table('pos_master_produk')->where('USAHA', $usaha)->orderBy('NAMA')->select([
+            'ID',
+            'NAMA',
+            'BARCODE',
+            'JENIS',
+            DB::raw("$stokField AS STOK_ITEM"),
+            'HARGA_STOK',
+            'HARGA_JUAL',
+            'KETERANGAN',
+        ])->get();
+
         return response()->json(new Responses(
-            "success","Item berhasil dimuat!", $data
+            "success",
+            "Item berhasil dimuat!",
+            $data
         ));
     }
+
 
     public function createItem(Request $request): JsonResponse {
         $barcode = $request->input('barcode');

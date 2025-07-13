@@ -63,6 +63,7 @@ class Users extends Controller
                 "token"     => $token,
                 "roles"     => $user->ROLE,
                 "usaha"     => $user->USAHA,
+                "cabang"    => $user->CABANG,
                 "emoney"    => $groupedPaymentRanges,
             ]
         ));
