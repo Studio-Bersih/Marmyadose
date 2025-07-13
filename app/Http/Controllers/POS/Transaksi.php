@@ -36,7 +36,19 @@ class Transaksi extends Controller
     }
 
     public function deleteDetailPenjualan(Request $request): JsonResponse{
-        DB::table('pos_penjualan_detail')->where('ID', $request->input('id'))->delete();
+        $id = $request->input('id');
+        $usaha = $request->input('usaha');
+        $token = $request->input('token');
+
+        $getDetail = DB::table('pos_penjualan_detail')->where('ID', $id)->first();
+
+        DB::table('pos_log')->insert([
+            "USAHA" => $usaha,
+            "TOKEN" => $token,
+            "TEXT"  => $token . " menghapus : " . $getDetail->NAMA . " sejumlah " . $getDetail->JUMLAH . " dari transaksi penjualan.",
+        ]);
+
+        DB::table('pos_penjualan_detail')->where('ID', $id)->delete();
         return response()->json(new Responses(
             "success", "Item berhasil dihapus!"
         ), 200);

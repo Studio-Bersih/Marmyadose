@@ -18,6 +18,7 @@ class Penjualan extends Controller
             $kembali        = $request->input('kembalian');
             $keterangan     = $request->input('keterangan');
             $staff          = $request->input('pic');
+            $usaha          = $request->input('usaha');
     
             if (empty($carts)) {
                 return response()->json(new Responses(
@@ -28,6 +29,7 @@ class Penjualan extends Controller
             $uniqueId = uniqid();
             $timestamp = now();
             $data = [];
+            $logs = [];
     
             $cartIds = array_column($carts, 'id');
             $products = DB::table('pos_master_produk')->whereIn('ID', $cartIds)->get()->keyBy('ID');
@@ -59,6 +61,12 @@ class Penjualan extends Controller
                     "CREATED_AT"    => $timestamp
                 ];
 
+                $logs[] = [
+                    "USAHA" => $usaha,
+                    "TOKEN" => $staff,
+                    "TEXT"  => "Transaksi penjualan: " . $staff . " dengan: " . $cart['name'] . " sejumlah: " . $cart['amount'],
+                ];
+
                 DB::table('pos_master_produk')->where('ID', $cart['id'])->update([
                     "STOK_ITEM" => $product->STOK_ITEM - $cart['amount'],
                 ]);
@@ -74,6 +82,7 @@ class Penjualan extends Controller
                     "KETERANGAN"        => $keterangan,
                     "CREATED_AT"        => $timestamp
                 ]);
+                DB::table('pos_log')->insert($logs);
                 DB::table('pos_penjualan_detail')->insert($data);
             DB::commit();
     
