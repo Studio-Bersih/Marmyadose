@@ -13,11 +13,19 @@ class Transaksi extends Controller
 {
     public function transaksiPenjualan(Request $request): JsonResponse {
         $staff = $request->input('staff');
-        $DB = DB::table('pos_penjualan_detail')->where('TOKEN', $staff)->whereDate('CREATED_AT', DB::raw('CURDATE()'))->get();
-        
+
+        // --- Fetch penjualan hari ini ---
+        $DB = DB::table('pos_penjualan_detail')
+            ->where('TOKEN', $staff)
+            ->whereDate('CREATED_AT', DB::raw('CURDATE()'))
+            ->get();
+
         $data = [];
         foreach($DB as $DB) {
-            $originalPrice = DB::table('pos_master_produk')->where('ID', $DB->KODE)->first('HARGA_STOK');
+            $originalPrice = DB::table('pos_master_produk')
+                ->where('ID', $DB->KODE)
+                ->first('HARGA_STOK');
+
             $data[] = [
                 "ID"                => $DB->ID,
                 "NAMA"              => $DB->NAMA,
@@ -30,8 +38,18 @@ class Transaksi extends Controller
             ];
         }
 
-        return response()->json(new Responses(
-            "success", 'Data berhasil dimuat!', $data
+        // --- Tambahan: total emoney summary by COUNTER ---
+        $totalIncrease = DB::table('pos_rekap_emoney')->where('TOKEN', $staff)->where('COUNTER', 'Increase')->whereDate('CREATED_AT', DB::raw('CURDATE()'))->sum('AMOUNT');
+        $totalDecrease = DB::table('pos_rekap_emoney')->where('TOKEN', $staff)->where('COUNTER', 'Decrease')->whereDate('CREATED_AT', DB::raw('CURDATE()'))->sum('AMOUNT');
+        $totalFee = DB::table('pos_rekap_emoney')->where('TOKEN', $staff)->whereDate('CREATED_AT', DB::raw('CURDATE()'))->sum('FEE');
+
+        return response()->json(new Responses( "success", 'Data berhasil dimuat!',
+            [
+                'items'          => $data,
+                'increase_total' => $totalIncrease,
+                'decrease_total' => $totalDecrease,
+                'fee_total'      => $totalFee,
+            ]
         ));
     }
 

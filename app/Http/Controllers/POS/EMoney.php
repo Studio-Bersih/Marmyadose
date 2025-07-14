@@ -5,6 +5,7 @@ namespace App\Http\Controllers\POS;
 use App\Http\Controllers\Controller;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Http\Request;
+use Log;
 
 class EMoney extends Controller
 {
@@ -30,19 +31,52 @@ class EMoney extends Controller
     }
 
     public function insertMoney(Request $request) {
-        DB::table('pos_rekap_emoney')->insert([
-            'TYPE'      => $request->input('TYPE'),
-            'AMOUNT'    => $request->input('AMOUNT'),
-            'FEE'       => $request->input('FEE'),
-            'TOKEN'     => $request->input('TOKEN'),
-            'USAHA'     => $request->input('USAHA'),
-        ]);
+        $type   = $request->input('TYPE');
+        $staff  = $request->input('TOKEN');
+        $amount = $request->input('AMOUNT');
+        $usaha  = $request->input('USAHA');
+        $fee    = $request->input('FEE');
 
-        return response()->json([
-            "status"    => "success",
-            "message"   => "Transaksi berhasil disimpan!",
-            "data"      => null
-        ]);
+        try {
+            // Find the counter behavior for the selected type
+            $findType = DB::table('pos_payment_range_types')->where('NAME', $type)->first(['COUNTER']);
+
+            // Prepare data to insert
+            $data = [
+                'TYPE'   => $type,
+                'AMOUNT' => $amount,
+                'FEE'    => $fee,
+                'TOKEN'  => $staff,
+                'USAHA'  => $usaha,
+            ];
+
+            // If counter logic exists, add it to the insert
+            if (!empty($findType)) {
+                $data['COUNTER'] = $findType->COUNTER; // Either 'Increment' or 'Decrease'
+            }
+
+            // Transaction wrap
+            DB::beginTransaction();
+                DB::table('pos_rekap_emoney')->insert($data);
+            DB::commit();
+
+            return response()->json([
+                "status"  => "success",
+                "message" => "Transaksi berhasil disimpan!",
+                "data"    => null
+            ]);
+        } catch (\Throwable $e) {
+            DB::rollBack();
+
+            // You can log error here if needed
+            // Log::error("eMoney Transaction Failed", ['error' => $e->getMessage()]);
+
+            return response()->json([
+                "status"  => "error",
+                "message" => "Transaksi gagal disimpan!",
+                "data"    => null
+            ]);
+        }
     }
 
     public function addType(Request $request){
