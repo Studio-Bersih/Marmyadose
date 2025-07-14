@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers\POS;
 
+use Log;
 use App\DTO\Responses;
 use Illuminate\Http\Request;
 use Illuminate\Http\JsonResponse;
@@ -122,5 +123,85 @@ class Master extends Controller
         return response()->json(new Responses(
             "success", "Item berhasil dihapus!"
         ), 200);
+    }
+
+    public function itemTransfer(Request $request): JsonResponse {
+        $cart = $request->input('cart');
+        $cabangAsal = (int) $request->input('cabangAsal');
+        $cabangTujuan = (int) $request->input('cabangTujuan');
+        $usaha = $request->input('usaha');
+        $staff = $request->input('pic'); // same as TOKEN
+
+        try {
+            DB::beginTransaction();
+
+            foreach ($cart as $item) {
+                $itemId = $item['id'];
+                $itemName = $item['name'];
+                $jumlah = (int) $item['amount'];
+
+                // Map cabang to field name
+                $fieldAsal = match($cabangAsal) {
+                    1 => 'STOK_ITEM',
+                    2 => 'STOK_ITEM_SECOND',
+                    3 => 'STOK_ITEM_THIRD',
+                };
+
+                $fieldTujuan = match($cabangTujuan) {
+                    1 => 'STOK_ITEM',
+                    2 => 'STOK_ITEM_SECOND',
+                    3 => 'STOK_ITEM_THIRD',
+                };
+
+                // Get current stock & item name
+                $produk = DB::table('pos_master_produk')
+                    ->where('ID', $itemId)
+                    ->where('USAHA', $usaha)
+                    ->first(['NAMA', $fieldAsal]);
+
+                if (!$produk) {
+                    throw new \Exception("Produk dengan ID $itemName tidak ditemukan.");
+                }
+
+                if ($produk->$fieldAsal < $jumlah) {
+                    throw new \Exception("Stok tidak cukup untuk item \"{$produk->NAMA}\".");
+                }
+
+                // Decrease from asal
+                DB::table('pos_master_produk')
+                    ->where('ID', $itemId)
+                    ->where('USAHA', $usaha)
+                    ->decrement($fieldAsal, $jumlah);
+
+                // Increase to tujuan
+                DB::table('pos_master_produk')
+                    ->where('ID', $itemId)
+                    ->where('USAHA', $usaha)
+                    ->increment($fieldTujuan, $jumlah);
+            }
+
+            // 📝 Log the transfer
+            DB::table('pos_log')->insert([
+                'USAHA'     => $usaha,
+                'TOKEN'     => $staff,
+                'TEXT'      => "Memindahkan stok antar cabang dari Cabang $cabangAsal ke Cabang $cabangTujuan sejumlah " . count($cart) . " item.",
+                'CREATED_AT'=> now(),
+                'UPDATED_AT'=> now(),
+            ]);
+
+            DB::commit();
+
+            return response()->json([
+                'status' => 'success',
+                'message' => 'Stok berhasil dipindahkan antar cabang!',
+            ]);
+        } catch (\Throwable $e) {
+            DB::rollBack();
+
+            return response()->json([
+                'status' => 'error',
+                'message' => $e->getMessage(),
+            ]);
+        }
     }
 }
