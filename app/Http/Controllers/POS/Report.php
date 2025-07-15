@@ -62,6 +62,7 @@ class Report extends Controller
 
         return response()->json([
             'status' => 'success',
+            'message' => 'Berhasil memuat data',
             'data' => $data
         ]);
     }

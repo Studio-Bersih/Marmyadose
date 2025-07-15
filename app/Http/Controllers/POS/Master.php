@@ -66,14 +66,16 @@ class Master extends Controller
 
         DB::beginTransaction();
             DB::table('pos_master_produk')->insert([
-                "NAMA"          => $request->input('name'),
-                "BARCODE"       => $barcode,
-                "JENIS"         => $request->input('jenis'),
-                "STOK_ITEM"     => $request->input('stok'),
-                "HARGA_STOK"    => $request->input('hargaStok'),
-                "HARGA_JUAL"    => $request->input('hargaJual'),
-                "KETERANGAN"    => $request->input('keterangan'),
-                "USAHA"         => $request->input('usaha')
+                "NAMA"              => $request->input('name'),
+                "BARCODE"           => $barcode,
+                "JENIS"             => $request->input('jenis'),
+                "STOK_ITEM"         => $request->input('stok'),
+                "STOK_ITEM_SECOND"  => 0,
+                "STOK_ITEM_THIRD"   => 0,                
+                "HARGA_STOK"        => $request->input('hargaStok'),
+                "HARGA_JUAL"        => $request->input('hargaJual'),
+                "KETERANGAN"        => $request->input('keterangan'),
+                "USAHA"             => $request->input('usaha')
             ]);
         DB::commit();
 
