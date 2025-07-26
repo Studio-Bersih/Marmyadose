@@ -2,11 +2,11 @@
 
 namespace App\Http\Controllers\POS;
 
-use Log;
 use App\DTO\Responses;
 use Illuminate\Http\Request;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Log;
 use App\Http\Controllers\Controller;
 
 class Master extends Controller
@@ -53,35 +53,58 @@ class Master extends Controller
         ));
     }
 
-
-    public function createItem(Request $request): JsonResponse {
+    public function createItem(Request $request): JsonResponse{
         $barcode = $request->input('barcode');
-        $existingItem = DB::table('pos_master_produk')->where('BARCODE', $barcode)->first();
+        $usaha   = $request->input('usaha');
+
+        // Check if item with the same barcode & usaha already exists
+        $existingItem = DB::table('pos_master_produk')
+            ->where('BARCODE', $barcode)
+            ->where('USAHA', $usaha)
+            ->first();
 
         if ($existingItem) {
-            return response()->json(new Responses(
-                "error", "Item dengan barcode ini sudah ada!"
-            ), 400);
+            return response()->json([
+                "status" => 'error',
+                "message" => "Item dengan barcode '$barcode' untuk usaha '$usaha' sudah ada!"
+            ], 200); // Use 409 Conflict for duplicate entries
         }
 
-        DB::beginTransaction();
+        try {
+            DB::beginTransaction();
+
             DB::table('pos_master_produk')->insert([
                 "NAMA"              => $request->input('name'),
                 "BARCODE"           => $barcode,
                 "JENIS"             => $request->input('jenis'),
                 "STOK_ITEM"         => $request->input('stok'),
                 "STOK_ITEM_SECOND"  => 0,
-                "STOK_ITEM_THIRD"   => 0,                
+                "STOK_ITEM_THIRD"   => 0,
                 "HARGA_STOK"        => $request->input('hargaStok'),
                 "HARGA_JUAL"        => $request->input('hargaJual'),
                 "KETERANGAN"        => $request->input('keterangan'),
-                "USAHA"             => $request->input('usaha')
+                "USAHA"             => $usaha
             ]);
-        DB::commit();
 
-        return response()->json(new Responses(
-            "success","Item berhasil dibuat!"
-        ));
+            DB::commit();
+
+            return response()->json([
+                "status" => 'success',
+                "message" => "Item berhasil dibuat!"
+            ], 200); // 201 Created, lebih semantik
+        } catch (\Exception $e) {
+            DB::rollBack();
+
+            Log::error('Gagal membuat item:', [
+                'message' => $e->getMessage(),
+                'trace' => $e->getTraceAsString()
+            ]);
+
+            return response()->json([
+                "status" => 'error',
+                "message" => "Gagal membuat item: " . $e->getMessage()
+            ], 500);
+        }
     }
 
     public function detailItem(Request $request): JsonResponse {
