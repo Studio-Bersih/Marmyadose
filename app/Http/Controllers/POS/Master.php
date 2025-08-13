@@ -229,4 +229,74 @@ class Master extends Controller
             ]);
         }
     }
+
+    public function itemMasuk(Request $request): JsonResponse{
+        $cart = $request->input('cart');
+        $cabangTujuan = (int) $request->input('cabangTujuan');
+        $usaha = $request->input('usaha');
+        $staff = $request->input('pic'); // same as TOKEN
+
+        try {
+            DB::beginTransaction();
+
+            $logDetails = [];
+
+            foreach ($cart as $item) {
+                $itemId = $item['id'];
+                $itemName = $item['name'];
+                $jumlah = (int) $item['amount'];
+
+                // Map cabang tujuan to field name
+                $fieldTujuan = match($cabangTujuan) {
+                    1 => 'STOK_ITEM',
+                    2 => 'STOK_ITEM_SECOND',
+                    3 => 'STOK_ITEM_THIRD',
+                    default => throw new \Exception("Cabang tujuan tidak valid.")
+                };
+
+                // Check if the product exists
+                $produk = DB::table('pos_master_produk')
+                    ->where('ID', $itemId)
+                    ->where('USAHA', $usaha)
+                    ->first(['NAMA', $fieldTujuan]);
+
+                if (!$produk) {
+                    throw new \Exception("Produk dengan ID $itemName tidak ditemukan.");
+                }
+
+                // Increase stock
+                DB::table('pos_master_produk')
+                    ->where('ID', $itemId)
+                    ->where('USAHA', $usaha)
+                    ->increment($fieldTujuan, $jumlah);
+
+                // Add to log details
+                $logDetails[] = "{$produk->NAMA} (+{$jumlah})";
+            }
+
+            // 📝 Log the stock addition
+            DB::table('pos_log')->insert([
+                'USAHA'      => $usaha,
+                'TOKEN'      => $staff,
+                'TEXT'       => "Menambahkan stok ke Cabang $cabangTujuan: " . implode(', ', $logDetails),
+                'CREATED_AT' => now(),
+                'UPDATED_AT' => now(),
+            ]);
+
+            DB::commit();
+
+            return response()->json([
+                'status' => 'success',
+                'message' => 'Stok berhasil ditambahkan!',
+            ]);
+        } catch (\Throwable $e) {
+            DB::rollBack();
+
+            return response()->json([
+                'status' => 'error',
+                'message' => $e->getMessage(),
+            ]);
+        }
+    }
+
 }

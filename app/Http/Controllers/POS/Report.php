@@ -70,66 +70,82 @@ class Report extends Controller
     public function getMonthlySalesReport(Request $request){
         $usaha = $request->input('usaha');
         $start = $request->input('start_date');
-        $end = $request->input('end_date');
+        $end   = $request->input('end_date');
 
         if (!$usaha) {
             return response()->json([
-                'status' => 'error',
+                'status'  => 'error',
                 'message' => 'Parameter usaha wajib diisi.'
             ]);
         }
 
+        // Ambil semua TOKEN user dari usaha ini
         $tokens = DB::table('pos_users')
             ->where('USAHA', $usaha)
             ->pluck('TOKEN');
 
         if ($tokens->isEmpty()) {
             return response()->json([
-                'status' => 'error',
+                'status'  => 'error',
                 'message' => 'Tidak ada pengguna terdaftar untuk usaha ini.'
             ]);
         }
 
-        $query = DB::table('pos_penjualan_rekap')
+        // Query data harian
+        $query = DB::table('pos_penjualan_detail')
+            ->join('pos_penjualan_rekap', 'pos_penjualan_detail.KEYS', '=', 'pos_penjualan_rekap.KEYS')
             ->select(
-                DB::raw('DATE(CREATED_AT) as tanggal'),
-                DB::raw('COUNT(*) as jumlah_transaksi'),
-                DB::raw('SUM(CASH) as total_cash'),
-                DB::raw('SUM(KEMBALI) as total_kembali'),
-                DB::raw('SUM(TOTAL_TRANSAKSI) as total_transaksi')
+                DB::raw('DATE(pos_penjualan_detail.CREATED_AT) as tanggal'),
+                DB::raw('COUNT(DISTINCT pos_penjualan_rekap.ID) as jumlah_transaksi'),
+                DB::raw('SUM(pos_penjualan_rekap.CASH) as total_cash'),
+                DB::raw('SUM(pos_penjualan_rekap.KEMBALI) as total_kembali'),
+                DB::raw('SUM(pos_penjualan_rekap.TOTAL_TRANSAKSI) as total_transaksi'),
+                DB::raw('SUM(pos_penjualan_detail.JUMLAH * pos_penjualan_detail.HARGA_JUAL) as total_penjualan'),
+                DB::raw('SUM((pos_penjualan_detail.HARGA_JUAL * pos_penjualan_detail.JUMLAH) - (pos_penjualan_detail.HARGA_STOK * pos_penjualan_detail.JUMLAH)) as total_net')
             )
-            ->whereIn('TOKEN', $tokens);
+
+            ->whereIn('pos_penjualan_rekap.TOKEN', $tokens);
 
         if ($start && $end) {
-            $query->where('CREATED_AT', '>=', $start)->where('CREATED_AT', '<=', $end);
+            $query->whereBetween('pos_penjualan_detail.CREATED_AT', [
+                $start . ' 00:00:00',
+                $end . ' 23:59:59'
+            ]);
         }
 
         $dailyData = $query
-            ->groupBy(DB::raw('DATE(CREATED_AT)'))
+            ->groupBy(DB::raw('DATE(pos_penjualan_detail.CREATED_AT)'))
             ->orderBy('tanggal', 'asc')
             ->get();
 
-        $grandTotal = DB::table('pos_penjualan_rekap')
+        // Query grand total
+        $grandTotal = DB::table('pos_penjualan_detail')
+            ->join('pos_penjualan_rekap', 'pos_penjualan_detail.KEYS', '=', 'pos_penjualan_rekap.KEYS')
             ->select(
-                DB::raw('SUM(CASH) as total_cash'),
-                DB::raw('SUM(KEMBALI) as total_kembali'),
-                DB::raw('SUM(TOTAL_TRANSAKSI) as total_transaksi')
+                DB::raw('SUM(pos_penjualan_detail.JUMLAH * pos_penjualan_detail.HARGA_JUAL) as total_penjualan'),
+                DB::raw('SUM((pos_penjualan_detail.HARGA_JUAL * pos_penjualan_detail.JUMLAH) - (pos_penjualan_detail.HARGA_STOK * pos_penjualan_detail.JUMLAH)) as total_net')
             )
-            ->whereIn('TOKEN', $tokens);
+            ->whereIn('pos_penjualan_rekap.TOKEN', $tokens);
 
         if ($start && $end) {
-            $grandTotal->where('CREATED_AT', '>=', $start)->where('CREATED_AT', '<=', $end);
+            $grandTotal->whereBetween('pos_penjualan_detail.CREATED_AT', [
+                $start . ' 00:00:00',
+                $end . ' 23:59:59'
+            ]);
         }
 
         $totals = $grandTotal->first();
 
+        // Return response
         return response()->json([
-            'status'    => 'success',
-            'message'   => 'Berhasil memuat data',
-            'data' => [
-                'daily'     => $dailyData,
-                'totals'    => $totals
+            'status'  => 'success',
+            'message' => 'Berhasil memuat data',
+            'data'    => [
+                'daily'  => $dailyData,
+                'totals' => $totals
             ]
         ]);
     }
+
+
 }

@@ -95,6 +95,7 @@ Route::post('/POS/Delete-Item', [POS_Master::class, 'deleteItem']);
 // Layescent - Stock
 Route::post('/POS/Update-Stock', [POS_Master::class, 'updateStock']);
 Route::post('/POS/Item-Transfer', [POS_Master::class, 'itemTransfer']);
+Route::post('/POS/Item-Masuk', [POS_Master::class, 'itemMasuk']);
 
 // Layescent - Transaksi
 Route::post('/POS/Post-Transaction', [POS_Penjualan::class, 'saveTransaction']);
