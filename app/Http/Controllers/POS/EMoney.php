@@ -19,6 +19,7 @@ class EMoney extends Controller
             "data"      => $DB
         ]);
     }
+    
     public function getRangedTypes(Request $request) {
         $usaha = $request->input('USAHA');
         $DB = DB::table('pos_payment_ranges')->where('USAHA', $usaha)->get();
@@ -31,17 +32,37 @@ class EMoney extends Controller
     }
 
     public function insertMoney(Request $request) {
-        $type   = $request->input('TYPE');
+        $type   = $request->input('TYPE');   // e.g. "Tarik Tunai"
         $staff  = $request->input('TOKEN');
-        $amount = $request->input('AMOUNT');
+        $amount = (int) $request->input('AMOUNT');
         $usaha  = $request->input('USAHA');
-        $fee    = $request->input('FEE');
 
         try {
-            // Find the counter behavior for the selected type
-            $findType = DB::table('pos_payment_range_types')->where('NAME', $type)->first(['COUNTER']);
+            // 1. Find type info (for COUNTER and TYPE_ID relation)
+            $findType = DB::table('pos_payment_range_types')
+                ->where('NAME', $type)
+                ->where('USAHA', $usaha)
+                ->first(['ID', 'COUNTER']);
 
-            // Prepare data to insert
+            if (!$findType) {
+                return response()->json([
+                    "status"  => "error",
+                    "message" => "Jenis transaksi tidak ditemukan!",
+                    "data"    => null
+                ], 404);
+            }
+
+            // 2. Find the fee based on range
+            $findRange = DB::table('pos_payment_ranges')
+                ->where('TYPE_ID', $findType->ID)
+                ->where('USAHA', $usaha)
+                ->where('RANGE_START', '<=', $amount)
+                ->where('RANGE_END', '>=', $amount)
+                ->first(['FEE']);
+
+            $fee = $findRange ? (int) $findRange->FEE : 0;
+
+            // 3. Prepare data for insert
             $data = [
                 'TYPE'   => $type,
                 'AMOUNT' => $amount,
@@ -50,12 +71,11 @@ class EMoney extends Controller
                 'USAHA'  => $usaha,
             ];
 
-            // If counter logic exists, add it to the insert
-            if (!empty($findType)) {
-                $data['COUNTER'] = $findType->COUNTER; // Either 'Increment' or 'Decrease'
+            if (!empty($findType->COUNTER)) {
+                $data['COUNTER'] = $findType->COUNTER;
             }
 
-            // Transaction wrap
+            // 4. Transaction wrap
             DB::beginTransaction();
                 DB::table('pos_rekap_emoney')->insert($data);
             DB::commit();
@@ -63,21 +83,19 @@ class EMoney extends Controller
             return response()->json([
                 "status"  => "success",
                 "message" => "Transaksi berhasil disimpan!",
-                "data"    => null
+                "data"    => $fee
             ]);
         } catch (\Throwable $e) {
             DB::rollBack();
 
-            // You can log error here if needed
-            // Log::error("eMoney Transaction Failed", ['error' => $e->getMessage()]);
-
             return response()->json([
                 "status"  => "error",
-                "message" => "Transaksi gagal disimpan!",
+                "message" => "Transaksi gagal disimpan! " . $e->getMessage(),
                 "data"    => null
-            ]);
+            ], 500);
         }
     }
+
 
     public function addType(Request $request){
         DB::table('pos_payment_range_types')->insert([
