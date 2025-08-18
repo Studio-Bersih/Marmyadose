@@ -67,10 +67,11 @@ class Report extends Controller
         ]);
     }
 
-    public function getMonthlySalesReport(Request $request){
+   public function getMonthlySalesReport(Request $request){
         $usaha = $request->input('usaha');
         $start = $request->input('start_date');
         $end   = $request->input('end_date');
+        $type  = $request->input('type');
 
         if (!$usaha) {
             return response()->json([
@@ -103,7 +104,6 @@ class Report extends Controller
                 DB::raw('SUM(pos_penjualan_detail.JUMLAH * pos_penjualan_detail.HARGA_JUAL) as total_penjualan'),
                 DB::raw('SUM((pos_penjualan_detail.HARGA_JUAL * pos_penjualan_detail.JUMLAH) - (pos_penjualan_detail.HARGA_STOK * pos_penjualan_detail.JUMLAH)) as total_net')
             )
-
             ->whereIn('pos_penjualan_rekap.TOKEN', $tokens);
 
         if ($start && $end) {
@@ -112,6 +112,76 @@ class Report extends Controller
                 $end . ' 23:59:59'
             ]);
         }
+
+        // Filter berdasarkan cabang
+        if ($type === "Semua") {
+            $filteredTokens = $tokens;
+
+        } else if ($type === "Cabang 1") {
+            $cabangTokens = DB::table('pos_users')
+                ->where('USAHA', $usaha)
+                ->where('CABANG', '1')
+                ->pluck('TOKEN');
+
+            if ($cabangTokens->isEmpty()) {
+                return response()->json([
+                    'status'  => 'error',
+                    'message' => 'Tidak ada pengguna terdaftar di Cabang 1 untuk usaha ini.'
+                ]);
+            }
+
+            $filteredTokens = $cabangTokens;
+
+        } else if ($type === "Cabang 2") {
+            $cabangTokens = DB::table('pos_users')
+                ->where('USAHA', $usaha)
+                ->where('CABANG', '2')
+                ->pluck('TOKEN');
+
+            if ($cabangTokens->isEmpty()) {
+                return response()->json([
+                    'status'  => 'error',
+                    'message' => 'Tidak ada pengguna terdaftar di Cabang 2 untuk usaha ini.'
+                ]);
+            }
+
+            $filteredTokens = $cabangTokens;
+
+        } else if ($type === "Cabang 3") {
+            $cabangTokens = DB::table('pos_users')
+                ->where('USAHA', $usaha)
+                ->where('CABANG', '3')
+                ->pluck('TOKEN');
+
+            if ($cabangTokens->isEmpty()) {
+                return response()->json([
+                    'status'  => 'error',
+                    'message' => 'Tidak ada pengguna terdaftar di Cabang 3 untuk usaha ini.'
+                ]);
+            }
+
+            $filteredTokens = $cabangTokens;
+
+        } else {
+            // Cek apakah type itu TOKEN user (Per PIC)
+            $isUserToken = DB::table('pos_users')
+                ->where('USAHA', $usaha)
+                ->where('TOKEN', $type)
+                ->exists();
+
+            if (!$isUserToken) {
+                return response()->json([
+                    'status'  => 'error',
+                    'message' => 'Jenis laporan tidak dikenali atau token user tidak valid.'
+                ]);
+            }
+
+            // Jika token valid, filter langsung ke token user itu
+            $filteredTokens = collect([$type]);
+        }
+
+        // Apply tokens ke query utama
+        $query->whereIn('pos_penjualan_rekap.TOKEN', $filteredTokens);
 
         $dailyData = $query
             ->groupBy(DB::raw('DATE(pos_penjualan_detail.CREATED_AT)'))
@@ -125,7 +195,7 @@ class Report extends Controller
                 DB::raw('SUM(pos_penjualan_detail.JUMLAH * pos_penjualan_detail.HARGA_JUAL) as total_penjualan'),
                 DB::raw('SUM((pos_penjualan_detail.HARGA_JUAL * pos_penjualan_detail.JUMLAH) - (pos_penjualan_detail.HARGA_STOK * pos_penjualan_detail.JUMLAH)) as total_net')
             )
-            ->whereIn('pos_penjualan_rekap.TOKEN', $tokens);
+            ->whereIn('pos_penjualan_rekap.TOKEN', $filteredTokens);
 
         if ($start && $end) {
             $grandTotal->whereBetween('pos_penjualan_detail.CREATED_AT', [
@@ -136,16 +206,50 @@ class Report extends Controller
 
         $totals = $grandTotal->first();
 
+        $allBranchTotals = [];
+
+        foreach (['1', '2', '3'] as $cabang) {
+            $cabangTokens = DB::table('pos_users')
+                ->where('USAHA', $usaha)
+                ->where('CABANG', $cabang)
+                ->pluck('TOKEN');
+
+            $cabangQuery = DB::table('pos_penjualan_detail')
+                ->join('pos_penjualan_rekap', 'pos_penjualan_detail.KEYS', '=', 'pos_penjualan_rekap.KEYS')
+                ->select(
+                    DB::raw('COUNT(DISTINCT pos_penjualan_rekap.ID) as total_transaction'),
+                    DB::raw('SUM((pos_penjualan_detail.HARGA_JUAL - pos_penjualan_detail.HARGA_STOK) * pos_penjualan_detail.JUMLAH) as total_net')
+                )
+                ->whereIn('pos_penjualan_rekap.TOKEN', $cabangTokens);
+
+
+            if ($start && $end) {
+                $cabangQuery->whereBetween('pos_penjualan_detail.CREATED_AT', [
+                    $start . ' 00:00:00',
+                    $end . ' 23:59:59'
+                ]);
+            }
+
+            $result = $cabangQuery->first();
+
+            $allBranchTotals["CABANG_{$cabang}"] = [
+                "TOTAL_TRANSACTION" => $result->total_transaction ?? 0,
+                "TOTAL_AMOUNT"      => $result->total_amount ?? 0,
+                "TOTAL_NET"         => $result->total_net ?? 0,
+            ];
+        }
+
+
         // Return response
         return response()->json([
             'status'  => 'success',
             'message' => 'Berhasil memuat data',
             'data'    => [
                 'daily'  => $dailyData,
-                'totals' => $totals
+                'totals' => $totals,
+                'total_transactions_all_branch' => $allBranchTotals
             ]
         ]);
     }
-
 
 }
