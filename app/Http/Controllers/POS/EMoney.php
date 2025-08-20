@@ -101,6 +101,7 @@ class EMoney extends Controller
         DB::table('pos_payment_range_types')->insert([
             'NAME' => $request->input('name'),
             'USAHA' => $request->input('usaha'),
+            'COUNTER' => $request->input('type'),
             'CREATED_AT' => now(),
             'UPDATED_AT' => now()
         ]);
