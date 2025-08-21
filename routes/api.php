@@ -119,9 +119,13 @@ Route::post('/POS/Update-Users', [POS_Users::class, 'updateUsers']);
 // Layescent - E-Money
 Route::post('/POS/E-Money/Ranged', [POS_E_Money::class, 'getRanged']);
 Route::post('/POS/E-Money/Ranged-Types', [POS_E_Money::class, 'getRangedTypes']);
+Route::post('/POS/E-Money/Edit-Ranged-Types', [POS_E_Money::class, 'editMainRange']);
+Route::post('/POS/E-Money/Delete-Ranged-Types', [POS_E_Money::class, 'deleteMainRange']);
 Route::post('/POS/E-Money/Insert', [POS_E_Money::class, 'insertMoney']);
 Route::post('/POS/E-Money/Insert-Type', [POS_E_Money::class, 'addType']);
 Route::post('/POS/E-Money/Insert-Range', [POS_E_Money::class, 'addRange']);
+Route::post('/POS/E-Money/View-Range', [POS_E_Money::class, 'viewRange']);
+Route::post('/POS/E-Money/Update-Range', [POS_E_Money::class, 'updateRange']);
 Route::post('/POS/E-Money/Delete-Range', [POS_E_Money::class, 'deleteRange']);
 
 // UD84 - Katalog

@@ -140,6 +140,31 @@ class EMoney extends Controller
         ]);
     }
 
+    public function viewRange(Request $request){
+        $DB = DB::table('pos_payment_ranges')->where('ID', $request->id)->first(['ID', 'RANGE_START', 'RANGE_END', 'FEE']);
+
+        return response()->json([
+            'status'    => 'success',
+            'message'   => 'Range berhasil dimuat',
+            'data'      => $DB
+        ]);
+    }
+
+    public function updateRange(Request $request){
+        DB::table('pos_payment_ranges')
+            ->where('ID', $request->input('ID'))
+            ->update([
+                "RANGE_START"   => $request->input('START'),
+                "RANGE_END"     => $request->input('END'),
+                "FEE"           => $request->input('FEE'),
+            ]);
+
+        return response()->json([
+            'status' => 'success',
+            'message' => 'Range berhasil diupdate'
+        ]);
+    }
+
     public function deleteRange(Request $request){
         DB::table('pos_payment_ranges')
             ->where('ID', $request->id)
@@ -148,6 +173,28 @@ class EMoney extends Controller
         return response()->json([
             'status' => 'success',
             'message' => 'Range berhasil dihapus'
+        ]);
+    }
+
+    public function editMainRange(Request $request) {
+        DB::table('pos_payment_range_types')->where('ID', $request->input('ID'))->update([
+            "NAME" => $request->input('NAME'),
+            "COUNTER" => $request->input('COUNTER')
+        ]);
+
+        return response()->json([
+            "status" => "success",
+            "message" => "Kategori utama berhasil diupdate!"
+        ]);
+    }
+
+    public function deleteMainRange(Request $request) {
+        DB::table('pos_payment_ranges')->where('TYPE_ID', $request->input('ID'))->delete();
+        DB::table('pos_payment_range_types')->where('ID', $request->input('ID'))->delete();
+
+        return response()->json([
+            "status" => "success",
+            "message" => "Kategori utama berhasil dihapus!"
         ]);
     }
 
