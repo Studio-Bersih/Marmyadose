@@ -63,6 +63,7 @@ Route::post('/Kosada/Tambah-Kredit',[Kosada_Kredit::class,'addKredit']);
 Route::post('/Kosada/Hapus-Kredit',[Kosada_Kredit::class, 'deleteKredit']);
 Route::post('/Kosada/Status-Lunas', [Kosada_Kredit::class, 'setLunas']);
 Route::get('/Kosada/Realisasi-Kredit', [Kosada_Kredit::class, 'getRealisasiKredit']);
+Route::post('/Kosada/Realisasi-Kredit-Range', [Kosada_Kredit::class, 'getRealisasiKreditRange']);
 Route::post('/Kosada/Kredit-Lunas',[Kosada_Kredit::class, 'setKreditLunas']);
 Route::get('/Kosada/Detail-Kredit/{ID}',[Kosada_Kredit::class, 'postDetailKredit']);
 Route::post('/Kosada/Ubah-Marketing',[Kosada_Kredit::class, 'ubahMarketing']);
