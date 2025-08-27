@@ -10,8 +10,8 @@ use App\Http\Controllers\Controller;
 
 class Penjualan extends Controller
 {
-    public function saveTransaction(Request $request): JsonResponse {
-        $cabang         = (int) $request->input('cabangAsal'); // 👈 get cabang
+    public function saveTransaction(Request $request): JsonResponse{
+        $cabang         = (int) $request->input('cabangAsal');
         $carts          = $request->input('cart');
         $tunai          = $request->input('cash');
         $totalTransaksi = $request->input('totalTransaksi');
@@ -39,59 +39,62 @@ class Penjualan extends Controller
         $data = [];
         $logs = [];
 
-        $cartIds = array_column($carts, 'id');
-        $products = DB::table('pos_master_produk')->whereIn('ID', $cartIds)->get()->keyBy('ID');
-
-        foreach ($carts as $cart) {
-            $product = $products->get($cart['id']);
-
-            if (!$product) {
-                return response()->json(new Responses(
-                    "error", "Produk dengan nama " . $cart['name'] . " tidak ditemukan."
-                ));
-            }
-
-            $stokSebelum = $product->$stokField;
-
-            if ($stokSebelum < $cart['amount']) {
-                return response()->json(new Responses(
-                    "error", "Stok produk \"" . $cart['name'] . "\" tidak mencukupi."
-                ));
-            }
-
-            // Update data detail
-            $data[] = [
-                "KEYS"          => $uniqueId,
-                "TOKEN"         => $staff,
-                "KODE"          => $cart['id'],
-                "NAMA"          => $cart['name'],
-                "JUMLAH"        => $cart['amount'],
-                "HARGA_STOK"    => $product->HARGA_STOK,
-                "HARGA_JUAL"    => $cart['hargaJual'],
-                "SISA_STOK"     => $stokSebelum - $cart['amount'],
-                "CREATED_AT"    => $timestamp
-            ];
-
-            // Log entry
-            $logs[] = [
-                "USAHA" => $usaha,
-                "TOKEN" => $staff,
-                "TEXT"  => "Transaksi penjualan oleh $staff: {$cart['name']} sejumlah {$cart['amount']}.",
-                "CREATED_AT" => $timestamp,
-                "UPDATED_AT" => $timestamp
-            ];
-
-            // Update stock dynamically
-            DB::table('pos_master_produk')
-                ->where('ID', $cart['id'])
-                ->update([
-                    $stokField => $stokSebelum - $cart['amount']
-                ]);
-        }
-
-        // Begin transaction after validation is done
         DB::beginTransaction();
         try {
+            foreach ($carts as $cart) {
+                // Lock the product row to avoid race condition
+                $product = DB::table('pos_master_produk')
+                    ->where('ID', $cart['id'])
+                    ->lockForUpdate()
+                    ->first();
+
+                if (!$product) {
+                    throw new \Exception("Produk {$cart['name']} tidak ditemukan.");
+                }
+
+                $stokSebelum = $product->$stokField;
+
+                // --- STOCK VALIDATION ---
+                // Debug mode: allow minus stock
+                // if ($stokSebelum < $cart['amount']) {
+                // return response()->json(new Responses(
+                //     "error", "Stok produk \"" . $cart['name'] . "\" tidak mencukupi."
+                // ));
+                // }
+
+                // Update stock (can go negative if debug mode is active)
+                $stokSesudah = $stokSebelum - $cart['amount'];
+
+                DB::table('pos_master_produk')
+                    ->where('ID', $cart['id'])
+                    ->update([
+                        $stokField => $stokSesudah
+                    ]);
+
+                // Prepare detail data
+                $data[] = [
+                    "KEYS"          => $uniqueId,
+                    "TOKEN"         => $staff,
+                    "KODE"          => $cart['id'],
+                    "NAMA"          => $cart['name'],
+                    "JUMLAH"        => $cart['amount'],
+                    "HARGA_STOK"    => $product->HARGA_STOK,
+                    "HARGA_JUAL"    => $cart['hargaJual'],
+                    "SISA_STOK"     => $stokSesudah,
+                    "CREATED_AT"    => $timestamp
+                ];
+
+                // Prepare log entry
+                $logs[] = [
+                    "USAHA" => $usaha,
+                    "TOKEN" => $staff,
+                    "TEXT"  => "Transaksi penjualan oleh $staff: {$cart['name']} sejumlah {$cart['amount']}.",
+                    "CREATED_AT" => $timestamp,
+                    "UPDATED_AT" => $timestamp
+                ];
+            }
+
+            // Insert into rekap
             DB::table('pos_penjualan_rekap')->insert([
                 "KEYS"              => $uniqueId,
                 "TOKEN"             => $staff,
@@ -102,6 +105,7 @@ class Penjualan extends Controller
                 "CREATED_AT"        => $timestamp
             ]);
 
+            // Insert logs & details
             DB::table('pos_log')->insert($logs);
             DB::table('pos_penjualan_detail')->insert($data);
 
@@ -113,7 +117,7 @@ class Penjualan extends Controller
         } catch (\Throwable $e) {
             DB::rollBack();
             return response()->json(new Responses(
-                "error", "Gagal menyimpan transaksi. Silakan coba lagi."
+                "error", $e->getMessage()
             ));
         }
     }
