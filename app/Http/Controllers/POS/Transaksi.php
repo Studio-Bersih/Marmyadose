@@ -13,11 +13,15 @@ class Transaksi extends Controller
 {
     public function transaksiPenjualan(Request $request): JsonResponse {
         $staff = $request->input('staff');
+        $start = $request->input('start', now()->toDateString());
+        $end   = $request->input('end', now()->toDateString());
 
-        // --- Fetch penjualan hari ini ---
         $DB = DB::table('pos_penjualan_detail')
             ->where('TOKEN', $staff)
-            ->whereDate('CREATED_AT', DB::raw('CURDATE()'))
+            ->whereBetween('CREATED_AT', [
+                Carbon::parse($start)->startOfDay(),
+                Carbon::parse($end)->endOfDay()
+            ])
             ->get();
 
         $data = [];
@@ -168,5 +172,29 @@ class Transaksi extends Controller
         ));
     }
 
+    public function updateDate(Request $request) {
+        $id = $request->input('ID');
+        $createdAt = $request->input('CREATED_AT');
+
+        if (!$id || !$createdAt) {
+            return response()->json(new Responses(
+                "error", "ID dan CREATED_AT harus diisi.", null
+            ), 400);
+        }
+
+        $updated = DB::table('pos_penjualan_detail')->where('ID', $id)->update([
+            "CREATED_AT" => $createdAt
+        ]);
+
+        if ($updated) {
+            return response()->json(new Responses(
+                "success", "Tanggal berhasil diupdate!"
+            ), 200);
+        } else {
+            return response()->json(new Responses(
+                "error", "Tanggal gagal diupdate.", null
+            ), 404);
+        }
+    }
 
 }
