@@ -49,12 +49,45 @@ class Report extends Controller
         $usaha = $request->input('usaha');
         $start = $request->input('start_date');
         $end = $request->input('end_date');
+        $type = $request->input('type'); // could be TOKEN, Cabang 1/2/3, or "Semua"
 
-        $query = DB::table('pos_rekap_emoney_report')->where('USAHA', $usaha);
+        // base query
+        $query = DB::table('pos_rekap_emoney')
+            ->where('USAHA', $usaha);
 
+        // date filtering
         if ($start && $end) {
-            $query->where('CREATED_AT', '>=', $start)->where('CREATED_AT', '<=', $end);
+            $query->whereBetween('CREATED_AT', [$start, $end]);
         }
+
+        // handle type
+        if ($type && $type !== 'Semua') {
+            if (str_starts_with($type, 'Cabang')) {
+                // Extract cabang number (e.g. "Cabang 1" -> "1")
+                $cabangNumber = trim(str_replace('Cabang', '', $type));
+
+                // Get all tokens from pos_users that belong to this cabang
+                $tokens = DB::table('pos_users')
+                    ->where('USAHA', $usaha)
+                    ->where('CABANG', $cabangNumber)
+                    ->pluck('TOKEN');
+
+                if ($tokens->isNotEmpty()) {
+                    $query->whereIn('TOKEN', $tokens);
+                } else {
+                    // No users found for that cabang
+                    return response()->json([
+                        'status' => 'success',
+                        'message' => 'Tidak ada data untuk cabang ini',
+                        'data' => []
+                    ]);
+                }
+            } else {
+                // otherwise assume it's a TOKEN (Per PIC)
+                $query->where('TOKEN', $type);
+            }
+        }
+        // If "Semua", no extra filtering needed (already scoped by usaha + date)
 
         $data = $query
             ->orderBy('CREATED_AT', 'desc')
