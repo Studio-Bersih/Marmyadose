@@ -236,21 +236,42 @@ class Report extends Controller
     }
 
     public function getInvoices($ID){
-        $dataRekap  = DB::table('ud84_penjualan_rekap')->where('UNIQUE',$ID)->first();
+        $dataRekap = DB::table('ud84_penjualan_rekap')->where('UNIQUE',$ID)->first();
+
+        if (empty($dataRekap)) {
+            return response()->json([
+                "status"    => "error",
+                "message"   => "Nota tidak ditemukan."
+            ],200);
+        }
+
         $dataDetail = DB::table('ud84_penjualan_detail')->where('UNIQUE',$ID)->get();
         $dataMember = DB::table('ud84_member')->where('NAMA', $dataRekap->NAMA)->first();
 
         $listDetail = [];
         $totalSum   = [];
         foreach($dataDetail as $data){
+            // HARGA_TERJUAL is the line total, not a unit price. Rebuild the
+            // unit price from the discount columns rather than dividing, so
+            // HARGA * QUANTITY always reproduces JUMLAH exactly.
+            $hargaSatuan = (int)$data->HARGA_ASLI - (int)$data->POTONGAN_PERSEN - (int)$data->POTONGAN_RUPIAH;
+
             $listDetail[] = [
-                "QUANTITY"  => $data->JUMLAH,
+                "QUANTITY"  => (int)$data->JUMLAH,
                 "NAMA"      => $data->NAMA,
-                "HARGA"     => $data->HARGA_TERJUAL,
-                "JUMLAH"    => $data->HARGA_TERJUAL * $data->JUMLAH
+                "SATUAN"    => $data->SATUAN,
+                "HARGA"     => $hargaSatuan,
+                "JUMLAH"    => (int)$data->HARGA_TERJUAL
             ];
-            $totalSum[]     = $data->HARGA_TERJUAL;
+            $totalSum[] = (int)$data->HARGA_TERJUAL;
         }
+
+        $totalBarang  = array_sum($totalSum);
+        $potongan     = (int)($dataRekap->POTONGAN ?? 0);
+        $totalTagihan = (int)($dataRekap->TOTAL ?? 0);
+        $cash         = (int)($dataRekap->CASH ?? 0);
+        $dp           = (int)($dataRekap->DP ?? 0);
+        $dibayar      = $cash + $dp;
 
         return response()->json([
             "status" => "success",
@@ -258,8 +279,19 @@ class Report extends Controller
             "data"  => [
                 "tanggal"   => !empty($dataRekap->CREATED_AT) ? Carbon::parse($dataRekap->CREATED_AT)->translatedFormat('d F Y') : Carbon::now()->translatedFormat('d F Y'),
                 "tuan"      => $dataRekap->NAMA ?? '-',
-                "total"     => array_sum($totalSum) ?? 0,
-                "data"      => $listDetail ?? [],
+                "total"     => $totalBarang,
+                "data"      => $listDetail,
+                "ringkasan" => [
+                    // rekap.TOTAL is already net of POTONGAN (see postPenjualan).
+                    // Stored rekap.KEMBALIAN ignores DP and is deliberately unused.
+                    "TOTAL_BARANG"  => $totalBarang,
+                    "POTONGAN"      => $potongan,
+                    "TOTAL_TAGIHAN" => $totalTagihan,
+                    "CASH"          => $cash,
+                    "DP"            => $dp,
+                    "SISA"          => max(0, $totalTagihan - $dibayar),
+                    "KEMBALIAN"     => max(0, $dibayar - $totalTagihan),
+                ],
                 "rekap"     => $dataRekap,
                 "alamat"    => empty($dataMember->ALAMAT) ? '-' : $dataMember->ALAMAT,
                 "point"     => empty($dataMember->POINT) ? 0 : $dataMember->POINT
