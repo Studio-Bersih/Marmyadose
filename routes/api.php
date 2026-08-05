@@ -6,6 +6,7 @@ use App\Http\Controllers\UD84\MasterProduk as UD84_Master;
 use App\Http\Controllers\UD84\Penjualan as UD84_Penjualan;
 use App\Http\Controllers\UD84\Pesanan as UD84_Pesanan;
 use App\Http\Controllers\UD84\Stock as UD84_Stocks;
+use App\Http\Controllers\UD84\Sales as UD84_Sales;
 
 use App\Http\Controllers\Kosada\Kredit as Kosada_Kredit;
 use App\Http\Controllers\Kosada\Member as Kosada_Member;
@@ -159,6 +160,12 @@ Route::get('/UD84/Member/Retrieve', [UD84_Member::class,'getMember']);
 Route::post('/UD84/Member/Insert', [UD84_Member::class, 'postMember']);
 Route::post('/UD84/Member/Delete', [UD84_Member::class, 'deleteMember']);
 Route::post('/UD84/Member/Create-Sales', [UD84_Member::class, 'salesCreate']);
+
+// UD84 - Sales (manajemen tim sales)
+Route::get('/UD84/Sales/Retrieve', [UD84_Sales::class, 'getSales']);
+Route::post('/UD84/Sales/Insert', [UD84_Sales::class, 'postSales']);
+Route::post('/UD84/Sales/Update', [UD84_Sales::class, 'updateSales']);
+Route::post('/UD84/Sales/Delete', [UD84_Sales::class, 'deleteSales']);
 
 // UD84 - Report
 Route::post('UD84/Charts/Password', [UD84_Report::class, 'confirmPassword']);

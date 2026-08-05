@@ -86,11 +86,14 @@ class Pesanan extends Controller
 
         $useDB = [];
         foreach($DB as $DB) {
+            // SALES is null for orders placed without a salesperson ("Tanpa
+            // Sales" on the order form), and the row is gone if a salesperson
+            // was ever deleted. Either way there is no name to show.
             $salesName = DB::table('ud84_sales')->where('ID', $DB->SALES)->first(['NAMA']);
             $useDB[] = [
                 "NAMA"          => $DB->NAMA,
                 "WHATSAPP"      => $DB->WHATSAPP,
-                "SALES"         => $salesName->NAMA,
+                "SALES"         => $salesName->NAMA ?? '-',
                 "CATATAN"       => $DB->CATATAN,
                 "KODE"          => $DB->KODE,
                 "VALID"         => $DB->VALID,
