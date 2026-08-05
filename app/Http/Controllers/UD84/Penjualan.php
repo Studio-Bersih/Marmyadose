@@ -59,19 +59,22 @@ class Penjualan extends Controller
             }
 
             foreach($request->input('CART') as $data){
+                // Looked up before the insert: the detail row now records the
+                // unit as well, not just the stock update further down.
+                $item     = DB::table('ud84_master_produk')->where('NAMA',$data['NAMA'])->first();
+                $tipeItem = $data['TIPE'];
+
                 DB::table('ud84_penjualan_detail')->insert([
                     "UNIQUE"          => $uniqueID,
                     "KODE"            => $data['ID'],
                     "NAMA"            => $data['NAMA'],
+                    "SATUAN"          => $tipeItem === 'Pieces' ? 'Pcs' : ($item->TIPE ?? null),
                     "JUMLAH"          => $data['QUANTITY'],
                     "HARGA_ASLI"      => $data['HARGA_ASLI'],
                     "HARGA_TERJUAL"   => $data['TOTAL'],
                     "POTONGAN_PERSEN" => $data['POTONGAN_PERSEN'],
                     "POTONGAN_RUPIAH" => $data['POTONGAN_RUPIAH'],
                 ]);
-
-                $item = DB::table('ud84_master_produk')->where('NAMA',$data['NAMA'])->first();
-                $tipeItem = $data['TIPE'];
 
                 $logEntries = [];
 
@@ -105,7 +108,8 @@ class Penjualan extends Controller
 
             return response()->json([
                 'status'    => 'success',
-                'message'   => 'Data tersimpan!'
+                'message'   => 'Data tersimpan!',
+                'data'      => ['UNIQUE' => $uniqueID]
             ],200);
         } catch (\Exception $e) {
             Log::info($e);
