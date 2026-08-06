@@ -128,11 +128,11 @@ Test data: a real sale exists locally — `UNIQUE 6a738e24212fb` (product 111, q
 
 ---
 
-## 8. Open item that is not in any release yet
+## 8. The SALES widening, riding along with the cancel release
 
 **`ud84_pesanan_rekap.SALES` is `tinyint` and holds `ud84_sales.ID`, an `int` auto_increment.** A ceiling of 127 on a value that only ever climbs — every salesperson ever created consumes one permanently, and deleting a salesperson does not give it back. Two exist today, so nothing is broken now; the Sales management page is what makes the 128th a matter of time. Strict mode is on, so the overflow errors rather than clamping, and every order placed with that salesperson from the public Pesan Online page would fail.
 
-The statement is written up at `Marmyadose/database/sql/2026_08_06_widen_pesanan_sales.sql` and **already applied locally** (which is what brought the test suite back to 54 passed). It is deliberately **not** folded into the cancel-invoice runbook — it is unrelated, and mixing an independent schema change into a release is how a simple deployment becomes a puzzle. Decide whether it rides along or ships on its own.
+The statement is at `Marmyadose/database/sql/2026_08_06_widen_pesanan_sales.sql` and **already applied locally** (which is what brought the test suite back to 54 passed). On the owner's call it now ships as the **fifth SQL statement of the cancel-invoice release**, labelled unrelated in three places so nobody has to work out later which statement belonged to which problem. No code change accompanies it, in either direction.
 
 ---
 
