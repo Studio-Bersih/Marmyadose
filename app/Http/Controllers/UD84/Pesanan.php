@@ -172,27 +172,29 @@ class Pesanan extends Controller
         DB::beginTransaction();
 
         try {
+            // The guard above ran before the transaction opened, so another operator
+            // could have verified this order in between. Re-read under a row lock: a
+            // concurrent verify now waits for this transaction instead of slipping in.
+            $terkini = DB::table('ud84_pesanan_rekap')->where('KODE', $kode)->lockForUpdate()->first();
+
+            if (empty($terkini) || !empty($terkini->VALID)) {
+                DB::rollBack();
+
+                return $this->gagal('Pesanan yang sudah diverifikasi tidak bisa diubah.');
+            }
+
             $sebelum = json_encode(['rekap' => $rekap, 'detail' => $detail], JSON_UNESCAPED_UNICODE);
 
-            // The guard above read VALID before this transaction opened, so a
-            // second operator pressing Validasi in that window would slip past
-            // it. whereNull('VALID') re-checks at the moment of the write --
-            // the only check that matters -- and rolling back here is what
-            // undoes nothing, since this update is the first write of the
-            // transaction.
-            $terkunci = DB::table('ud84_pesanan_rekap')->where('KODE', $kode)->whereNull('VALID')->update([
+            // whereNull('VALID') stays as belt-and-braces; the lock above is what
+            // actually decides the outcome now, so the affected-row count from this
+            // update is no longer inspected.
+            DB::table('ud84_pesanan_rekap')->where('KODE', $kode)->whereNull('VALID')->update([
                 'NAMA'       => $nama,
                 'WHATSAPP'   => $whatsApp,
                 'SALES'      => $salesBaru,
                 'CATATAN'    => $catatan,
                 'UPDATED_AT' => now(),
             ]);
-
-            if ($terkunci === 0) {
-                DB::rollBack();
-
-                return $this->gagal('Pesanan yang sudah diverifikasi tidak bisa diubah.');
-            }
 
             $lama = [];
 
@@ -382,6 +384,17 @@ class Pesanan extends Controller
         DB::beginTransaction();
 
         try {
+            // The guard above ran before the transaction opened, so another operator
+            // could have verified this order in between. Re-read under a row lock: a
+            // concurrent verify now waits for this transaction instead of slipping in.
+            $terkini = DB::table('ud84_pesanan_rekap')->where('KODE', $kode)->lockForUpdate()->first();
+
+            if (empty($terkini) || !empty($terkini->VALID)) {
+                DB::rollBack();
+
+                return $this->gagal('Pesanan yang sudah diverifikasi tidak bisa dihapus.');
+            }
+
             $detail = DB::table('ud84_pesanan_detail')->where('KODE', $kode)->get();
 
             DB::table('ud84_transaksi_log')->insert([
@@ -397,17 +410,10 @@ class Pesanan extends Controller
 
             DB::table('ud84_pesanan_detail')->where('KODE', $kode)->delete();
 
-            // Same race as updatePesanan's write guard: the VALID read above
-            // happened before this transaction opened. whereNull('VALID')
-            // re-checks at delete time, and rolling back here undoes the
-            // detail-row delete and the audit insert above, not just this line.
-            $terkunci = DB::table('ud84_pesanan_rekap')->where('KODE', $kode)->whereNull('VALID')->delete();
-
-            if ($terkunci === 0) {
-                DB::rollBack();
-
-                return $this->gagal('Pesanan yang sudah diverifikasi tidak bisa dihapus.');
-            }
+            // whereNull('VALID') stays as belt-and-braces; the lock above is what
+            // actually decides the outcome now, so the affected-row count from this
+            // delete is no longer inspected.
+            DB::table('ud84_pesanan_rekap')->where('KODE', $kode)->whereNull('VALID')->delete();
 
             DB::commit();
 
