@@ -276,6 +276,8 @@ class PerbaikanPesananTest extends TestCase
         ])->assertStatus(200)->assertJson(['status' => 'error']);
 
         $this->assertDatabaseHas('ud84_pesanan_rekap', ['KODE' => $kode, 'NAMA' => 'Pelanggan Tes']);
+        $this->assertDatabaseHas('ud84_pesanan_detail', ['KODE' => $kode, 'KODE_ITEM' => $produk->ID, 'JUMLAH' => 3]);
+        $this->assertDatabaseMissing('ud84_transaksi_log', ['UNIQUE_TRANSAKSI' => $kode]);
     }
 
     public function test_a_blank_whatsapp_is_refused(): void
@@ -287,6 +289,10 @@ class PerbaikanPesananTest extends TestCase
             'WHATSAPP' => '',
             'ITEMS'    => [['KODE_ITEM' => $produk->ID, 'JUMLAH' => 3]],
         ])->assertStatus(200)->assertJson(['status' => 'error']);
+
+        $this->assertDatabaseHas('ud84_pesanan_rekap', ['KODE' => $kode, 'WHATSAPP' => '08123456789']);
+        $this->assertDatabaseHas('ud84_pesanan_detail', ['KODE' => $kode, 'KODE_ITEM' => $produk->ID, 'JUMLAH' => 3]);
+        $this->assertDatabaseMissing('ud84_transaksi_log', ['UNIQUE_TRANSAKSI' => $kode]);
     }
 
     public function test_an_order_cannot_be_emptied(): void
@@ -296,7 +302,8 @@ class PerbaikanPesananTest extends TestCase
 
         $this->ubah($kode, ['ITEMS' => []])->assertStatus(200)->assertJson(['status' => 'error']);
 
-        $this->assertDatabaseHas('ud84_pesanan_detail', ['KODE' => $kode, 'KODE_ITEM' => $produk->ID]);
+        $this->assertDatabaseHas('ud84_pesanan_detail', ['KODE' => $kode, 'KODE_ITEM' => $produk->ID, 'JUMLAH' => 3]);
+        $this->assertDatabaseMissing('ud84_transaksi_log', ['UNIQUE_TRANSAKSI' => $kode]);
     }
 
     public function test_an_unknown_product_rolls_the_whole_edit_back(): void
@@ -325,7 +332,8 @@ class PerbaikanPesananTest extends TestCase
         $this->ubah($kode, ['ITEMS' => [['KODE_ITEM' => $produk->ID, 'JUMLAH' => 0]]])
             ->assertStatus(200)->assertJson(['status' => 'error']);
 
-        $this->assertDatabaseHas('ud84_pesanan_detail', ['KODE' => $kode, 'JUMLAH' => 3]);
+        $this->assertDatabaseHas('ud84_pesanan_detail', ['KODE' => $kode, 'KODE_ITEM' => $produk->ID, 'JUMLAH' => 3]);
+        $this->assertDatabaseMissing('ud84_transaksi_log', ['UNIQUE_TRANSAKSI' => $kode]);
     }
 
     public function test_the_same_product_twice_is_refused(): void
@@ -337,6 +345,10 @@ class PerbaikanPesananTest extends TestCase
             ['KODE_ITEM' => $produk->ID, 'JUMLAH' => 2],
             ['KODE_ITEM' => $produk->ID, 'JUMLAH' => 4],
         ]])->assertStatus(200)->assertJson(['status' => 'error']);
+
+        $this->assertSame(1, DB::table('ud84_pesanan_detail')->where('KODE', $kode)->count());
+        $this->assertDatabaseHas('ud84_pesanan_detail', ['KODE' => $kode, 'KODE_ITEM' => $produk->ID, 'JUMLAH' => 3]);
+        $this->assertDatabaseMissing('ud84_transaksi_log', ['UNIQUE_TRANSAKSI' => $kode]);
     }
 
     public function test_reassigning_to_a_deactivated_salesperson_is_refused(): void
@@ -351,6 +363,8 @@ class PerbaikanPesananTest extends TestCase
         ])->assertStatus(200)->assertJson(['status' => 'error']);
 
         $this->assertDatabaseHas('ud84_pesanan_rekap', ['KODE' => $kode, 'SALES' => null]);
+        $this->assertDatabaseHas('ud84_pesanan_detail', ['KODE' => $kode, 'KODE_ITEM' => $produk->ID, 'JUMLAH' => 1]);
+        $this->assertDatabaseMissing('ud84_transaksi_log', ['UNIQUE_TRANSAKSI' => $kode]);
     }
 
     public function test_an_order_already_naming_a_deactivated_salesperson_can_still_be_edited(): void
@@ -376,6 +390,8 @@ class PerbaikanPesananTest extends TestCase
         $this->ubah($kode, ['ITEMS' => [['KODE_ITEM' => $produk->ID, 'JUMLAH' => 3]]])
             ->assertStatus(200)->assertJson(['status' => 'error']);
 
+        $this->assertDatabaseHas('ud84_pesanan_rekap', ['KODE' => $kode, 'NAMA' => 'Pelanggan Tes', 'WHATSAPP' => '08123456789']);
+        $this->assertDatabaseHas('ud84_pesanan_detail', ['KODE' => $kode, 'KODE_ITEM' => $produk->ID, 'JUMLAH' => 3]);
         $this->assertDatabaseMissing('ud84_transaksi_log', ['UNIQUE_TRANSAKSI' => $kode]);
     }
 
