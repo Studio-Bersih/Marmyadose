@@ -21,6 +21,6 @@ return [
     |
     */
 
-    'poin_per_rupiah' => 500000,
+    'poin_per_rupiah' => 1000000,
 
 ];
