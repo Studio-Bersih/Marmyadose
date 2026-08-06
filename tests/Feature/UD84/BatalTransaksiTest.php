@@ -232,8 +232,8 @@ class BatalTransaksiTest extends TestCase
 
         $this->cancel($unique);
 
-        // 1.500.000 / 500.000 = 3
-        $this->assertSame(7, (int) DB::table('ud84_member')->where('NAMA', $nama)->value('POINT'));
+        // 1.500.000 / 1.000.000 = 1
+        $this->assertSame(9, (int) DB::table('ud84_member')->where('NAMA', $nama)->value('POINT'));
 
         $catatan = DB::table('ud84_transaksi_log')->where('UNIQUE_TRANSAKSI', $unique)->value('CATATAN_SISTEM');
         $this->assertStringContainsString('dihitung ulang', $catatan);
