@@ -84,6 +84,24 @@ class PerbaikanPesananTest extends TestCase
         $this->assertSame($salesId, $found['SALES_ID']);
     }
 
+    public function test_a_blank_date_range_is_refused_at_http_200(): void
+    {
+        // Not 400: db() throws on a non-2xx, retries, and reports a generic
+        // connection error -- so the operator saw "Server Tidak Dapat Diakses"
+        // instead of the message this endpoint actually wrote.
+        $this->postJson('/api/UD84/Pesanan/Retrieve', ['start' => '', 'end' => ''])
+            ->assertStatus(200)
+            ->assertJson(['status' => 'error', 'message' => 'Harap masukkan tanggal awal dan akhir.']);
+    }
+
+    public function test_a_reversed_date_range_is_refused_at_http_200(): void
+    {
+        $this->postJson('/api/UD84/Pesanan/Retrieve', [
+            'start' => '2026-08-31 00:00:00',
+            'end'   => '2026-08-01 00:00:00',
+        ])->assertStatus(200)->assertJson(['status' => 'error']);
+    }
+
     public function test_order_items_carry_their_product_id(): void
     {
         $produk = $this->seedProduct();
