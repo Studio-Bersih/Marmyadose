@@ -244,4 +244,154 @@ class PerbaikanPesananTest extends TestCase
         $this->assertDatabaseHas('ud84_pesanan_detail', ['KODE' => $kode, 'KODE_ITEM' => $produk->ID, 'JUMLAH' => 3]);
         $this->assertSame(0, DB::table('ud84_transaksi_log')->where('UNIQUE_TRANSAKSI', $kode)->count());
     }
+
+    public function test_an_unknown_order_is_refused(): void
+    {
+        $this->ubah('tidak-ada')->assertStatus(200)->assertJson(['status' => 'error']);
+    }
+
+    public function test_a_verified_order_cannot_be_edited(): void
+    {
+        $produk = $this->seedProduct();
+        $kode   = $this->seedOrder(['VALID' => 'Verified'], [['KODE_ITEM' => $produk->ID, 'JUMLAH' => 3]]);
+
+        $this->ubah($kode, [
+            'NAMA'  => 'Diubah Diam-diam',
+            'ITEMS' => [['KODE_ITEM' => $produk->ID, 'JUMLAH' => 9]],
+        ])->assertStatus(200)->assertJson(['status' => 'error']);
+
+        $this->assertDatabaseHas('ud84_pesanan_rekap', ['KODE' => $kode, 'NAMA' => 'Pelanggan Tes']);
+        $this->assertDatabaseHas('ud84_pesanan_detail', ['KODE' => $kode, 'JUMLAH' => 3]);
+        $this->assertDatabaseMissing('ud84_transaksi_log', ['UNIQUE_TRANSAKSI' => $kode]);
+    }
+
+    public function test_a_blank_customer_name_is_refused(): void
+    {
+        $produk = $this->seedProduct();
+        $kode   = $this->seedOrder([], [['KODE_ITEM' => $produk->ID, 'JUMLAH' => 3]]);
+
+        $this->ubah($kode, [
+            'NAMA'  => '   ',
+            'ITEMS' => [['KODE_ITEM' => $produk->ID, 'JUMLAH' => 3]],
+        ])->assertStatus(200)->assertJson(['status' => 'error']);
+
+        $this->assertDatabaseHas('ud84_pesanan_rekap', ['KODE' => $kode, 'NAMA' => 'Pelanggan Tes']);
+    }
+
+    public function test_a_blank_whatsapp_is_refused(): void
+    {
+        $produk = $this->seedProduct();
+        $kode   = $this->seedOrder([], [['KODE_ITEM' => $produk->ID, 'JUMLAH' => 3]]);
+
+        $this->ubah($kode, [
+            'WHATSAPP' => '',
+            'ITEMS'    => [['KODE_ITEM' => $produk->ID, 'JUMLAH' => 3]],
+        ])->assertStatus(200)->assertJson(['status' => 'error']);
+    }
+
+    public function test_an_order_cannot_be_emptied(): void
+    {
+        $produk = $this->seedProduct();
+        $kode   = $this->seedOrder([], [['KODE_ITEM' => $produk->ID, 'JUMLAH' => 3]]);
+
+        $this->ubah($kode, ['ITEMS' => []])->assertStatus(200)->assertJson(['status' => 'error']);
+
+        $this->assertDatabaseHas('ud84_pesanan_detail', ['KODE' => $kode, 'KODE_ITEM' => $produk->ID]);
+    }
+
+    public function test_an_unknown_product_rolls_the_whole_edit_back(): void
+    {
+        $produk = $this->seedProduct();
+        $kode   = $this->seedOrder([], [['KODE_ITEM' => $produk->ID, 'JUMLAH' => 3]]);
+
+        $this->ubah($kode, [
+            'NAMA'  => 'Pelanggan Baru',
+            'ITEMS' => [
+                ['KODE_ITEM' => $produk->ID, 'JUMLAH' => 5],
+                ['KODE_ITEM' => 999999, 'JUMLAH' => 1],
+            ],
+        ])->assertStatus(200)->assertJson(['status' => 'error']);
+
+        $this->assertDatabaseHas('ud84_pesanan_rekap', ['KODE' => $kode, 'NAMA' => 'Pelanggan Tes']);
+        $this->assertDatabaseHas('ud84_pesanan_detail', ['KODE' => $kode, 'JUMLAH' => 3]);
+        $this->assertDatabaseMissing('ud84_transaksi_log', ['UNIQUE_TRANSAKSI' => $kode]);
+    }
+
+    public function test_a_zero_quantity_is_refused(): void
+    {
+        $produk = $this->seedProduct();
+        $kode   = $this->seedOrder([], [['KODE_ITEM' => $produk->ID, 'JUMLAH' => 3]]);
+
+        $this->ubah($kode, ['ITEMS' => [['KODE_ITEM' => $produk->ID, 'JUMLAH' => 0]]])
+            ->assertStatus(200)->assertJson(['status' => 'error']);
+
+        $this->assertDatabaseHas('ud84_pesanan_detail', ['KODE' => $kode, 'JUMLAH' => 3]);
+    }
+
+    public function test_the_same_product_twice_is_refused(): void
+    {
+        $produk = $this->seedProduct();
+        $kode   = $this->seedOrder([], [['KODE_ITEM' => $produk->ID, 'JUMLAH' => 3]]);
+
+        $this->ubah($kode, ['ITEMS' => [
+            ['KODE_ITEM' => $produk->ID, 'JUMLAH' => 2],
+            ['KODE_ITEM' => $produk->ID, 'JUMLAH' => 4],
+        ]])->assertStatus(200)->assertJson(['status' => 'error']);
+    }
+
+    public function test_reassigning_to_a_deactivated_salesperson_is_refused(): void
+    {
+        $produk  = $this->seedProduct();
+        $nonAktif = $this->seedSalesperson('Nonaktif');
+        $kode    = $this->seedOrder([], [['KODE_ITEM' => $produk->ID, 'JUMLAH' => 1]]);
+
+        $this->ubah($kode, [
+            'SALES' => $nonAktif,
+            'ITEMS' => [['KODE_ITEM' => $produk->ID, 'JUMLAH' => 1]],
+        ])->assertStatus(200)->assertJson(['status' => 'error']);
+
+        $this->assertDatabaseHas('ud84_pesanan_rekap', ['KODE' => $kode, 'SALES' => null]);
+    }
+
+    public function test_an_order_already_naming_a_deactivated_salesperson_can_still_be_edited(): void
+    {
+        $produk   = $this->seedProduct();
+        $nonAktif = $this->seedSalesperson('Nonaktif');
+        $kode     = $this->seedOrder(['SALES' => $nonAktif], [['KODE_ITEM' => $produk->ID, 'JUMLAH' => 1]]);
+
+        $this->ubah($kode, [
+            'NAMA'  => 'Pelanggan Baru',
+            'SALES' => $nonAktif,
+            'ITEMS' => [['KODE_ITEM' => $produk->ID, 'JUMLAH' => 1]],
+        ])->assertStatus(200)->assertJson(['status' => 'success']);
+
+        $this->assertDatabaseHas('ud84_pesanan_rekap', ['KODE' => $kode, 'SALES' => $nonAktif, 'NAMA' => 'Pelanggan Baru']);
+    }
+
+    public function test_an_edit_that_changes_nothing_is_refused_and_writes_no_audit_row(): void
+    {
+        $produk = $this->seedProduct();
+        $kode   = $this->seedOrder([], [['KODE_ITEM' => $produk->ID, 'JUMLAH' => 3]]);
+
+        $this->ubah($kode, ['ITEMS' => [['KODE_ITEM' => $produk->ID, 'JUMLAH' => 3]]])
+            ->assertStatus(200)->assertJson(['status' => 'error']);
+
+        $this->assertDatabaseMissing('ud84_transaksi_log', ['UNIQUE_TRANSAKSI' => $kode]);
+    }
+
+    public function test_an_unresolvable_line_can_be_removed(): void
+    {
+        $produk = $this->seedProduct();
+        $kode   = $this->seedOrder([], [
+            ['KODE_ITEM' => $produk->ID, 'JUMLAH' => 3],
+            ['KODE_ITEM' => 999999, 'JUMLAH' => 1],
+        ]);
+
+        // The gone product is simply absent from the payload, so it never has
+        // to resolve -- this is the only way out of such an order.
+        $this->ubah($kode, ['ITEMS' => [['KODE_ITEM' => $produk->ID, 'JUMLAH' => 3]]])
+            ->assertStatus(200)->assertJson(['status' => 'success']);
+
+        $this->assertDatabaseMissing('ud84_pesanan_detail', ['KODE' => $kode, 'KODE_ITEM' => 999999]);
+    }
 }
