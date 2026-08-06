@@ -170,4 +170,95 @@ class PoinMemberTest extends TestCase
 
         $this->assertSame($jumlah, (int) $data['TOTAL']);
     }
+
+    private function ubahPoin(array $payload = [])
+    {
+        return $this->postJson('/api/UD84/Poin/Adjust', array_merge([
+            'JUMLAH' => 1,
+            'ARAH'   => 'Tambah',
+        ], $payload));
+    }
+
+    public function test_adding_raises_the_balance_and_returns_it(): void
+    {
+        $member = $this->seedMember(4);
+
+        $this->ubahPoin(['ID' => $member->ID, 'JUMLAH' => 3, 'ARAH' => 'Tambah'])
+            ->assertStatus(200)
+            ->assertJson(['status' => 'success', 'data' => ['POINT' => 7]]);
+
+        $this->assertSame(7, $this->poinSekarang($member));
+    }
+
+    public function test_subtracting_lowers_the_balance(): void
+    {
+        $member = $this->seedMember(10);
+
+        $this->ubahPoin(['ID' => $member->ID, 'JUMLAH' => 4, 'ARAH' => 'Kurang'])
+            ->assertStatus(200)
+            ->assertJson(['status' => 'success', 'data' => ['POINT' => 6]]);
+
+        $this->assertSame(6, $this->poinSekarang($member));
+    }
+
+    public function test_subtracting_the_whole_balance_is_allowed(): void
+    {
+        $member = $this->seedMember(5);
+
+        $this->ubahPoin(['ID' => $member->ID, 'JUMLAH' => 5, 'ARAH' => 'Kurang'])
+            ->assertStatus(200)->assertJson(['status' => 'success']);
+
+        $this->assertSame(0, $this->poinSekarang($member));
+    }
+
+    public function test_subtracting_more_than_the_balance_is_refused_and_names_it(): void
+    {
+        $member = $this->seedMember(2);
+
+        $response = $this->ubahPoin(['ID' => $member->ID, 'JUMLAH' => 5, 'ARAH' => 'Kurang'])
+            ->assertStatus(200)->assertJson(['status' => 'error']);
+
+        $this->assertStringContainsString('2', $response->json('message'));
+        $this->assertSame(2, $this->poinSekarang($member));
+    }
+
+    public function test_an_unknown_member_is_refused(): void
+    {
+        $this->ubahPoin(['ID' => 999999, 'JUMLAH' => 1, 'ARAH' => 'Tambah'])
+            ->assertStatus(200)->assertJson(['status' => 'error']);
+    }
+
+    public function test_zero_and_negative_and_fractional_amounts_are_refused(): void
+    {
+        $member = $this->seedMember(3);
+
+        foreach ([0, -2, 1.5, 'dua'] as $jumlah) {
+            $this->ubahPoin(['ID' => $member->ID, 'JUMLAH' => $jumlah, 'ARAH' => 'Tambah'])
+                ->assertStatus(200)->assertJson(['status' => 'error']);
+        }
+
+        $this->assertSame(3, $this->poinSekarang($member));
+    }
+
+    public function test_an_unrecognised_direction_is_refused(): void
+    {
+        $member = $this->seedMember(3);
+
+        $this->ubahPoin(['ID' => $member->ID, 'JUMLAH' => 1, 'ARAH' => 'Ganti'])
+            ->assertStatus(200)->assertJson(['status' => 'error']);
+
+        $this->assertSame(3, $this->poinSekarang($member));
+    }
+
+    public function test_adding_past_the_column_ceiling_is_refused_rather_than_crashing(): void
+    {
+        $member = $this->seedMember(32000);
+
+        // POINT is a smallint; strict mode would turn the overflow into an
+        // unexplained server error rather than a message anyone can act on.
+        $this->ubahPoin(['ID' => $member->ID, 'JUMLAH' => 1000, 'ARAH' => 'Tambah'])
+            ->assertStatus(200)->assertJson(['status' => 'error']);
+
+        $this->assertSame(32000, $this->poinSekarang($member));
+    }
 }

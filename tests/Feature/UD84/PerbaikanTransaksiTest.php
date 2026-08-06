@@ -232,13 +232,14 @@ class PerbaikanTransaksiTest extends TestCase
             'JUMLAH' => 2, 'HARGA_ASLI' => 50000, 'HARGA_TERJUAL' => 100000,
         ]]);
 
-        // 1.500.000 cash earns 3 points; the sale already granted 2, so the
-        // member's balance moves by 1, not by 3.
+        // 1.500.000 cash earns 1 point; the sale already granted 2, so the
+        // member's balance moves by the difference of -1, not to 1 and not by
+        // the whole new figure.
         $this->perbaiki($unique, ['NAMA' => $nama, 'CASH' => 1500000])
             ->assertStatus(200)->assertJson(['status' => 'success']);
 
-        $this->assertSame(4, (int) DB::table('ud84_member')->where('ID', $memberId)->value('POINT'));
-        $this->assertSame(3, (int) DB::table('ud84_penjualan_rekap')->where('UNIQUE', $unique)->value('POIN'));
+        $this->assertSame(2, (int) DB::table('ud84_member')->where('ID', $memberId)->value('POINT'));
+        $this->assertSame(1, (int) DB::table('ud84_penjualan_rekap')->where('UNIQUE', $unique)->value('POIN'));
     }
 
     public function test_points_move_between_members_when_the_customer_name_is_corrected(): void
@@ -256,8 +257,11 @@ class PerbaikanTransaksiTest extends TestCase
         $this->perbaiki($unique, ['NAMA' => $benar, 'CASH' => 1000000])
             ->assertStatus(200)->assertJson(['status' => 'success']);
 
+        // The wrong member gives back the 2 the sale STORED as granted, which
+        // no rate change can alter. The right member receives what it grants
+        // today: 1.000.000 of cash is 1 point.
         $this->assertSame(3, (int) DB::table('ud84_member')->where('ID', $salahId)->value('POINT'));
-        $this->assertSame(3, (int) DB::table('ud84_member')->where('ID', $benarId)->value('POINT'));
+        $this->assertSame(2, (int) DB::table('ud84_member')->where('ID', $benarId)->value('POINT'));
     }
 
     public function test_a_point_deduction_floors_at_zero_and_says_so(): void
@@ -291,12 +295,15 @@ class PerbaikanTransaksiTest extends TestCase
         ]]);
 
         // POIN is null, so what this sale granted is inferred from its stored
-        // CASH: floor(2.000.000 / 500.000) = 4. Correcting CASH to 0 takes
-        // those 4 back from the member's 5, landing on 1.
+        // CASH -- under TODAY'S rate, not the one in force when it was rung
+        // up: floor(2.000.000 / 1.000.000) = 2. Correcting CASH to 0 takes
+        // those 2 back from the member's 5, landing on 3. That imprecision is
+        // accepted and documented: a sale that never recorded its grant cannot
+        // be reversed exactly.
         $this->perbaiki($unique, ['NAMA' => $nama, 'CASH' => 0])
             ->assertStatus(200)->assertJson(['status' => 'success']);
 
-        $this->assertSame(1, (int) DB::table('ud84_member')->where('ID', $memberId)->value('POINT'));
+        $this->assertSame(3, (int) DB::table('ud84_member')->where('ID', $memberId)->value('POINT'));
     }
 
     public function test_umum_never_gains_or_loses_points(): void

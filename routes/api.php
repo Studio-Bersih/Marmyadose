@@ -176,6 +176,7 @@ Route::post('/UD84/Member/Create-Sales', [UD84_Member::class, 'salesCreate']);
 
 // UD84 - Poin Member
 Route::get('/UD84/Poin/Retrieve', [UD84_Poin::class, 'getPoin']);
+Route::post('/UD84/Poin/Adjust', [UD84_Poin::class, 'adjustPoin']);
 
 // UD84 - Sales (manajemen tim sales)
 Route::get('/UD84/Sales/Retrieve', [UD84_Sales::class, 'getSales']);
