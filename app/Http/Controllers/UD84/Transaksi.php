@@ -297,4 +297,262 @@ class Transaksi extends Controller
 
         return $catatan;
     }
+
+    private function gagal(string $pesan)
+    {
+        return response()->json([
+            'status'  => 'error',
+            'message' => $pesan,
+        ], 200);
+    }
+
+    /**
+     * Moves one member's balance by a delta, flooring at zero.
+     *
+     * UMUM is not a member -- it is what a sale with no named customer stores
+     * -- so points neither leave it nor arrive at it.
+     */
+    private function geserPoin(string $nama, int $delta): array
+    {
+        $catatan = [];
+        $nama    = trim($nama);
+
+        if ($delta === 0 || $nama === '' || strtoupper($nama) === 'UMUM') {
+            return $catatan;
+        }
+
+        $member = DB::table('ud84_member')->whereRaw('TRIM(NAMA) = ?', [$nama])->first();
+
+        if (empty($member)) {
+            $catatan[] = "Poin tidak diubah: member '{$nama}' tidak ditemukan.";
+
+            return $catatan;
+        }
+
+        $saldo = (int) ($member->POINT ?? 0);
+        $baru  = $saldo + $delta;
+
+        if ($baru < 0) {
+            $catatan[] = "Poin '{$nama}' hanya dikurangi {$saldo} dari ".abs($delta).' karena saldo tidak mencukupi.';
+            $baru      = 0;
+        } elseif ($delta > 0) {
+            $catatan[] = "Poin '{$nama}' ditambah {$delta}.";
+        } else {
+            $catatan[] = "Poin '{$nama}' dikurangi ".abs($delta).'.';
+        }
+
+        DB::table('ud84_member')->where('ID', $member->ID)->update([
+            'POINT'      => $baru,
+            'UPDATED_AT' => now(),
+        ]);
+
+        return $catatan;
+    }
+
+    /**
+     * Settles points against the corrected sale.
+     *
+     * The balance moves by the DIFFERENCE against what this sale already
+     * granted, never by the whole amount -- otherwise a correction would grant
+     * the points twice. When the customer name changes the sale's points move
+     * with it, because points sitting with the wrong person are not fixable any
+     * other way short of cancelling the sale.
+     *
+     * Sales predating the POIN column have it null; what they granted is
+     * recomputed from their stored CASH, the same fallback cancellation uses.
+     */
+    private function selaraskanPoin(object $rekap, string $namaBaru, int $cashBaru): array
+    {
+        $perPoin  = (int) config('ud84.poin_per_rupiah');
+        $poinBaru = ($cashBaru > 0 && $perPoin > 0) ? (int) floor($cashBaru / $perPoin) : 0;
+
+        if ($rekap->POIN !== null) {
+            $poinLama = (int) $rekap->POIN;
+        } else {
+            $cashLama = (int) ($rekap->CASH ?? 0);
+            $poinLama = ($cashLama > 0 && $perPoin > 0) ? (int) floor($cashLama / $perPoin) : 0;
+        }
+
+        $namaLama = trim((string) ($rekap->NAMA ?? ''));
+        $namaBaru = trim($namaBaru);
+
+        if ($namaLama === $namaBaru) {
+            $catatan = $this->geserPoin($namaBaru, $poinBaru - $poinLama);
+        } else {
+            $catatan = array_merge(
+                $this->geserPoin($namaLama, -$poinLama),
+                $this->geserPoin($namaBaru, $poinBaru)
+            );
+        }
+
+        return ['POIN' => $poinBaru, 'CATATAN' => $catatan];
+    }
+
+    /**
+     * Correcting a completed sale, in place. One UNIQUE stays one sale: the
+     * receipt number is the customer's reference, and cancel-and-re-ring would
+     * change it, move the money into today's revenue, and leave two rows in the
+     * books for one corrected quantity.
+     */
+    public function perbaikiTransaksi(Request $request)
+    {
+        $kode     = trim((string) $request->input('KODE'));
+        $alasan   = trim((string) $request->input('ALASAN'));
+        $operator = trim((string) $request->input('OPERATOR'));
+
+        if ($alasan === '') {
+            return $this->gagal('Alasan perbaikan wajib diisi.');
+        }
+
+        $rekap = DB::table('ud84_penjualan_rekap')->where('UNIQUE', $kode)->first();
+
+        if (empty($rekap)) {
+            return $this->gagal('Transaksi tidak ditemukan.');
+        }
+
+        if ($rekap->STATUS === 'Dibatalkan') {
+            return $this->gagal('Transaksi yang sudah dibatalkan tidak bisa diperbaiki.');
+        }
+
+        $namaBaru   = trim((string) $request->input('NAMA'));
+        $namaBaru   = $namaBaru === '' ? 'UMUM' : $namaBaru;
+        $keterangan = $request->input('KETERANGAN');
+        $jatuhTempo = $request->input('JATUH_TEMPO');
+        $jatuhTempo = ($jatuhTempo === '' || $jatuhTempo === null) ? null : $jatuhTempo;
+
+        $cash     = (int) $request->input('CASH', 0);
+        $dp       = (int) $request->input('DP', 0);
+        $potongan = (int) $request->input('POTONGAN', 0);
+
+        if ($cash < 0 || $dp < 0 || $potongan < 0) {
+            return $this->gagal('Nominal tidak boleh minus.');
+        }
+
+        $detailLama = DB::table('ud84_penjualan_detail')->where('UNIQUE', $kode)->get();
+        $totalBarang = 0;
+
+        foreach ($detailLama as $line) {
+            $totalBarang += (int) $line->HARGA_TERJUAL;
+        }
+
+        if ($potongan > $totalBarang) {
+            return $this->gagal('Potongan tidak boleh melebihi total barang.');
+        }
+
+        $total = $totalBarang - $potongan;
+        // Recomputed exactly as postPenjualan writes it at sale time, so a
+        // correction does not introduce a new inconsistency. That stored figure
+        // ignores DP and is already wrong for deposit sales; the nota derives
+        // its own and does not read it.
+        $kembalian = $cash <= 0 ? 0 : $cash - $total;
+
+        $catatan = $this->ringkasPerbaikan($rekap, [
+            'NAMA'        => $namaBaru,
+            'KETERANGAN'  => $keterangan,
+            'JATUH_TEMPO' => $jatuhTempo,
+            'CASH'        => $cash,
+            'DP'          => $dp,
+            'POTONGAN'    => $potongan,
+            'TOTAL'       => $total,
+        ]);
+
+        if (empty($catatan)) {
+            return $this->gagal('Tidak ada perubahan untuk disimpan.');
+        }
+
+        DB::beginTransaction();
+
+        try {
+            $sebelum = json_encode(['rekap' => $rekap, 'detail' => $detailLama], JSON_UNESCAPED_UNICODE);
+
+            $poin = $this->selaraskanPoin($rekap, $namaBaru, $cash);
+            $catatan = array_merge($catatan, $poin['CATATAN']);
+
+            DB::table('ud84_penjualan_rekap')->where('UNIQUE', $kode)->update([
+                'NAMA'        => $namaBaru,
+                'MEMBER'      => $namaBaru,
+                'KETERANGAN'  => $keterangan,
+                'JATUH_TEMPO' => $jatuhTempo,
+                'CASH'        => $cash,
+                'DP'          => $dp,
+                'POTONGAN'    => $potongan,
+                'TOTAL'       => $total,
+                'KEMBALIAN'   => $kembalian,
+                'POIN'        => $poin['POIN'],
+                'UPDATED_AT'  => now(),
+            ]);
+
+            $sesudahRekap  = DB::table('ud84_penjualan_rekap')->where('UNIQUE', $kode)->first();
+            $sesudahDetail = DB::table('ud84_penjualan_detail')->where('UNIQUE', $kode)->get();
+
+            DB::table('ud84_transaksi_log')->insert([
+                'UNIQUE_TRANSAKSI' => $kode,
+                'AKSI'             => 'Perbaikan',
+                'OPERATOR'         => $operator !== '' ? $operator : 'Tidak diketahui',
+                'ALASAN'           => $alasan,
+                'CATATAN_SISTEM'   => implode("\n", $catatan),
+                'SEBELUM'          => $sebelum,
+                'SESUDAH'          => json_encode(['rekap' => $sesudahRekap, 'detail' => $sesudahDetail], JSON_UNESCAPED_UNICODE),
+                'CREATED_AT'       => now(),
+            ]);
+
+            DB::commit();
+
+            return response()->json([
+                'status'  => 'success',
+                'message' => 'Transaksi berhasil diperbaiki.',
+                'data'    => [
+                    'CATATAN'    => $catatan,
+                    'STOK_MINUS' => [],
+                ],
+            ], 200);
+        } catch (\Throwable $e) {
+            DB::rollBack();
+            Log::info($e);
+
+            return $this->gagal('Perbaikan gagal disimpan, tidak ada perubahan yang tersimpan.');
+        }
+    }
+
+    /**
+     * The header and money half of the change list, built BEFORE anything is
+     * written. An empty list is how an edit that changes nothing is caught.
+     */
+    private function ringkasPerbaikan(object $rekap, array $baru): array
+    {
+        $catatan = [];
+
+        $teks = [
+            'NAMA'        => 'Nama pelanggan',
+            'KETERANGAN'  => 'Keterangan',
+            'JATUH_TEMPO' => 'Jatuh tempo',
+        ];
+
+        foreach ($teks as $kolom => $label) {
+            $lama = (string) ($rekap->$kolom ?? '');
+            $isi  = (string) ($baru[$kolom] ?? '');
+
+            if ($lama !== $isi) {
+                $catatan[] = "{$label}: '{$lama}' -> '{$isi}'";
+            }
+        }
+
+        $uang = [
+            'CASH'     => 'Pembayaran tunai',
+            'DP'       => 'DP',
+            'POTONGAN' => 'Potongan',
+            'TOTAL'    => 'Total',
+        ];
+
+        foreach ($uang as $kolom => $label) {
+            $lama = (int) ($rekap->$kolom ?? 0);
+            $isi  = (int) ($baru[$kolom] ?? 0);
+
+            if ($lama !== $isi) {
+                $catatan[] = "{$label}: Rp ".number_format($lama, 0, ',', '.').' -> Rp '.number_format($isi, 0, ',', '.');
+            }
+        }
+
+        return $catatan;
+    }
 }

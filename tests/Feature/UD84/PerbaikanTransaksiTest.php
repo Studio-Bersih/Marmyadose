@@ -138,4 +138,150 @@ class PerbaikanTransaksiTest extends TestCase
 
         $this->assertFalse($this->koreksiBlock($unique)['DAPAT_UBAH_ITEM']);
     }
+
+    private function perbaiki(string $unique, array $payload = [])
+    {
+        return $this->postJson('/api/UD84/Daftar-Transaksi/Perbaiki', array_merge([
+            'KODE'        => $unique,
+            'NAMA'        => 'UMUM',
+            'KETERANGAN'  => null,
+            'JATUH_TEMPO' => null,
+            'CASH'        => 0,
+            'DP'          => 0,
+            'POTONGAN'    => 0,
+            'OPERATOR'    => 'Tester',
+            'ALASAN'      => 'Salah input kasir',
+        ], $payload));
+    }
+
+    public function test_a_header_correction_updates_the_sale_and_records_one_audit_row(): void
+    {
+        $produk = $this->seedProduct();
+        $unique = $this->seedSale(['TOTAL' => 100000], [[
+            'KODE' => $produk->ID, 'NAMA' => $produk->NAMA, 'SATUAN' => 'Pcs',
+            'JUMLAH' => 2, 'HARGA_ASLI' => 50000, 'HARGA_TERJUAL' => 100000,
+        ]]);
+
+        $this->perbaiki($unique, ['NAMA' => 'BU EKA', 'KETERANGAN' => 'Antar sore'])
+            ->assertStatus(200)->assertJson(['status' => 'success']);
+
+        $this->assertDatabaseHas('ud84_penjualan_rekap', [
+            'UNIQUE' => $unique, 'NAMA' => 'BU EKA', 'KETERANGAN' => 'Antar sore',
+        ]);
+
+        $log = DB::table('ud84_transaksi_log')->where('UNIQUE_TRANSAKSI', $unique)->get();
+
+        $this->assertCount(1, $log);
+        $this->assertSame('Perbaikan', $log[0]->AKSI);
+        $this->assertSame('Tester', $log[0]->OPERATOR);
+        $this->assertSame('Salah input kasir', $log[0]->ALASAN);
+    }
+
+    public function test_the_total_is_recomputed_from_the_stored_lines_and_the_new_potongan(): void
+    {
+        $produk = $this->seedProduct();
+        $unique = $this->seedSale(['TOTAL' => 100000, 'CASH' => 100000], [[
+            'KODE' => $produk->ID, 'NAMA' => $produk->NAMA, 'SATUAN' => 'Pcs',
+            'JUMLAH' => 2, 'HARGA_ASLI' => 50000, 'HARGA_TERJUAL' => 100000,
+        ]]);
+
+        $this->perbaiki($unique, ['CASH' => 100000, 'POTONGAN' => 10000])
+            ->assertStatus(200)->assertJson(['status' => 'success']);
+
+        $rekap = DB::table('ud84_penjualan_rekap')->where('UNIQUE', $unique)->first();
+
+        $this->assertSame(90000, (int) $rekap->TOTAL);
+        // KEMBALIAN is recomputed the way postPenjualan writes it at sale time.
+        $this->assertSame(10000, (int) $rekap->KEMBALIAN);
+    }
+
+    public function test_points_settle_the_difference_when_cash_is_corrected(): void
+    {
+        $memberId = $this->seedMember('BU EKA '.uniqid(), 3);
+        $nama     = DB::table('ud84_member')->where('ID', $memberId)->value('NAMA');
+        $produk   = $this->seedProduct();
+        $unique   = $this->seedSale(['NAMA' => $nama, 'CASH' => 1000000, 'POIN' => 2, 'TOTAL' => 100000], [[
+            'KODE' => $produk->ID, 'NAMA' => $produk->NAMA, 'SATUAN' => 'Pcs',
+            'JUMLAH' => 2, 'HARGA_ASLI' => 50000, 'HARGA_TERJUAL' => 100000,
+        ]]);
+
+        // 1.500.000 cash earns 3 points; the sale already granted 2, so the
+        // member's balance moves by 1, not by 3.
+        $this->perbaiki($unique, ['NAMA' => $nama, 'CASH' => 1500000])
+            ->assertStatus(200)->assertJson(['status' => 'success']);
+
+        $this->assertSame(4, (int) DB::table('ud84_member')->where('ID', $memberId)->value('POINT'));
+        $this->assertSame(3, (int) DB::table('ud84_penjualan_rekap')->where('UNIQUE', $unique)->value('POIN'));
+    }
+
+    public function test_points_move_between_members_when_the_customer_name_is_corrected(): void
+    {
+        $salahId = $this->seedMember('SALAH ORANG '.uniqid(), 5);
+        $benarId = $this->seedMember('ORANG BENAR '.uniqid(), 1);
+        $salah   = DB::table('ud84_member')->where('ID', $salahId)->value('NAMA');
+        $benar   = DB::table('ud84_member')->where('ID', $benarId)->value('NAMA');
+        $produk  = $this->seedProduct();
+        $unique  = $this->seedSale(['NAMA' => $salah, 'CASH' => 1000000, 'POIN' => 2, 'TOTAL' => 100000], [[
+            'KODE' => $produk->ID, 'NAMA' => $produk->NAMA, 'SATUAN' => 'Pcs',
+            'JUMLAH' => 2, 'HARGA_ASLI' => 50000, 'HARGA_TERJUAL' => 100000,
+        ]]);
+
+        $this->perbaiki($unique, ['NAMA' => $benar, 'CASH' => 1000000])
+            ->assertStatus(200)->assertJson(['status' => 'success']);
+
+        $this->assertSame(3, (int) DB::table('ud84_member')->where('ID', $salahId)->value('POINT'));
+        $this->assertSame(3, (int) DB::table('ud84_member')->where('ID', $benarId)->value('POINT'));
+    }
+
+    public function test_a_point_deduction_floors_at_zero_and_says_so(): void
+    {
+        $memberId = $this->seedMember('SALDO TIPIS '.uniqid(), 1);
+        $nama     = DB::table('ud84_member')->where('ID', $memberId)->value('NAMA');
+        $produk   = $this->seedProduct();
+        $unique   = $this->seedSale(['NAMA' => $nama, 'CASH' => 2000000, 'POIN' => 4, 'TOTAL' => 100000], [[
+            'KODE' => $produk->ID, 'NAMA' => $produk->NAMA, 'SATUAN' => 'Pcs',
+            'JUMLAH' => 2, 'HARGA_ASLI' => 50000, 'HARGA_TERJUAL' => 100000,
+        ]]);
+
+        $this->perbaiki($unique, ['NAMA' => $nama, 'CASH' => 0])
+            ->assertStatus(200)->assertJson(['status' => 'success']);
+
+        $this->assertSame(0, (int) DB::table('ud84_member')->where('ID', $memberId)->value('POINT'));
+
+        $catatan = DB::table('ud84_transaksi_log')->where('UNIQUE_TRANSAKSI', $unique)->value('CATATAN_SISTEM');
+
+        $this->assertStringContainsString('saldo tidak mencukupi', $catatan);
+    }
+
+    public function test_a_blank_customer_name_is_stored_as_umum(): void
+    {
+        $produk = $this->seedProduct();
+        $unique = $this->seedSale(['NAMA' => 'BU EKA', 'TOTAL' => 100000], [[
+            'KODE' => $produk->ID, 'NAMA' => $produk->NAMA, 'SATUAN' => 'Pcs',
+            'JUMLAH' => 2, 'HARGA_ASLI' => 50000, 'HARGA_TERJUAL' => 100000,
+        ]]);
+
+        $this->perbaiki($unique, ['NAMA' => '   '])->assertStatus(200)->assertJson(['status' => 'success']);
+
+        $this->assertDatabaseHas('ud84_penjualan_rekap', ['UNIQUE' => $unique, 'NAMA' => 'UMUM']);
+    }
+
+    public function test_the_before_and_after_snapshots_are_stored(): void
+    {
+        $produk = $this->seedProduct();
+        $unique = $this->seedSale(['NAMA' => 'SEBELUM', 'TOTAL' => 100000], [[
+            'KODE' => $produk->ID, 'NAMA' => $produk->NAMA, 'SATUAN' => 'Pcs',
+            'JUMLAH' => 2, 'HARGA_ASLI' => 50000, 'HARGA_TERJUAL' => 100000,
+        ]]);
+
+        $this->perbaiki($unique, ['NAMA' => 'SESUDAH']);
+
+        $log     = DB::table('ud84_transaksi_log')->where('UNIQUE_TRANSAKSI', $unique)->first();
+        $sebelum = json_decode($log->SEBELUM, true);
+        $sesudah = json_decode($log->SESUDAH, true);
+
+        $this->assertSame('SEBELUM', $sebelum['rekap']['NAMA']);
+        $this->assertSame('SESUDAH', $sesudah['rekap']['NAMA']);
+        $this->assertCount(1, $sebelum['detail']);
+    }
 }
