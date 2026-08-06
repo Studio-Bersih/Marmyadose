@@ -1,6 +1,6 @@
 # UD84 — Session Handoff
 
-**Written:** 2026-08-06, end of morning session
+**Written:** 2026-08-06, end of afternoon session (supersedes the morning version)
 **Read this first when resuming.** It is the state of play, what is half-finished, and the traps that already cost time once.
 
 ---
@@ -11,24 +11,24 @@
 
 | # | Item | Status |
 |---|---|---|
-| 1 | Cancel Invoice / retur | 🟡 **In progress** — backend done, frontend half-done |
+| 1 | Cancel Invoice / retur | ✅ **Stage 1 merged** — see §3 for what "Stage 1" covers |
 | 2 | QRIS di nota | ✅ Merged |
 | 3 | Format tanda tangan | ✅ Merged |
 | 4 | Cetak DL + thermal 58mm, dua button | ✅ Merged |
 | 5 | Satuan item di nota | ✅ Merged |
-| 6 | Perbaikan Transaksi | ⬜ Not started (Stages 2 & 3 below) |
+| 6 | Perbaikan Transaksi | ⬜ Not started (Stages 2 & 3, §7) |
 | 7 | Dashboard Sales (omzet & kinerja) | ⬜ Not started — **blocked**, see §6 |
 | 8 | Sales melihat harga jual di Pesan Online | ⬜ Not started |
 | 9 | Sales pengajuan discount → panel/pesanan | ⬜ Not started |
 | 10 | 1 juta = 1 poin + dashboard poin | ⬜ Not started |
 
-Plus one item **not** in `Instruction.md`, requested mid-session and delivered:
+Plus one item **not** in `Instruction.md`, requested and delivered:
 
 | — | Salesperson management CRUD | ✅ Merged |
 
 "Bantu Buat QRIS" is a business service; "Desain Icon Baru" is a design deliverable. Neither is code.
 
-**Nothing has been pushed to any remote.** Both repos have local commits on `main` only.
+**Nothing has been pushed to any remote, and nothing is deployed.** Both repos have local commits on `main` only. Three releases are now written up and waiting: nota & print + sales CRUD, then cancel invoice.
 
 ---
 
@@ -36,70 +36,50 @@ Plus one item **not** in `Instruction.md`, requested mid-session and delivered:
 
 | Repo | Path | Branch now | State |
 |---|---|---|---|
-| Frontend | `D:\Coedes\Production\me` | `ud84-cancel-invoice` | 3 commits ahead of `main`, working tree clean |
-| Backend | `D:\Coedes\Production\Marmyadose` | `ud84-cancel-invoice` | 2 commits ahead of `main`, **your unrelated WIP still unstaged** |
+| Frontend | `D:\Coedes\Production\me` | `main` | working tree clean |
+| Backend | `D:\Coedes\Production\Marmyadose` | `main` | working tree clean |
 
-Already merged into `main` in both repos (branches deleted):
-- `ud84-nota-print` — sub-project 1
-- `ud84-sales-crud` — salesperson management
+All UD84 branches are merged and deleted: `ud84-nota-print`, `ud84-sales-crud`, `ud84-cancel-invoice`.
+
+The owner's unrelated WIP (POS, Kosada, E-Money, DTOs) is **committed on `Marmyadose` main** as of `02e5c6c`. It is no longer sitting unstaged, so `git status` is clean — but it is still unfinished work that must not be deployed except where a release explicitly needs it (see the `EMoney.php` note in the cancel deployment guide).
 
 ---
 
-## 3. EXACTLY where the current work stopped
+## 3. Sub-project 2, Stage 1 — done
 
-Sub-project 2, **Stage 1 (Cancel Invoice)**. Spec: `me/docs/superpowers/specs/2026-08-06-ud84-cancel-invoice-design.md`.
+**Cancel Invoice is complete on both sides and merged.**
 
-### Done and committed
+Spec: `me/docs/superpowers/specs/2026-08-06-ud84-cancel-invoice-design.md`.
+Deployment: `me/docs/deployment/2026-08-06-ud84-cancel-invoice-deploy.md`.
 
-**Backend** (`Marmyadose`, branch `ud84-cancel-invoice`):
-- `c1b13a6` — schema: `ud84_penjualan_rekap.STATUS`, `.POIN`, new `ud84_transaksi_log` table
-- `ab39710` — `Transaksi.php` controller (cancel + audit trail read), `postPenjualan` repairs, all nine report read-sites honouring `STATUS`, `config/ud84.php`, **23 tests**
+Backend (`Marmyadose` main): schema (`STATUS`, `POIN`, `KODE` widening, `ud84_transaksi_log`), `Transaksi.php` (cancel + audit read), `postPenjualan` repairs, all nine report read-sites honouring `STATUS`, `config/ud84.php`, 23 tests.
 
-**Frontend** (`me`, branch `ud84-cancel-invoice`):
-- `dffce40` — the design spec
-- `69690ac` — `dibatalkan` on the `Receipt` type + `TRANSAKSI DIBATALKAN` banner on both nota layouts
+Frontend (`me` main): the `DIBATALKAN` banner on both nota papers, and the Transaksi page — **Tampilkan Dibatalkan** toggle, greyed cancelled rows with a badge and no Cetak Ulang, a **Batalkan** action in the drawer requiring a reason, the audit trail rendered below it, and a stock-warning toast that must be dismissed. The login page now stores the operator's name in `localStorage.Auth` (it used to store a bare `true`) so cancellations record who did them.
 
-**Schema is already applied to the local `dao` database.** Do not re-run those ALTERs.
+**Verified end-to-end in headless Chrome against the local backend**, driven over CDP rather than screenshot-only: cancel restores stock 16 → 28 with a reversing `ud84_logs` row and the original untouched, money fields unchanged, a blank reason refused, the warning toast still on screen 13 seconds later when the success toast has gone, totals reading Rp 0 with the cancelled row displayed, both nota papers printing the banner, and login storing the operator name.
 
-Tests: `php artisan test` → **54 passed, 1 failed**. The one failure is the pre-existing `ExampleTest::test_the_application_returns_a_successful_response` on `GET /`, which was failing before any of this work started. Do not "fix" it.
+**Local database was restored afterwards** — the test sale `6a738e24212fb` is `Aktif` again with stock back at 16, and the verification rows are deleted. Nothing cancelled remains in local data.
 
+Tests: `php artisan test` → **54 passed, 1 failed**. That one is the pre-existing `ExampleTest` on `GET /`, failing since before any of this work. Do not "fix" it.
 `npm run check` → **0 errors, 6 warnings**. That is the baseline; it must not grow.
-
-### NOT done — this is where to pick up
-
-**`me/src/routes/ud84/panel/transaksi/+page.svelte` has not been touched at all.** It needs:
-
-1. A **Tampilkan Dibatalkan** toggle beside the existing A-Z toggle, off by default, sending `TAMPILKAN_BATAL: true` in the `UD84/Daftar-Transaksi/Search` payload. The backend already accepts and honours it.
-2. Cancelled rows rendered greyed with a `Dibatalkan` badge, and **no Cetak Ulang link** on them.
-3. A **Batalkan** button in the detail drawer that opens a confirmation requiring a reason, then posts to `UD84/Daftar-Transaksi/Batal` with `{ KODE, ALASAN, OPERATOR }`.
-   - `OPERATOR` comes from `JSON.parse(localStorage.getItem('Auth')).name`.
-   - The response carries `data.GAGAL_RESTOK` (array of product names whose stock could **not** be returned) and `data.CATATAN` (system notes). If `GAGAL_RESTOK` is non-empty, show a toast the operator must dismiss — not a transient one — saying stock for those items needs adjusting via Logistik.
-4. The `Transaksi` TS interface needs a `STATUS: "Aktif" | "Dibatalkan"` field; the search endpoint now returns it per row.
-
-Optionally: surface the audit trail via `UD84/Daftar-Transaksi/Riwayat` (`{ KODE }`) in the drawer. The endpoint exists and is tested.
-
-After that, verify in a browser (see §5) and merge both branches to `main`, then delete them.
 
 ---
 
 ## 4. Traps that already cost time — do not rediscover these
 
-**Route cache.** `bootstrap/cache/routes-v7.php` exists. Any new route 404s until `php artisan route:clear`. The symptom is an empty page with no error. This burned a debugging round already. Same applies on production — it is in the deployment guide as a mandatory step.
+**Route cache.** `bootstrap/cache/routes-v7.php` exists. Any new route 404s until `php artisan route:clear`. The symptom is an empty page with no error. Same on production — it is in both deployment guides as mandatory.
 
-**`phraseBox.ts` points at production.** `me/src/library/resources/phraseBox.ts` has `isProduction = true`, so the local frontend talks to `https://fae.deabakery.co.id/api/`. For local testing, flip it to `false` (→ `http://localhost:8000/api/`), and **flip it back before committing or merging**. It is currently `true` and committed as `true` — verify before any push. Shipping `false` breaks the live site.
+**Config cache too, now.** `config/ud84.php` is new. A stale `bootstrap/cache/config.php` makes `config('ud84.poin_per_rupiah')` read null, and a cancellation then deducts **zero points silently**. `config:clear` is as mandatory as `route:clear` for the cancel release.
 
-**`routes/api.php` needs staging surgery.** Your uncommitted E-Money routes (`POS/Report/Delete-EMoney`, `POS/Report/Update-EMoney`) point at methods that exist only in your uncommitted `EMoney.php`. Committing them would break `route:cache` on production. The procedure used twice this session:
-1. `git show HEAD:routes/api.php > <scratch>/base.php`
-2. Write `base + only your new routes` to `routes/api.php`
-3. `git add routes/api.php`
-4. Re-insert the E-Money block into the working file so it stays unstaged
-5. Verify: `git diff --cached routes/api.php` shows only yours, `git diff routes/api.php` shows only theirs
+**`phraseBox.ts` points at production.** `me/src/library/resources/phraseBox.ts` has `isProduction = true`. For local testing flip it to `false`, and **flip it back before committing**. It is currently `true`. Note that `sed -i` on it rewrites CRLF to LF and makes git show the file as modified with an empty diff — `git checkout -- <file>` is the clean way back.
 
-**Never `git add -A` in `Marmyadose`.** It holds ~14 unrelated modified files plus untracked `app/Models/Kosada/`.
+**Never `git add -A` in `Marmyadose`.** Even now that the WIP is committed, that habit is what would sweep the next batch in.
 
 **Never `RefreshDatabase` in a test.** It runs `migrate:fresh` and would drop every `ud84_*` table — none are covered by migrations, so they would not come back. Use `DatabaseTransactions`.
 
 **Never `php artisan migrate`.** The `migrations` table holds only the project's original Laravel 9/10-era rows; `database/migrations/` now has Laravel 11-style `0001_01_01_*` files that are unrecorded, so migrate would try to create `users` (which exists) and fail. Schema ships as `.sql` pasted into phpMyAdmin.
+
+**AUTO_INCREMENT is not rolled back by `DatabaseTransactions`.** Counters climb with every test run even though the rows vanish. That is how the `SALES` tinyint ceiling in §8 surfaced, and it is worth remembering before dismissing a test that "used to pass".
 
 **MySQL `SUM()` returns a string.** `assertSame` against an int fails. Cast in tests.
 
@@ -112,25 +92,30 @@ After that, verify in a browser (see §5) and merge both branches to `main`, the
 - MySQL at `127.0.0.1:3306`, db `dao`, user `root`, password `root`. `.env` already points at it.
 - Backend: `php artisan serve` → `http://localhost:8000`
 - Frontend: `npm run dev` → `http://localhost:5173`
-- Chrome for headless verification: `C:\Program Files\Google\Chrome\Application\chrome.exe`
-  - Screenshot / print-to-PDF need `--virtual-time-budget=15000`. **Except** for toast checks, where 15000 outlasts svelte-sonner's 4-second auto-dismiss and gives a false pass — use `3000` there.
-  - Blank ~1.5KB PDFs are an intermittent flake. Re-run; never count one as a pass.
-- The UD84 panel nav redirects to login unless `localStorage.Auth` is set. To screenshot a panel page headlessly, create a temporary `src/routes/ud84/dev-seed/+page.svelte` that sets `localStorage.Auth` then `goto`s the target — **and delete it before committing**. That was done and removed once already.
+- Chrome: `C:\Program Files\Google\Chrome\Application\chrome.exe`
 
-Test data note: a real sale exists locally from earlier verification — `UNIQUE 6a738e24212fb` (product 111, qty 2, CASH 60000 < TOTAL 100000). Useful for exercising Sisa Tagihan.
+**Driving the browser, rather than just photographing it.** Launch Chrome with `--headless=new --remote-debugging-port=9222 --user-data-dir=<scratch>/chrome-profile` and talk to it over CDP from plain Node — Node 24 has a global `WebSocket`, so no puppeteer, no install. A ~90-line driver (open tab, `Runtime.evaluate`, `waitFor`, `clickText`, `captureScreenshot`) is enough to click through a real flow and assert on the DOM. That is how Stage 1 was verified.
+
+Two things that matter with this approach:
+- Open the tab on `about:blank` and **navigate afterwards**; `localStorage` on the tab `/json/new?url=` opens throws `SecurityError`.
+- Svelte's `bind:value` ignores a plain `el.value = x`. Follow it with `el.dispatchEvent(new Event('input', { bubbles: true }))`.
+
+This replaces the old dev-seed page trick — set `localStorage.Auth` over CDP instead, and there is no temporary route to remember to delete.
+
+If you do fall back to `--screenshot`/`--print-to-pdf`: use `--virtual-time-budget=15000`, except for toast checks where 15000 outlasts svelte-sonner's 4-second auto-dismiss and gives a false pass. Blank ~1.5KB PDFs are an intermittent flake; re-run, never count one as a pass.
+
+Test data: a real sale exists locally — `UNIQUE 6a738e24212fb` (product 111, qty 2 Set, CASH 60000 < TOTAL 100000). Useful for Sisa Tagihan, and for cancelling.
 
 ---
 
 ## 6. Decisions already made — do not re-litigate
-
-From the brainstorming rounds:
 
 - **Cancel = whole invoice only.** Per-item returns are out of scope for all stages; they need a refund/credit model that does not exist. The Logistik → Retur flow already adjusts stock, just unlinked from invoices.
 - **Cancel reverses stock and points**, writes a reversing `ud84_logs` row rather than deleting the original, and does **not** touch `CASH`/`DP`/`TOTAL`/`POTONGAN`.
 - **Cancelled sales are hidden from lists** unless a "show cancelled" filter is ticked, and **always excluded from every revenue total**, even when shown.
 - **No access gate**, but every cancellation records operator, time and reason.
 - **Perbaikan Transaksi = full item editing** (owner chose this over the safer options, knowingly).
-- **Item-level editing is NOT offered on legacy transactions.** Established from real data: 21 of 57 detail lines reference a product that no longer exists, and 56 of 57 have no `SATUAN`, so the stock multiplier would be a guess against `JUMLAH_PER_ITEM` values commonly of 10. Those transactions get header-only correction plus cancel.
+- **Item-level editing is NOT offered on legacy transactions.** 21 of 57 detail lines reference a product that no longer exists, and 56 of 57 have no `SATUAN`, so the stock multiplier would be a guess against `JUMLAH_PER_ITEM` values commonly of 10. Those transactions get header-only correction plus cancel.
 - **Sub-project 3's sales dashboard is blocked**: `ud84_penjualan_rekap` has no salesperson column, so completed sales cannot be attributed to a person. Only `ud84_pesanan_rekap` links to sales, which is why `ud84_analisa_sales` measures verified *orders at list price*, not revenue. Fixing it needs a schema change plus a way to attribute at checkout.
 
 ---
@@ -143,41 +128,51 @@ From the brainstorming rounds:
 
 ---
 
-## 8. Deferred minors, carried forward
+## 8. Open item that is not in any release yet
 
-Logged from reviews, none blocking:
+**`ud84_pesanan_rekap.SALES` is `tinyint` and holds `ud84_sales.ID`, an `int` auto_increment.** A ceiling of 127 on a value that only ever climbs — every salesperson ever created consumes one permanently, and deleting a salesperson does not give it back. Two exist today, so nothing is broken now; the Sales management page is what makes the 128th a matter of time. Strict mode is on, so the overflow errors rather than clamping, and every order placed with that salesperson from the public Pesan Online page would fail.
 
-- The response still embeds the raw `rekap` row beside `ringkasan`. Layouts must read `ringkasan.*` — `rekap.KEMBALIAN` is wrong whenever DP was used, and `rekap.TOTAL` is net of potongan. A `@deprecated` note on the `Rekap` type would help.
+The statement is written up at `Marmyadose/database/sql/2026_08_06_widen_pesanan_sales.sql` and **already applied locally** (which is what brought the test suite back to 54 passed). It is deliberately **not** folded into the cancel-invoice runbook — it is unrelated, and mixing an independent schema change into a release is how a simple deployment becomes a puzzle. Decide whether it rides along or ships on its own.
+
+---
+
+## 9. Deferred minors, carried forward
+
+None blocking:
+
+- **A cancelled nota still prints the QRIS block and Sisa Tagihan** under the DIBATALKAN banner — it says "void" and then asks to be paid. Worth suppressing both on a cancelled receipt.
+- The detail response still embeds the raw `rekap` row beside `ringkasan`. Layouts must read `ringkasan.*` — `rekap.KEMBALIAN` is wrong whenever DP was used, and `rekap.TOTAL` is net of potongan. A `@deprecated` note on the `Rekap` type would help.
 - `PRINT_SAFETY = 1.02` in the nota container was measured on only two short receipts. **Test a 5+ item thermal receipt on the real printer.**
 - No physical printer has ever been tested — geometry is verified in Chrome only.
-- `UD84Navigation.svelte` hardcodes `activeMenu = 'Transaksi'`, so every panel page highlights "Transaksi". Pre-existing.
-- No `try/catch` around `localStorage` access in the nota container; `selectPaper()` runs first in both print handlers, so a throw would kill printing.
+- `UD84Navigation.svelte` hardcodes `activeMenu = 'Transaksi'`, so every panel page highlights "Transaksi", and greets a hardcoded "Richie" while the real operator name now sits in `localStorage.Auth`. Both pre-existing, both now trivially fixable.
+- `UD84/Daftar-Transaksi` (the GET list endpoint) does not return `STATUS` and ignores the show-cancelled filter. Nothing calls it any more — the Transaksi page uses `Search` throughout — but it is a trap for the next caller.
+- The login page checks `status === "Unauthorized"`, which `db()` can never return: a 401 makes `fetchWithRetry` throw and the helper reports `status: "error"`. Wrong credentials therefore fall through to the success path. Pre-existing, worth fixing when login is next touched.
+- No `try/catch` around `localStorage` in the nota container; `selectPaper()` runs first in both print handlers, so a throw would kill printing. (The Transaksi page's own access is guarded.)
 - Print CSS enumerates `[data-theme="portfolio"]` and `[data-theme="portfolio-dark"]`; a third theme would silently not be covered.
 - `window.open`'s return is unchecked, so a popup blocker would silently no-op "Cetak Nota".
 - Percentage discounts that are not whole rupiah can make a printed line differ by a rupiah or two, because the discount is rounded before storage. Fix belongs at the POS (`Math.round(doDiscount)`).
 
 ---
 
-## 9. Deployment
+## 10. Deployment
 
-`me/docs/deployment/2026-08-06-ud84-nota-print-deploy.md` covers sub-project 1 + the sales CRUD as one manual deployment: both `ALTER TABLE`s, the five backend files, the `git archive` command that builds the zip from the committed branch so your WIP cannot leak, mandatory `route:clear`, and verification steps.
+Two runbooks, in this order:
 
-**It does not yet cover cancel invoice.** When Stage 1 finishes, add:
-- the `2026_08_06_add_cancel_invoice.sql` statements (STATUS, POIN, KODE widening)
-- `app/Http/Controllers/UD84/Transaksi.php` (new)
-- `config/ud84.php` (new — needs `config:clear` on deploy)
-- the updated `Report.php`, `Penjualan.php`, `routes/api.php`
+1. `me/docs/deployment/2026-08-06-ud84-nota-print-deploy.md` — sub-project 1 + sales CRUD.
+2. `me/docs/deployment/2026-08-06-ud84-cancel-invoice-deploy.md` — cancel invoice.
+
+**The order matters.** Release 2 edits `Report.php` and `Penjualan.php` again; uploading release 1's copies afterwards would quietly roll it back. Each guide says so at the top.
 
 ---
 
-## 10. Suggested first move next session
+## 11. Suggested first move next session
 
 ```bash
-cd "D:/Coedes/Production/me"        && git log --oneline -5 && git status --short
-cd "D:/Coedes/Production/Marmyadose" && git log --oneline -5 && git status --short
+cd "D:/Coedes/Production/me"        && git log --oneline -3 && git status --short
+cd "D:/Coedes/Production/Marmyadose" && git log --oneline -3 && git status --short
 cd "D:/Coedes/Production/Marmyadose" && php artisan test 2>&1 | tail -4
 ```
 
-Expect: both repos on `ud84-cancel-invoice`, `me` clean, `Marmyadose` showing only your WIP, and 54 passed / 1 pre-existing failure.
+Expect both repos on `main` and clean, and 54 passed / 1 pre-existing failure.
 
-Then pick up §3 — the Transaksi page is the only thing left in Stage 1.
+Then pick the next piece of work: Stage 2 (perbaikan pesanan, the low-risk one) is the natural continuation, and items 8, 9 and 10 are untouched. Item 7 stays blocked until someone decides how a completed sale gets attributed to a salesperson.
