@@ -197,6 +197,7 @@ Route::get('/UD84/Daftar-Transaksi/Detail-Transaksi/{ID}', [UD84_Report::class, 
 Route::post('/UD84/Daftar-Transaksi/Update-DP', [UD84_Report::class, 'updateDP']);
 Route::post('/UD84/Daftar-Transaksi/Batal', [UD84_Transaksi::class, 'batalTransaksi']);
 Route::post('/UD84/Daftar-Transaksi/Riwayat', [UD84_Transaksi::class, 'riwayatTransaksi']);
+Route::post('/UD84/Daftar-Transaksi/Perbaiki', [UD84_Transaksi::class, 'perbaikiTransaksi']);
 
 Route::get('/UD84/Get-Invoices/{ID}', [UD84_Report::class, 'getInvoices']);
 Route::post('/UD84/Reports/Single-Item', [UD84_Report::class, 'singleItem']);

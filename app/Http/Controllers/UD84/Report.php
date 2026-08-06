@@ -245,12 +245,20 @@ class Report extends Controller
         $rekap  = DB::table('ud84_penjualan_rekap')->where('UNIQUE',$ID)->first();
         $detail = DB::table('ud84_penjualan_detail')->where('UNIQUE',$ID)->get();
 
+        // Whether the line editor may be offered at all, and if not, why --
+        // decided by Transaksi so the endpoint and this screen cannot disagree.
+        [$dapatUbahItem, $alasanKoreksi] = Transaksi::syaratUbahItem($ID);
+
         return response()->json([
             "status"    => "success",
             "message"   => "Loaded",
             "data"      => [
                 "rekap"     => $rekap,
-                "detail"    => $detail
+                "detail"    => $detail,
+                "KOREKSI"   => [
+                    "DAPAT_UBAH_ITEM" => $dapatUbahItem,
+                    "ALASAN"          => $alasanKoreksi,
+                ]
             ]
         ],200);
     }
@@ -267,6 +275,14 @@ class Report extends Controller
 
         $dataDetail = DB::table('ud84_penjualan_detail')->where('UNIQUE',$ID)->get();
         $dataMember = DB::table('ud84_member')->where('NAMA', $dataRekap->NAMA)->first();
+
+        // A correction is recorded, not flagged -- the audit row IS the fact, so
+        // there is no column to keep in step with it.
+        $dikoreksi = DB::table('ud84_transaksi_log')
+            ->where('UNIQUE_TRANSAKSI', $ID)
+            ->where('AKSI', 'Perbaikan')
+            ->orderByDesc('ID')
+            ->value('CREATED_AT');
 
         $listDetail = [];
         $totalSum   = [];
@@ -315,6 +331,8 @@ class Report extends Controller
                 // Surfaced at the top level so the layouts never have to read
                 // the raw rekap row, whose KEMBALIAN and TOTAL are unsafe.
                 "dibatalkan" => $dataRekap->STATUS === 'Dibatalkan',
+                "dikoreksi"  => !empty($dikoreksi),
+                "dikoreksi_pada" => !empty($dikoreksi) ? Carbon::parse($dikoreksi)->translatedFormat('d F Y') : null,
                 "rekap"     => $dataRekap,
                 "alamat"    => empty($dataMember->ALAMAT) ? '-' : $dataMember->ALAMAT,
                 "point"     => empty($dataMember->POINT) ? 0 : $dataMember->POINT
