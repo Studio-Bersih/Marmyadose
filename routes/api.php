@@ -7,6 +7,7 @@ use App\Http\Controllers\UD84\Penjualan as UD84_Penjualan;
 use App\Http\Controllers\UD84\Pesanan as UD84_Pesanan;
 use App\Http\Controllers\UD84\Stock as UD84_Stocks;
 use App\Http\Controllers\UD84\Sales as UD84_Sales;
+use App\Http\Controllers\UD84\Transaksi as UD84_Transaksi;
 
 use App\Http\Controllers\Kosada\Kredit as Kosada_Kredit;
 use App\Http\Controllers\Kosada\Member as Kosada_Member;
@@ -183,6 +184,8 @@ Route::get('/UD84/Daftar-Transaksi', [UD84_Report::class,'daftarTransaksi']);
 Route::post('/UD84/Daftar-Transaksi/Search', [UD84_Report::class,'searchTransaksi']);
 Route::get('/UD84/Daftar-Transaksi/Detail-Transaksi/{ID}', [UD84_Report::class, 'detailTransaksi']);
 Route::post('/UD84/Daftar-Transaksi/Update-DP', [UD84_Report::class, 'updateDP']);
+Route::post('/UD84/Daftar-Transaksi/Batal', [UD84_Transaksi::class, 'batalTransaksi']);
+Route::post('/UD84/Daftar-Transaksi/Riwayat', [UD84_Transaksi::class, 'riwayatTransaksi']);
 
 Route::get('/UD84/Get-Invoices/{ID}', [UD84_Report::class, 'getInvoices']);
 Route::post('/UD84/Reports/Single-Item', [UD84_Report::class, 'singleItem']);

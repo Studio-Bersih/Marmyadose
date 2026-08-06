@@ -3,6 +3,7 @@
 use Illuminate\Database\Migrations\Migration;
 use Illuminate\Database\Schema\Blueprint;
 use Illuminate\Support\Facades\Schema;
+use Illuminate\Support\Facades\DB;
 
 /**
  * Version-control record for the cancel-invoice schema.
@@ -20,7 +21,16 @@ return new class extends Migration
     {
         Schema::table('ud84_penjualan_rekap', function (Blueprint $table) {
             $table->enum('STATUS', ['Aktif', 'Dibatalkan'])->default('Aktif')->after('UNIQUE');
+            // Points actually granted, so a cancellation reverses exactly what
+            // was given instead of recomputing under a rule that may have
+            // changed since. Null means the sale predates this column.
+            $table->smallInteger('POIN')->nullable()->after('MEMBER');
         });
+
+        // KODE holds ud84_master_produk.ID (int) but was smallint, capping at
+        // 32767. Cancellation resolves the product by KODE to return stock, so
+        // a truncated ID would credit the wrong product.
+        DB::statement('ALTER TABLE `ud84_penjualan_detail` MODIFY COLUMN `KODE` int(11) DEFAULT NULL');
 
         Schema::create('ud84_transaksi_log', function (Blueprint $table) {
             $table->bigIncrements('ID');

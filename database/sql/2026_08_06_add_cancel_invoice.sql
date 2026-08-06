@@ -22,6 +22,24 @@
 ALTER TABLE `ud84_penjualan_rekap`
   ADD COLUMN `STATUS` enum('Aktif','Dibatalkan') NOT NULL DEFAULT 'Aktif' AFTER `UNIQUE`;
 
+-- POIN records how many member points this sale actually granted, so a
+-- cancellation reverses exactly what was given rather than recomputing it.
+-- Recomputing would be wrong the moment the earning rule changes: a sale made
+-- under the old rule would reverse the wrong amount forever after.
+--
+-- NULL means "granted before this column existed". Cancelling such a sale
+-- falls back to recomputing from CASH, and says so in CATATAN_SISTEM.
+ALTER TABLE `ud84_penjualan_rekap`
+  ADD COLUMN `POIN` smallint(6) DEFAULT NULL AFTER `MEMBER`;
+
+-- KODE stores ud84_master_produk.ID, which is int(11), but the column itself
+-- was smallint(6) -- a ceiling of 32767. Product IDs are around 466 today, so
+-- this has never been hit, but cancellation now resolves the product by KODE
+-- in order to return stock to it. A truncated ID would silently resolve to a
+-- DIFFERENT product and credit that one instead, so the types are aligned.
+ALTER TABLE `ud84_penjualan_detail`
+  MODIFY COLUMN `KODE` int(11) DEFAULT NULL;
+
 CREATE TABLE `ud84_transaksi_log` (
   `ID`               bigint(19) NOT NULL AUTO_INCREMENT,
   `UNIQUE_TRANSAKSI` varchar(50)  DEFAULT NULL,
