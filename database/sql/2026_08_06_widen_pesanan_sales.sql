@@ -1,0 +1,31 @@
+-- UD84 -- widen ud84_pesanan_rekap.SALES from tinyint to int.
+--
+-- NOT part of the cancel-invoice release. It is a separate, latent defect
+-- found while running that release's tests, and it ships whenever is
+-- convenient -- the statement is additive and needs no code change.
+--
+-- SALES holds ud84_sales.ID, which is int auto_increment, but the column
+-- itself is tinyint: a ceiling of 127. There are two salespeople today, so
+-- nothing is broken now. The ceiling is on IDs, though, not on how many
+-- people exist -- every salesperson ever added consumes an auto_increment
+-- value permanently, and deleting one does not give it back. The Sales
+-- management page shipped on 2026-08-06 makes adding and deleting them easy,
+-- so the 128th salesperson ever created is a matter of time.
+--
+-- When that happens, sql_mode includes STRICT_TRANS_TABLES, so the insert
+-- does not clamp -- it errors. Every order placed with that salesperson
+-- would fail outright from the customer-facing Pesan Online page.
+--
+-- This is the same defect as the KODE widening in 2026_08_06_add_cancel_invoice.sql:
+-- a foreign reference stored in a narrower type than the key it points at.
+--
+-- Found by tests/Feature/UD84/SalesTest, which seeds a salesperson and
+-- attaches an order to it. DatabaseTransactions rolls back the row but not
+-- the auto_increment counter, so the local counter crossed 127 after enough
+-- runs and the tests started failing -- correctly.
+--
+-- Do NOT run `php artisan migrate` on this database. See the note in
+-- 2026_08_06_add_cancel_invoice.sql.
+
+ALTER TABLE `ud84_pesanan_rekap`
+  MODIFY COLUMN `SALES` int(11) DEFAULT NULL;
