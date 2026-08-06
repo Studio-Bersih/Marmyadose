@@ -253,6 +253,44 @@ class PerbaikanTransaksiTest extends TestCase
         $this->assertStringContainsString('saldo tidak mencukupi', $catatan);
     }
 
+    public function test_the_grant_is_inferred_from_cash_when_poin_predates_the_column(): void
+    {
+        $memberId = $this->seedMember('POIN LAMA '.uniqid(), 5);
+        $nama     = DB::table('ud84_member')->where('ID', $memberId)->value('NAMA');
+        $produk   = $this->seedProduct();
+        $unique   = $this->seedSale(['NAMA' => $nama, 'CASH' => 2000000, 'POIN' => null, 'TOTAL' => 100000], [[
+            'KODE' => $produk->ID, 'NAMA' => $produk->NAMA, 'SATUAN' => 'Pcs',
+            'JUMLAH' => 2, 'HARGA_ASLI' => 50000, 'HARGA_TERJUAL' => 100000,
+        ]]);
+
+        // POIN is null, so what this sale granted is inferred from its stored
+        // CASH: floor(2.000.000 / 500.000) = 4. Correcting CASH to 0 takes
+        // those 4 back from the member's 5, landing on 1.
+        $this->perbaiki($unique, ['NAMA' => $nama, 'CASH' => 0])
+            ->assertStatus(200)->assertJson(['status' => 'success']);
+
+        $this->assertSame(1, (int) DB::table('ud84_member')->where('ID', $memberId)->value('POINT'));
+    }
+
+    public function test_umum_never_gains_or_loses_points(): void
+    {
+        // A member literally named UMUM would be the only way this rule could
+        // fail silently: without the special case, geserPoin would resolve
+        // it like any other name and credit it.
+        $umumId = $this->seedMember('UMUM', 7);
+        $produk = $this->seedProduct();
+        $unique = $this->seedSale(['NAMA' => 'UMUM', 'CASH' => 0, 'POIN' => 0, 'TOTAL' => 100000], [[
+            'KODE' => $produk->ID, 'NAMA' => $produk->NAMA, 'SATUAN' => 'Pcs',
+            'JUMLAH' => 2, 'HARGA_ASLI' => 50000, 'HARGA_TERJUAL' => 100000,
+        ]]);
+
+        $this->perbaiki($unique, ['NAMA' => 'UMUM', 'CASH' => 2000000])
+            ->assertStatus(200)->assertJson(['status' => 'success']);
+
+        $this->assertSame(7, (int) DB::table('ud84_member')->where('ID', $umumId)->value('POINT'));
+        $this->assertSame(0, (int) DB::table('ud84_penjualan_rekap')->where('UNIQUE', $unique)->value('POIN'));
+    }
+
     public function test_a_blank_customer_name_is_stored_as_umum(): void
     {
         $produk = $this->seedProduct();

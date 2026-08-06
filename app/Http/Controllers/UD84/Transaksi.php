@@ -310,23 +310,36 @@ class Transaksi extends Controller
      * Moves one member's balance by a delta, flooring at zero.
      *
      * UMUM is not a member -- it is what a sale with no named customer stores
-     * -- so points neither leave it nor arrive at it.
+     * -- so points neither leave it nor arrive at it. Locks the member row
+     * (the caller is expected to already be inside a transaction) so two
+     * concurrent corrections of the same sale cannot both read the same
+     * starting balance and both apply their delta on top of it.
+     *
+     * Returns BERHASIL: whether the delta was actually applied to a real
+     * balance. It is true for the trivial delta === 0 case (nothing needed
+     * to happen) and false whenever the target cannot hold points at all --
+     * UMUM, a blank name, or a name with no matching member -- because the
+     * caller must not record a grant/deduction that never touched a ledger.
      */
     private function geserPoin(string $nama, int $delta): array
     {
         $catatan = [];
         $nama    = trim($nama);
 
-        if ($delta === 0 || $nama === '' || strtoupper($nama) === 'UMUM') {
-            return $catatan;
+        if ($nama === '' || strtoupper($nama) === 'UMUM') {
+            return ['CATATAN' => $catatan, 'BERHASIL' => $delta === 0];
         }
 
-        $member = DB::table('ud84_member')->whereRaw('TRIM(NAMA) = ?', [$nama])->first();
+        if ($delta === 0) {
+            return ['CATATAN' => $catatan, 'BERHASIL' => true];
+        }
+
+        $member = DB::table('ud84_member')->whereRaw('TRIM(NAMA) = ?', [$nama])->lockForUpdate()->first();
 
         if (empty($member)) {
             $catatan[] = "Poin tidak diubah: member '{$nama}' tidak ditemukan.";
 
-            return $catatan;
+            return ['CATATAN' => $catatan, 'BERHASIL' => false];
         }
 
         $saldo = (int) ($member->POINT ?? 0);
@@ -346,7 +359,7 @@ class Transaksi extends Controller
             'UPDATED_AT' => now(),
         ]);
 
-        return $catatan;
+        return ['CATATAN' => $catatan, 'BERHASIL' => true];
     }
 
     /**
@@ -360,32 +373,47 @@ class Transaksi extends Controller
      *
      * Sales predating the POIN column have it null; what they granted is
      * recomputed from their stored CASH, the same fallback cancellation uses.
+     *
+     * The returned POIN is what was actually APPLIED, not merely computed --
+     * when geserPoin could not touch a real balance (UMUM, blank, or a member
+     * that no longer exists) the grant never happened, so POIN must not claim
+     * otherwise. rekap.POIN is what cancellation later trusts to reverse; a
+     * figure that was never granted would be taken back from whoever the
+     * customer name resolves to by then, which may not even be the same
+     * person.
      */
     private function selaraskanPoin(object $rekap, string $namaBaru, int $cashBaru): array
     {
         $perPoin  = (int) config('ud84.poin_per_rupiah');
         $poinBaru = ($cashBaru > 0 && $perPoin > 0) ? (int) floor($cashBaru / $perPoin) : 0;
+        $catatan  = [];
 
         if ($rekap->POIN !== null) {
             $poinLama = (int) $rekap->POIN;
         } else {
             $cashLama = (int) ($rekap->CASH ?? 0);
             $poinLama = ($cashLama > 0 && $perPoin > 0) ? (int) floor($cashLama / $perPoin) : 0;
+
+            if ($poinLama > 0) {
+                $catatan[] = "Transaksi ini belum mencatat poin yang diberikan; jumlahnya dihitung ulang dari pembayaran tunai ({$poinLama} poin).";
+            }
         }
 
         $namaLama = trim((string) ($rekap->NAMA ?? ''));
         $namaBaru = trim($namaBaru);
 
         if ($namaLama === $namaBaru) {
-            $catatan = $this->geserPoin($namaBaru, $poinBaru - $poinLama);
+            $hasil     = $this->geserPoin($namaBaru, $poinBaru - $poinLama);
+            $poinAkhir = $hasil['BERHASIL'] ? $poinBaru : $poinLama;
+            $catatan   = array_merge($catatan, $hasil['CATATAN']);
         } else {
-            $catatan = array_merge(
-                $this->geserPoin($namaLama, -$poinLama),
-                $this->geserPoin($namaBaru, $poinBaru)
-            );
+            $lama      = $this->geserPoin($namaLama, -$poinLama);
+            $baru      = $this->geserPoin($namaBaru, $poinBaru);
+            $poinAkhir = $baru['BERHASIL'] ? $poinBaru : 0;
+            $catatan   = array_merge($catatan, $lama['CATATAN'], $baru['CATATAN']);
         }
 
-        return ['POIN' => $poinBaru, 'CATATAN' => $catatan];
+        return ['POIN' => $poinAkhir, 'CATATAN' => $catatan];
     }
 
     /**
@@ -393,6 +421,14 @@ class Transaksi extends Controller
      * receipt number is the customer's reference, and cancel-and-re-ring would
      * change it, move the money into today's revenue, and leave two rows in the
      * books for one corrected quantity.
+     *
+     * The rekap row is read WITH lockForUpdate INSIDE the transaction, not
+     * before it -- geserPoin does a read-modify-write on a member's POINT, and
+     * two concurrent corrections of the same sale must not both read the same
+     * starting POIN and both apply their delta on top of it. A sequential
+     * double-submit is already safe because the second request sees the
+     * already-updated row and is refused by the empty-change-list guard below;
+     * only genuinely parallel requests need the lock.
      */
     public function perbaikiTransaksi(Request $request)
     {
@@ -402,16 +438,6 @@ class Transaksi extends Controller
 
         if ($alasan === '') {
             return $this->gagal('Alasan perbaikan wajib diisi.');
-        }
-
-        $rekap = DB::table('ud84_penjualan_rekap')->where('UNIQUE', $kode)->first();
-
-        if (empty($rekap)) {
-            return $this->gagal('Transaksi tidak ditemukan.');
-        }
-
-        if ($rekap->STATUS === 'Dibatalkan') {
-            return $this->gagal('Transaksi yang sudah dibatalkan tidak bisa diperbaiki.');
         }
 
         $namaBaru   = trim((string) $request->input('NAMA'));
@@ -428,41 +454,62 @@ class Transaksi extends Controller
             return $this->gagal('Nominal tidak boleh minus.');
         }
 
-        $detailLama = DB::table('ud84_penjualan_detail')->where('UNIQUE', $kode)->get();
-        $totalBarang = 0;
-
-        foreach ($detailLama as $line) {
-            $totalBarang += (int) $line->HARGA_TERJUAL;
-        }
-
-        if ($potongan > $totalBarang) {
-            return $this->gagal('Potongan tidak boleh melebihi total barang.');
-        }
-
-        $total = $totalBarang - $potongan;
-        // Recomputed exactly as postPenjualan writes it at sale time, so a
-        // correction does not introduce a new inconsistency. That stored figure
-        // ignores DP and is already wrong for deposit sales; the nota derives
-        // its own and does not read it.
-        $kembalian = $cash <= 0 ? 0 : $cash - $total;
-
-        $catatan = $this->ringkasPerbaikan($rekap, [
-            'NAMA'        => $namaBaru,
-            'KETERANGAN'  => $keterangan,
-            'JATUH_TEMPO' => $jatuhTempo,
-            'CASH'        => $cash,
-            'DP'          => $dp,
-            'POTONGAN'    => $potongan,
-            'TOTAL'       => $total,
-        ]);
-
-        if (empty($catatan)) {
-            return $this->gagal('Tidak ada perubahan untuk disimpan.');
-        }
-
         DB::beginTransaction();
 
         try {
+            // Refusing after this point still rolls back having written
+            // nothing -- these are the same guards as before, just now able
+            // to read a locked, currently-consistent row.
+            $rekap = DB::table('ud84_penjualan_rekap')->where('UNIQUE', $kode)->lockForUpdate()->first();
+
+            if (empty($rekap)) {
+                DB::rollBack();
+
+                return $this->gagal('Transaksi tidak ditemukan.');
+            }
+
+            if ($rekap->STATUS === 'Dibatalkan') {
+                DB::rollBack();
+
+                return $this->gagal('Transaksi yang sudah dibatalkan tidak bisa diperbaiki.');
+            }
+
+            $detailLama  = DB::table('ud84_penjualan_detail')->where('UNIQUE', $kode)->get();
+            $totalBarang = 0;
+
+            foreach ($detailLama as $line) {
+                $totalBarang += (int) $line->HARGA_TERJUAL;
+            }
+
+            if ($potongan > $totalBarang) {
+                DB::rollBack();
+
+                return $this->gagal('Potongan tidak boleh melebihi total barang.');
+            }
+
+            $total = $totalBarang - $potongan;
+            // Recomputed exactly as postPenjualan writes it at sale time, so a
+            // correction does not introduce a new inconsistency. That stored figure
+            // ignores DP and is already wrong for deposit sales; the nota derives
+            // its own and does not read it.
+            $kembalian = $cash <= 0 ? 0 : $cash - $total;
+
+            $catatan = $this->ringkasPerbaikan($rekap, [
+                'NAMA'        => $namaBaru,
+                'KETERANGAN'  => $keterangan,
+                'JATUH_TEMPO' => $jatuhTempo,
+                'CASH'        => $cash,
+                'DP'          => $dp,
+                'POTONGAN'    => $potongan,
+                'TOTAL'       => $total,
+            ]);
+
+            if (empty($catatan)) {
+                DB::rollBack();
+
+                return $this->gagal('Tidak ada perubahan untuk disimpan.');
+            }
+
             $sebelum = json_encode(['rekap' => $rekap, 'detail' => $detailLama], JSON_UNESCAPED_UNICODE);
 
             $poin = $this->selaraskanPoin($rekap, $namaBaru, $cash);
