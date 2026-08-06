@@ -601,4 +601,269 @@ class PerbaikanTransaksiTest extends TestCase
         $this->assertSame(5, (int) DB::table('ud84_penjualan_detail')->where('ID', $goodId)->value('JUMLAH'));
         $this->assertSame(2, DB::table('ud84_penjualan_detail')->where('UNIQUE', $unique)->count());
     }
+
+    public function test_an_unknown_sale_is_refused(): void
+    {
+        $this->perbaiki('tidak-ada')->assertStatus(200)->assertJson(['status' => 'error']);
+    }
+
+    public function test_a_cancelled_sale_cannot_be_corrected(): void
+    {
+        $produk = $this->seedProduct(['STOK' => 100]);
+        $unique = $this->seedSale(['STATUS' => 'Dibatalkan', 'NAMA' => 'ASLI', 'TOTAL' => 20000], [[
+            'KODE' => $produk->ID, 'NAMA' => $produk->NAMA, 'SATUAN' => 'Pcs',
+            'JUMLAH' => 2, 'HARGA_ASLI' => 10000, 'HARGA_TERJUAL' => 20000,
+        ]]);
+
+        $this->perbaiki($unique, ['NAMA' => 'DIUBAH'])->assertStatus(200)->assertJson(['status' => 'error']);
+
+        $this->assertDatabaseHas('ud84_penjualan_rekap', ['UNIQUE' => $unique, 'NAMA' => 'ASLI']);
+        $this->assertSame(100, (int) DB::table('ud84_master_produk')->where('ID', $produk->ID)->value('STOK'));
+        $this->assertDatabaseMissing('ud84_transaksi_log', ['UNIQUE_TRANSAKSI' => $unique]);
+    }
+
+    public function test_a_blank_reason_is_refused(): void
+    {
+        $produk = $this->seedProduct();
+        $unique = $this->seedSale(['NAMA' => 'ASLI', 'TOTAL' => 20000], [[
+            'KODE' => $produk->ID, 'NAMA' => $produk->NAMA, 'SATUAN' => 'Pcs',
+            'JUMLAH' => 2, 'HARGA_ASLI' => 10000, 'HARGA_TERJUAL' => 20000,
+        ]]);
+
+        $this->perbaiki($unique, ['NAMA' => 'DIUBAH', 'ALASAN' => '   '])
+            ->assertStatus(200)->assertJson(['status' => 'error']);
+
+        $this->assertDatabaseHas('ud84_penjualan_rekap', ['UNIQUE' => $unique, 'NAMA' => 'ASLI']);
+        $this->assertDatabaseMissing('ud84_transaksi_log', ['UNIQUE_TRANSAKSI' => $unique]);
+    }
+
+    public function test_items_are_refused_on_a_sale_that_does_not_qualify(): void
+    {
+        $produk = $this->seedProduct(['STOK' => 100]);
+        $unique = $this->seedSale(['TOTAL' => 20000], [[
+            'KODE' => $produk->ID, 'NAMA' => $produk->NAMA, 'SATUAN' => null,
+            'JUMLAH' => 2, 'HARGA_ASLI' => 10000, 'HARGA_TERJUAL' => 20000,
+        ]]);
+
+        $this->perbaiki($unique, ['ITEMS' => [[
+            'ID' => $this->lineId($unique), 'KODE_ITEM' => $produk->ID, 'SATUAN' => 'Pcs',
+            'JUMLAH' => 5, 'HARGA_ASLI' => 10000, 'POTONGAN_PERSEN' => 0, 'POTONGAN_RUPIAH' => 0,
+        ]]])->assertStatus(200)->assertJson(['status' => 'error']);
+
+        $this->assertDatabaseHas('ud84_penjualan_detail', ['UNIQUE' => $unique, 'JUMLAH' => 2]);
+        $this->assertSame(100, (int) DB::table('ud84_master_produk')->where('ID', $produk->ID)->value('STOK'));
+        $this->assertDatabaseMissing('ud84_transaksi_log', ['UNIQUE_TRANSAKSI' => $unique]);
+    }
+
+    public function test_a_header_correction_still_works_on_a_sale_that_does_not_qualify(): void
+    {
+        $produk = $this->seedProduct();
+        $unique = $this->seedSale(['NAMA' => 'ASLI', 'TOTAL' => 20000], [[
+            'KODE' => $produk->ID, 'NAMA' => $produk->NAMA, 'SATUAN' => null,
+            'JUMLAH' => 2, 'HARGA_ASLI' => 10000, 'HARGA_TERJUAL' => 20000,
+        ]]);
+
+        $this->perbaiki($unique, ['NAMA' => 'DIPERBAIKI'])
+            ->assertStatus(200)->assertJson(['status' => 'success']);
+
+        $this->assertDatabaseHas('ud84_penjualan_rekap', ['UNIQUE' => $unique, 'NAMA' => 'DIPERBAIKI']);
+    }
+
+    public function test_an_empty_item_list_is_refused(): void
+    {
+        $produk = $this->seedProduct();
+        $unique = $this->seedSale(['TOTAL' => 20000], [[
+            'KODE' => $produk->ID, 'NAMA' => $produk->NAMA, 'SATUAN' => 'Pcs',
+            'JUMLAH' => 2, 'HARGA_ASLI' => 10000, 'HARGA_TERJUAL' => 20000,
+        ]]);
+
+        $this->perbaiki($unique, ['ITEMS' => []])->assertStatus(200)->assertJson(['status' => 'error']);
+
+        $this->assertDatabaseHas('ud84_penjualan_detail', ['UNIQUE' => $unique, 'JUMLAH' => 2]);
+    }
+
+    public function test_a_line_id_from_another_sale_is_refused(): void
+    {
+        $produk = $this->seedProduct(['STOK' => 100]);
+        $lain   = $this->seedSale(['TOTAL' => 10000], [[
+            'KODE' => $produk->ID, 'NAMA' => $produk->NAMA, 'SATUAN' => 'Pcs',
+            'JUMLAH' => 1, 'HARGA_ASLI' => 10000, 'HARGA_TERJUAL' => 10000,
+        ]]);
+        $unique = $this->seedSale(['TOTAL' => 20000], [[
+            'KODE' => $produk->ID, 'NAMA' => $produk->NAMA, 'SATUAN' => 'Pcs',
+            'JUMLAH' => 2, 'HARGA_ASLI' => 10000, 'HARGA_TERJUAL' => 20000,
+        ]]);
+
+        $this->perbaiki($unique, ['ITEMS' => [[
+            'ID' => $this->lineId($lain), 'KODE_ITEM' => $produk->ID, 'SATUAN' => 'Pcs',
+            'JUMLAH' => 9, 'HARGA_ASLI' => 10000, 'POTONGAN_PERSEN' => 0, 'POTONGAN_RUPIAH' => 0,
+        ]]])->assertStatus(200)->assertJson(['status' => 'error']);
+
+        $this->assertDatabaseHas('ud84_penjualan_detail', ['UNIQUE' => $lain, 'JUMLAH' => 1]);
+        $this->assertSame(100, (int) DB::table('ud84_master_produk')->where('ID', $produk->ID)->value('STOK'));
+    }
+
+    public function test_an_unknown_product_is_refused(): void
+    {
+        $produk = $this->seedProduct(['STOK' => 100]);
+        $unique = $this->seedSale(['TOTAL' => 20000], [[
+            'KODE' => $produk->ID, 'NAMA' => $produk->NAMA, 'SATUAN' => 'Pcs',
+            'JUMLAH' => 2, 'HARGA_ASLI' => 10000, 'HARGA_TERJUAL' => 20000,
+        ]]);
+
+        $this->perbaiki($unique, ['ITEMS' => [[
+            'KODE_ITEM' => 999999, 'SATUAN' => 'Pcs', 'JUMLAH' => 1,
+            'HARGA_ASLI' => 10000, 'POTONGAN_PERSEN' => 0, 'POTONGAN_RUPIAH' => 0,
+        ]]])->assertStatus(200)->assertJson(['status' => 'error']);
+
+        $this->assertSame(100, (int) DB::table('ud84_master_produk')->where('ID', $produk->ID)->value('STOK'));
+        $this->assertDatabaseMissing('ud84_transaksi_log', ['UNIQUE_TRANSAKSI' => $unique]);
+    }
+
+    public function test_a_unit_the_product_does_not_use_is_refused(): void
+    {
+        $produk = $this->seedProduct(['STOK' => 100, 'TIPE' => 'Set']);
+        $unique = $this->seedSale(['TOTAL' => 20000], [[
+            'KODE' => $produk->ID, 'NAMA' => $produk->NAMA, 'SATUAN' => 'Pcs',
+            'JUMLAH' => 2, 'HARGA_ASLI' => 10000, 'HARGA_TERJUAL' => 20000,
+        ]]);
+
+        $this->perbaiki($unique, ['ITEMS' => [[
+            'ID' => $this->lineId($unique), 'KODE_ITEM' => $produk->ID, 'SATUAN' => 'Dus',
+            'JUMLAH' => 2, 'HARGA_ASLI' => 10000, 'POTONGAN_PERSEN' => 0, 'POTONGAN_RUPIAH' => 0,
+        ]]])->assertStatus(200)->assertJson(['status' => 'error']);
+
+        $this->assertSame(100, (int) DB::table('ud84_master_produk')->where('ID', $produk->ID)->value('STOK'));
+    }
+
+    public function test_a_zero_quantity_is_refused(): void
+    {
+        $produk = $this->seedProduct(['STOK' => 100]);
+        $unique = $this->seedSale(['TOTAL' => 20000], [[
+            'KODE' => $produk->ID, 'NAMA' => $produk->NAMA, 'SATUAN' => 'Pcs',
+            'JUMLAH' => 2, 'HARGA_ASLI' => 10000, 'HARGA_TERJUAL' => 20000,
+        ]]);
+
+        $this->perbaiki($unique, ['ITEMS' => [[
+            'ID' => $this->lineId($unique), 'KODE_ITEM' => $produk->ID, 'SATUAN' => 'Pcs',
+            'JUMLAH' => 0, 'HARGA_ASLI' => 10000, 'POTONGAN_PERSEN' => 0, 'POTONGAN_RUPIAH' => 0,
+        ]]])->assertStatus(200)->assertJson(['status' => 'error']);
+
+        $this->assertDatabaseHas('ud84_penjualan_detail', ['UNIQUE' => $unique, 'JUMLAH' => 2]);
+    }
+
+    public function test_negative_money_is_refused(): void
+    {
+        $produk = $this->seedProduct();
+        $unique = $this->seedSale(['NAMA' => 'ASLI', 'TOTAL' => 20000], [[
+            'KODE' => $produk->ID, 'NAMA' => $produk->NAMA, 'SATUAN' => 'Pcs',
+            'JUMLAH' => 2, 'HARGA_ASLI' => 10000, 'HARGA_TERJUAL' => 20000,
+        ]]);
+
+        $this->perbaiki($unique, ['CASH' => -5000])->assertStatus(200)->assertJson(['status' => 'error']);
+
+        $this->assertDatabaseMissing('ud84_transaksi_log', ['UNIQUE_TRANSAKSI' => $unique]);
+    }
+
+    public function test_a_potongan_larger_than_the_goods_is_refused(): void
+    {
+        $produk = $this->seedProduct();
+        $unique = $this->seedSale(['TOTAL' => 20000], [[
+            'KODE' => $produk->ID, 'NAMA' => $produk->NAMA, 'SATUAN' => 'Pcs',
+            'JUMLAH' => 2, 'HARGA_ASLI' => 10000, 'HARGA_TERJUAL' => 20000,
+        ]]);
+
+        $this->perbaiki($unique, ['POTONGAN' => 25000])->assertStatus(200)->assertJson(['status' => 'error']);
+
+        $this->assertDatabaseHas('ud84_penjualan_rekap', ['UNIQUE' => $unique, 'TOTAL' => 20000]);
+    }
+
+    public function test_an_item_discount_larger_than_its_price_is_refused(): void
+    {
+        $produk = $this->seedProduct(['STOK' => 100]);
+        $unique = $this->seedSale(['TOTAL' => 20000], [[
+            'KODE' => $produk->ID, 'NAMA' => $produk->NAMA, 'SATUAN' => 'Pcs',
+            'JUMLAH' => 2, 'HARGA_ASLI' => 10000, 'HARGA_TERJUAL' => 20000,
+        ]]);
+
+        $this->perbaiki($unique, ['ITEMS' => [[
+            'ID' => $this->lineId($unique), 'KODE_ITEM' => $produk->ID, 'SATUAN' => 'Pcs',
+            'JUMLAH' => 2, 'HARGA_ASLI' => 10000, 'POTONGAN_PERSEN' => 8000, 'POTONGAN_RUPIAH' => 5000,
+        ]]])->assertStatus(200)->assertJson(['status' => 'error']);
+
+        $this->assertSame(100, (int) DB::table('ud84_master_produk')->where('ID', $produk->ID)->value('STOK'));
+    }
+
+    public function test_a_product_with_no_per_item_count_cannot_be_sold_by_the_set(): void
+    {
+        $produk = $this->seedProduct(['STOK' => 100, 'TIPE' => 'Set', 'JUMLAH_PER_ITEM' => 0]);
+        $unique = $this->seedSale(['TOTAL' => 20000], [[
+            'KODE' => $produk->ID, 'NAMA' => $produk->NAMA, 'SATUAN' => 'Pcs',
+            'JUMLAH' => 2, 'HARGA_ASLI' => 10000, 'HARGA_TERJUAL' => 20000,
+        ]]);
+
+        // Pieces would be a guess, and a guess here is wrong by the very
+        // multiplier that is missing.
+        $this->perbaiki($unique, ['ITEMS' => [[
+            'ID' => $this->lineId($unique), 'KODE_ITEM' => $produk->ID, 'SATUAN' => 'Set',
+            'JUMLAH' => 2, 'HARGA_ASLI' => 10000, 'POTONGAN_PERSEN' => 0, 'POTONGAN_RUPIAH' => 0,
+        ]]])->assertStatus(200)->assertJson(['status' => 'error']);
+
+        $this->assertSame(100, (int) DB::table('ud84_master_produk')->where('ID', $produk->ID)->value('STOK'));
+        $this->assertDatabaseMissing('ud84_transaksi_log', ['UNIQUE_TRANSAKSI' => $unique]);
+    }
+
+    /**
+     * Stock, points, lines and header must go in together or not at all. Every
+     * guard runs before the transaction opens, so the only way to prove the
+     * rollback is to make a write inside it fail: this listener throws the
+     * moment the stock-card insert runs, which is after stock, points and the
+     * header have already been written.
+     */
+    public function test_a_failure_midway_rolls_back_stock_points_lines_and_header(): void
+    {
+        $memberId = $this->seedMember('MEMBER ROLLBACK '.uniqid(), 5);
+        $nama     = DB::table('ud84_member')->where('ID', $memberId)->value('NAMA');
+        $produk   = $this->seedProduct(['STOK' => 100]);
+        $unique   = $this->seedSale(['NAMA' => $nama, 'CASH' => 1000000, 'POIN' => 2, 'TOTAL' => 20000], [[
+            'KODE' => $produk->ID, 'NAMA' => $produk->NAMA, 'SATUAN' => 'Pcs',
+            'JUMLAH' => 2, 'HARGA_ASLI' => 10000, 'HARGA_TERJUAL' => 20000,
+        ]]);
+
+        DB::listen(function ($query) {
+            if (str_contains($query->sql, 'insert into `ud84_logs`')) {
+                throw new \RuntimeException('kegagalan buatan');
+            }
+        });
+
+        $this->perbaiki($unique, [
+            'NAMA'  => $nama,
+            'CASH'  => 1500000,
+            'ITEMS' => [[
+                'ID' => $this->lineId($unique), 'KODE_ITEM' => $produk->ID, 'SATUAN' => 'Pcs',
+                'JUMLAH' => 9, 'HARGA_ASLI' => 10000, 'POTONGAN_PERSEN' => 0, 'POTONGAN_RUPIAH' => 0,
+            ]],
+        ])->assertStatus(200)->assertJson(['status' => 'error']);
+
+        $this->assertSame(100, (int) DB::table('ud84_master_produk')->where('ID', $produk->ID)->value('STOK'));
+        $this->assertSame(5, (int) DB::table('ud84_member')->where('ID', $memberId)->value('POINT'));
+        $this->assertDatabaseHas('ud84_penjualan_detail', ['UNIQUE' => $unique, 'JUMLAH' => 2]);
+        $this->assertDatabaseHas('ud84_penjualan_rekap', ['UNIQUE' => $unique, 'CASH' => 1000000, 'POIN' => 2]);
+        $this->assertDatabaseMissing('ud84_transaksi_log', ['UNIQUE_TRANSAKSI' => $unique]);
+    }
+
+    public function test_a_correction_that_changes_nothing_is_refused(): void
+    {
+        $produk = $this->seedProduct();
+        $unique = $this->seedSale(['NAMA' => 'UMUM', 'TOTAL' => 20000], [[
+            'KODE' => $produk->ID, 'NAMA' => $produk->NAMA, 'SATUAN' => 'Pcs',
+            'JUMLAH' => 2, 'HARGA_ASLI' => 10000, 'HARGA_TERJUAL' => 20000,
+        ]]);
+
+        // Every field already holds these values.
+        $this->perbaiki($unique)->assertStatus(200)->assertJson(['status' => 'error']);
+
+        $this->assertDatabaseMissing('ud84_transaksi_log', ['UNIQUE_TRANSAKSI' => $unique]);
+        $this->assertDatabaseHas('ud84_penjualan_rekap', ['UNIQUE' => $unique, 'UPDATED_AT' => null]);
+    }
 }
