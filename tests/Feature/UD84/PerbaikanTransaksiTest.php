@@ -878,6 +878,21 @@ class PerbaikanTransaksiTest extends TestCase
             'JUMLAH' => 2, 'HARGA_ASLI' => 10000, 'HARGA_TERJUAL' => 20000,
         ]]);
 
+        // Seeded directly, not via the cancel endpoint -- that would also flip
+        // STATUS and pull in behaviour this test is not about. The point is
+        // narrower: ud84_transaksi_log holds rows from four different actions,
+        // and getInvoices must key on AKSI = 'Perbaikan' specifically, not on
+        // "this sale has any audit row at all". Batal is the most pointed
+        // choice, since that is the one whose sale would otherwise print the
+        // wrong banner.
+        DB::table('ud84_transaksi_log')->insert([
+            'UNIQUE_TRANSAKSI' => $unique,
+            'AKSI'             => 'Batal',
+            'OPERATOR'         => 'Tester',
+            'ALASAN'           => 'Uji AKSI lain tidak ikut terhitung',
+            'CREATED_AT'       => now(),
+        ]);
+
         $sebelum = $this->getJson('/api/UD84/Get-Invoices/'.$unique)->assertStatus(200)->json('data');
 
         $this->assertFalse($sebelum['dikoreksi']);
