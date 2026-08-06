@@ -17,7 +17,7 @@
 | 3 | Format tanda tangan | ✅ Merged |
 | 4 | Cetak DL + thermal 58mm, dua button | ✅ Merged |
 | 5 | Satuan item di nota | ✅ Merged |
-| 6 | Perbaikan Transaksi | ⬜ Not started (Stages 2 & 3, §7) |
+| 6 | Perbaikan Transaksi | 🟡 Stage 2 done (§3b); **Stage 3 not started** (§7) |
 | 7 | Dashboard Sales (omzet & kinerja) | ⬜ Not started — **blocked**, see §6 |
 | 8 | Sales melihat harga jual di Pesan Online | ⬜ Not started |
 | 9 | Sales pengajuan discount → panel/pesanan | ⬜ Not started |
@@ -29,7 +29,7 @@ Plus one item **not** in `Instruction.md`, requested and delivered:
 
 "Bantu Buat QRIS" is a business service; "Desain Icon Baru" is a design deliverable. Neither is code.
 
-**Nothing has been pushed to any remote, and nothing is deployed.** Both repos have local commits on `main` only. Three releases are now written up and waiting: nota & print + sales CRUD, then cancel invoice.
+**Nothing has been pushed to any remote, and nothing is deployed.** Both repos have local commits on `main` only. Three releases are now written up and waiting, and their order is not optional — see §10.
 
 ---
 
@@ -40,7 +40,7 @@ Plus one item **not** in `Instruction.md`, requested and delivered:
 | Frontend | `D:\Coedes\Production\me` | `main` | working tree clean |
 | Backend | `D:\Coedes\Production\Marmyadose` | `main` | working tree clean |
 
-All UD84 branches are merged and deleted: `ud84-nota-print`, `ud84-sales-crud`, `ud84-cancel-invoice`.
+All UD84 branches are merged and deleted: `ud84-nota-print`, `ud84-sales-crud`, `ud84-cancel-invoice`, `ud84-perbaikan-pesanan`.
 
 The owner's unrelated WIP (POS, Kosada, E-Money, DTOs) is **committed on `Marmyadose` main** as of `02e5c6c`. It is no longer sitting unstaged, so `git status` is clean — but it is still unfinished work that must not be deployed except where a release explicitly needs it (see the `EMoney.php` note in the cancel deployment guide).
 
