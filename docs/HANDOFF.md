@@ -1,6 +1,6 @@
 # UD84 — Session Handoff
 
-**Written:** 2026-08-07, end of session (supersedes all earlier versions)
+**Written:** 2026-08-07, end of second session (supersedes all earlier versions)
 **Read this first when resuming.** It is the state of play, what is half-finished, and the traps that already cost time once.
 
 ---
@@ -21,7 +21,7 @@
 | 7 | Dashboard Sales (omzet & kinerja) | ⬜ Not started — **blocked**, see §6 |
 | 8 | Sales melihat harga jual di Pesan Online | ⬜ Not started |
 | 9 | Sales pengajuan discount → panel/pesanan | ⬜ Not started |
-| 10 | 1 juta = 1 poin + dashboard poin | ⬜ Not started |
+| 10 | 1 juta = 1 poin + dashboard poin | ✅ **Merged** — see §3d |
 
 Plus one item **not** in `Instruction.md`, requested and delivered:
 
@@ -29,9 +29,9 @@ Plus one item **not** in `Instruction.md`, requested and delivered:
 
 "Bantu Buat QRIS" is a business service; "Desain Icon Baru" is a design deliverable. Neither is code.
 
-**Six of the ten code items are done. Four remain: 7 (blocked), 8, 9 and 10.**
+**Seven of the ten code items are done. Three remain: 7 (blocked), 8 and 9 — and 8 and 9 share one obstacle, see §11.**
 
-**Nothing has been pushed to any remote, and nothing is deployed.** Both repos have local commits on `main` only. **Four releases** are now written up and waiting, and their order is not optional — see §10. That backlog is the largest risk in the project right now: every release has been verified locally and none has met production data.
+**Nothing has been pushed to any remote, and nothing is deployed.** Both repos have local commits on `main` only. **Five releases** are now written up and waiting, and their order is not optional — see §10. That backlog is the largest risk in the project right now: every release has been verified locally and none has met production data.
 
 ---
 
@@ -42,7 +42,7 @@ Plus one item **not** in `Instruction.md`, requested and delivered:
 | Frontend | `D:\Coedes\Production\me` | `main` | working tree clean |
 | Backend | `D:\Coedes\Production\Marmyadose` | `main` | working tree clean |
 
-All UD84 branches are merged and deleted: `ud84-nota-print`, `ud84-sales-crud`, `ud84-cancel-invoice`, `ud84-perbaikan-pesanan`, `ud84-perbaikan-transaksi`.
+All UD84 branches are merged and deleted: `ud84-nota-print`, `ud84-sales-crud`, `ud84-cancel-invoice`, `ud84-perbaikan-pesanan`, `ud84-perbaikan-transaksi`, `ud84-poin-member`.
 
 The owner's unrelated WIP (POS, Kosada, E-Money, DTOs) is **committed on `Marmyadose` main** as of `02e5c6c`. It is no longer sitting unstaged, so `git status` is clean — but it is still unfinished work that must not be deployed except where a release explicitly needs it (see the `EMoney.php` note in the cancel deployment guide).
 
@@ -112,6 +112,28 @@ Staff can correct a sale that has already happened. Every active sale takes cust
 - an added line was dated *today*, so correcting an August sale in September moved that item into September's product reports while its money stayed in August — the exact reconciliation failure the design cites as its reason not to cancel-and-re-ring
 - the gate was weaker than the endpoint: **114 of 409 products** record no per-item count, and a sale containing one opened the full editor and then refused every save, with no way back to a header-only correction
 - the unit dropdown could offer `Pcs` and `Pieces` as two options differing by up to 48× in stock effect, inverting the vocabulary the till uses
+
+---
+
+## 3d. Item 10, poin member — done
+
+**The rate change and the points page are merged.**
+
+Spec: `me/docs/superpowers/specs/2026-08-07-ud84-poin-member-design.md`.
+Plan: `me/docs/superpowers/plans/2026-08-07-ud84-poin-member.md`.
+Deployment: `me/docs/deployment/2026-08-07-ud84-poin-member-deploy.md`.
+
+A sale now grants 1 point per Rp 1.000.000 of cash. `/ud84/panel/poin` lists members by balance with the shop's total issued, and staff add or subtract points by hand — redemption is a conversation at the counter, so there is no catalogue and no rules.
+
+17 feature tests; full suite **147 passed / 1 pre-existing `ExampleTest` failure**. `npm run check` 0 errors / 6 warnings. Verified in a real browser. **No schema.**
+
+**Three things worth carrying forward:**
+
+- **The rate is one constant.** `config('ud84.poin_per_rupiah')` is read by earning, cancellation and correction alike, so they cannot drift. **`config:clear` is the whole deployment** — a stale config cache keeps granting at the old rate with nothing on screen to suggest it.
+- **Changing it broke four existing tests**, in the cancel and correction suites, which asserted point arithmetic computed at 500.000. Their behaviours were right; only the numbers moved. They stay hardcoded on purpose — a figure derived from the config would pass against a wrong constant, and pinning the rate is what those tests are for.
+- **Adjustments are not recorded**, on the owner's explicit call. A disputed balance has nothing to check against and a mistyped adjustment leaves no trace. Stated here because it will not be obvious from the screen.
+
+**Expect the page to look empty at first.** No member in the local database has ever held a point — the rule needs a cash payment of a million or more attached to a named member, and that has not happened yet. A page of zeroes is the programme starting, not a fault.
 
 ---
 
@@ -219,16 +241,18 @@ Carried from earlier work:
 
 ## 10. Deployment
 
-Four runbooks, in this order:
+Five runbooks, in this order:
 
 1. `me/docs/deployment/2026-08-06-ud84-nota-print-deploy.md` — sub-project 1 + sales CRUD.
 2. `me/docs/deployment/2026-08-06-ud84-cancel-invoice-deploy.md` — cancel invoice (plus the `SALES` widening riding along).
 3. `me/docs/deployment/2026-08-06-ud84-perbaikan-pesanan-deploy.md` — perbaikan pesanan. **No SQL at all**, but it needs `ud84_transaksi_log` *and* `UD84/Transaksi.php`, both of which ship with release 2 — two independent reasons it cannot go first.
 4. `me/docs/deployment/2026-08-06-ud84-perbaikan-transaksi-deploy.md` — perbaikan transaksi. **No SQL either.** It needs `ud84_transaksi_log` and `config/ud84.php` from release 2, and `postPenjualan` writing `SATUAN` from release **1** — without that third one, no sale will ever qualify for item editing.
 
-**The order matters.** Release 2 edits `Report.php` and `Penjualan.php` again; uploading release 1's copies afterwards would quietly roll it back. Releases 3 and 4 both edit `Transaksi.php`, so 4 must follow 3. Each guide says so at the top.
+5. `me/docs/deployment/2026-08-07-ud84-poin-member-deploy.md` — poin member. **No SQL.** It needs `config/ud84.php` from release 2, which holds the rate; without it a sale grants no points at all. **`config:clear` is mandatory** — a stale config cache keeps the old rate in force silently.
 
-**Nothing has met production data yet.** Four releases have accumulated behind a deployment that has not happened, and every one of them was verified against a 29-sale local database. The first deploy will be the largest single change this system has taken. If any of it goes out piecemeal, keep the order.
+**The order matters.** Release 2 edits `Report.php` and `Penjualan.php` again; uploading release 1's copies afterwards would quietly roll it back. Releases 3 and 4 both edit `Transaksi.php`, so 4 must follow 3. Release 5 replaces `config/ud84.php` from release 2, so it must come after it. Each guide says so at the top.
+
+**Nothing has met production data yet.** Five releases have accumulated behind a deployment that has not happened, and every one of them was verified against a 29-sale local database where no member has ever held a loyalty point. The first deploy will be the largest single change this system has taken. If any of it goes out piecemeal, keep the order.
 
 ---
 
@@ -240,15 +264,13 @@ cd "D:/Coedes/Production/Marmyadose" && git log --oneline -3 && git status --sho
 cd "D:/Coedes/Production/Marmyadose" && php artisan test 2>&1 | tail -4
 ```
 
-Expect both repos on `main` and clean, and **130 passed / 1 pre-existing failure**.
+Expect both repos on `main` and clean, and **147 passed / 1 pre-existing failure**.
 
 Then decide between two things, and the choice is the owner's:
 
-**Deploy what exists.** Four releases are written up, verified locally and waiting (§10). Nothing has met production data. Each additional release makes the first deployment larger and its failure harder to attribute.
+**Deploy what exists.** Five releases are written up, verified locally and waiting (§10). Nothing has met production data. Each additional release makes the first deployment larger and a failure harder to attribute to a cause. This is the recommendation.
 
-**Or build the next item.** Three are open and one is blocked:
+**Or build one of the three that remain — but note that two of them are really one problem:**
 
-- **Item 8 — sales see the selling price in Pesan Online.** The smallest of the three. `UD84/Master-Produk/Katalog` already returns `HARGA_JUAL` and `HARGA_PCS`, and the catalogue component already receives them, so this is mostly a question of who is allowed to see them — which runs into the same identity gap as item 9.
-- **Item 9 — sales submit a discount request, appearing in the panel's Pesanan page.** Needs somewhere to store a request and a state for it. **It also needs to know which salesperson is asking**, and `/ud84` is behind one shared password with a name picked from a dropdown — the same gap that kept Stage 2's editing out of that page. Solve identity once, properly, and items 8 and 9 both become straightforward.
-- **Item 10 — 1 juta = 1 poin, plus a points dashboard.** The rule change itself is one constant: `config/ud84.php`'s `poin_per_rupiah`, which earning, cancellation and correction all read, so they cannot drift. The dashboard is the real work. Note that changing the constant does **not** rewrite history — sales store what they granted in `rekap.POIN`, so an old sale still reverses exactly what it gave.
-- **Item 7 — sales dashboard** stays blocked (§6): `ud84_penjualan_rekap` has no salesperson column, so a completed sale cannot be attributed to anyone. It needs a schema change plus a decision about how attribution happens at checkout.
+- **Items 8 and 9 both need per-salesperson identity, which does not exist.** Item 8 (sales see the selling price in Pesan Online) is otherwise nearly free — `UD84/Master-Produk/Katalog` already returns `HARGA_JUAL` and `HARGA_PCS`, and the catalogue component already receives them, so the only real question is who may see them. Item 9 (a salesperson submits a discount request that appears on the panel's Pesanan page) needs somewhere to store a request and a state for it, and needs to know **which** salesperson is asking. Today `/ud84` sits behind one shared password with a name chosen from a dropdown, so the system cannot tell them apart — the same gap that kept order editing off that page in Stage 2, and the reason a discount request could not be attributed to anyone. **Solve identity once, properly, and both items become straightforward.** Building either on the current footing means an audit trail that records only which name someone picked.
+- **Item 7 — sales dashboard** stays blocked (§6): `ud84_penjualan_rekap` has no salesperson column, so a completed sale cannot be attributed to anyone. It needs a schema change plus a decision about how attribution happens at checkout. That decision is the owner's and cannot be inferred from the code.
