@@ -3,6 +3,10 @@
 **Written:** 2026-08-07, end of second session (supersedes all earlier versions)
 **Read this first when resuming.** It is the state of play, what is half-finished, and the traps that already cost time once.
 
+**Two companion documents, both written 7 Agustus:**
+- `PROGRESS.md` (repo root, and `me/docs/PROGRESS.md`) — what was built across 5-7 August, what the reviews caught, and what the data revealed. Written in Indonesian for the owner.
+- `me/docs/deployment/2026-08-07-DEPLOY-SEMUA.md` — all six waiting releases folded into one cPanel pass. Start here when deploying.
+
 ---
 
 ## 1. Where we are, overall
