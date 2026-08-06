@@ -390,8 +390,12 @@ class PerbaikanPesananTest extends TestCase
         $this->ubah($kode, ['ITEMS' => [['KODE_ITEM' => $produk->ID, 'JUMLAH' => 3]]])
             ->assertStatus(200)->assertJson(['status' => 'error']);
 
-        $this->assertDatabaseHas('ud84_pesanan_rekap', ['KODE' => $kode, 'NAMA' => 'Pelanggan Tes', 'WHATSAPP' => '08123456789']);
-        $this->assertDatabaseHas('ud84_pesanan_detail', ['KODE' => $kode, 'KODE_ITEM' => $produk->ID, 'JUMLAH' => 3]);
+        // The payload is identical to the seeded state, so a NAMA/WHATSAPP/JUMLAH
+        // assertion here would pass whether the guard fired or the write path ran
+        // anyway -- the written values would equal the seeded ones either way.
+        // UPDATED_AT is null only until the success path stamps it, so it is what
+        // a wrongly-executed write cannot fake.
+        $this->assertDatabaseHas('ud84_pesanan_rekap', ['KODE' => $kode, 'UPDATED_AT' => null]);
         $this->assertDatabaseMissing('ud84_transaksi_log', ['UNIQUE_TRANSAKSI' => $kode]);
     }
 
