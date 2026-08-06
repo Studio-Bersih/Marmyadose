@@ -161,11 +161,19 @@ class Transaksi extends Controller
     /**
      * Whether a sale's lines can be edited at all.
      *
-     * Editing a line means re-adjusting stock, and that needs two things the
-     * older rows do not have: a KODE that still resolves to a product, and a
-     * SATUAN saying whether the line was sold loose or as a whole Set/Dus.
-     * Without the unit the multiplier is a guess, wrong by JUMLAH_PER_ITEM --
-     * commonly ten -- so such a sale gets header and money correction only.
+     * Editing a line means re-adjusting stock, and that needs three things the
+     * older rows do not always have: a KODE that still resolves to a product,
+     * a SATUAN saying whether the line was sold loose or as a whole Set/Dus,
+     * and -- when it was sold as a whole unit -- a product that still records
+     * how many pieces that unit contains. Without any of these the multiplier
+     * is a guess, wrong by JUMLAH_PER_ITEM -- commonly ten -- so such a sale
+     * gets header and money correction only.
+     *
+     * The third check matters on its own: 114 of 409 products carry a null or
+     * zero JUMLAH_PER_ITEM, so a non-Pcs line on one of them passes the first
+     * two checks, opens the full item editor, and then has every save refused
+     * by the old-line loop in perbaikiTransaksi -- an uncorrectable sale that
+     * looks broken instead of routing to the header-only path it should take.
      *
      * Returns [bool $boleh, ?string $alasan]; the reason names the first line
      * that blocks it, because "this sale cannot be edited" without saying why
@@ -180,12 +188,22 @@ class Transaksi extends Controller
         }
 
         foreach ($lines as $line) {
-            if (empty($line->KODE) || !DB::table('ud84_master_produk')->where('ID', $line->KODE)->exists()) {
+            if (empty($line->KODE)) {
+                return [false, "Item '{$line->NAMA}' tidak terhubung ke produk yang masih ada, jadi stoknya tidak bisa dihitung ulang."];
+            }
+
+            $produk = DB::table('ud84_master_produk')->where('ID', $line->KODE)->first();
+
+            if (empty($produk)) {
                 return [false, "Item '{$line->NAMA}' tidak terhubung ke produk yang masih ada, jadi stoknya tidak bisa dihitung ulang."];
             }
 
             if (empty($line->SATUAN)) {
                 return [false, "Item '{$line->NAMA}' tidak mencatat satuan penjualan, jadi jumlah pcs-nya tidak bisa dipastikan."];
+            }
+
+            if ($line->SATUAN !== 'Pcs' && (int) ($produk->JUMLAH_PER_ITEM ?? 0) <= 0) {
+                return [false, "Item '{$line->NAMA}' tidak mencatat isi per satuan, jadi jumlah pcs-nya tidak bisa dipastikan."];
             }
         }
 
@@ -246,10 +264,16 @@ class Transaksi extends Controller
      *
      * Returns null when the product does not record a per-item count and the
      * line is not loose -- the caller refuses rather than guessing, because
-     * guessing is wrong by that very multiplier.
+     * guessing is wrong by that very multiplier. Mirrors the $jumlah <= 0
+     * early return in piecesUntukDikembalikan, its sibling on the cancellation
+     * side, so the two agree on a zero-quantity line.
      */
     private function piecesBaris(string $satuan, int $jumlah, object $produk): ?int
     {
+        if ($jumlah <= 0) {
+            return 0;
+        }
+
         if ($satuan === 'Pcs') {
             return $jumlah;
         }
@@ -763,9 +787,19 @@ class Transaksi extends Controller
                     ];
 
                     if ($baris['ID'] === null) {
+                        // CREATED_AT is the sale's own date, not today's -- the
+                        // reports that bucket product/detail figures by
+                        // CREATED_AT (Report::omsetDetail, singleItemReport,
+                        // singleItem) join back to rekap for STATUS but not for
+                        // the date, so a line dated today would report its
+                        // quantity in this month's product totals while its
+                        // money stays in the sale's own month's revenue --
+                        // silently and permanently out of reconciliation. Same
+                        // reasoning as leaving a surviving line's CREATED_AT
+                        // untouched below.
                         DB::table('ud84_penjualan_detail')->insert(array_merge($isi, [
                             'UNIQUE'     => $kode,
-                            'CREATED_AT' => now(),
+                            'CREATED_AT' => $rekap->CREATED_AT,
                         ]));
 
                         continue;

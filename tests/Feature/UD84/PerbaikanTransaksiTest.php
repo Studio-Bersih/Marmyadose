@@ -139,6 +139,33 @@ class PerbaikanTransaksiTest extends TestCase
         $this->assertFalse($this->koreksiBlock($unique)['DAPAT_UBAH_ITEM']);
     }
 
+    /**
+     * 114 of 409 real products carry a null or zero JUMLAH_PER_ITEM, including
+     * more than half of every Dus and a quarter of every Set. A line sold in
+     * one of those units cannot have its pieces computed, so the gate must
+     * refuse it same as it refuses a missing KODE or SATUAN -- and the sale
+     * must still be reachable through the header-only path, or it becomes
+     * uncorrectable entirely. I-2.
+     */
+    public function test_a_line_needing_an_unknown_per_item_count_blocks_item_editing_but_allows_header_correction(): void
+    {
+        $produk = $this->seedProduct(['TIPE' => 'Dus', 'JUMLAH_PER_ITEM' => 0]);
+        $unique = $this->seedSale(['NAMA' => 'ASLI', 'TOTAL' => 20000], [[
+            'KODE' => $produk->ID, 'NAMA' => $produk->NAMA, 'SATUAN' => 'Dus',
+            'JUMLAH' => 2, 'HARGA_ASLI' => 10000, 'HARGA_TERJUAL' => 20000,
+        ]]);
+
+        $koreksi = $this->koreksiBlock($unique);
+
+        $this->assertFalse($koreksi['DAPAT_UBAH_ITEM']);
+        $this->assertStringContainsString($produk->NAMA, $koreksi['ALASAN']);
+
+        $this->perbaiki($unique, ['NAMA' => 'DIPERBAIKI'])
+            ->assertStatus(200)->assertJson(['status' => 'success']);
+
+        $this->assertDatabaseHas('ud84_penjualan_rekap', ['UNIQUE' => $unique, 'NAMA' => 'DIPERBAIKI']);
+    }
+
     private function perbaiki(string $unique, array $payload = [])
     {
         return $this->postJson('/api/UD84/Daftar-Transaksi/Perbaiki', array_merge([
@@ -473,6 +500,34 @@ class PerbaikanTransaksiTest extends TestCase
         $this->assertStringStartsWith('2026-03-01', (string) $line->CREATED_AT);
     }
 
+    /**
+     * A line a correction adds must report under the SALE's month, not the
+     * month the correction happened to be made in -- Report::omsetDetail,
+     * singleItemReport and singleItem all bucket by d.CREATED_AT, so a line
+     * dated today would put its quantity in today's product reports while its
+     * money stayed in the sale's own month's revenue. seedSale dates its sale
+     * 2026-03-01, which is a different month from whenever this test runs, so
+     * a line dated `now()` is observable. I-1.
+     */
+    public function test_a_line_added_by_a_correction_inherits_the_sales_date_not_todays(): void
+    {
+        $lama   = $this->seedProduct(['STOK' => 100]);
+        $baru   = $this->seedProduct(['STOK' => 100]);
+        $unique = $this->seedSale(['TOTAL' => 20000], [[
+            'KODE' => $lama->ID, 'NAMA' => $lama->NAMA, 'SATUAN' => 'Pcs',
+            'JUMLAH' => 2, 'HARGA_ASLI' => 10000, 'HARGA_TERJUAL' => 20000,
+        ]]);
+
+        $this->perbaiki($unique, ['ITEMS' => [
+            ['ID' => $this->lineId($unique), 'KODE_ITEM' => $lama->ID, 'SATUAN' => 'Pcs', 'JUMLAH' => 2, 'HARGA_ASLI' => 10000, 'POTONGAN_PERSEN' => 0, 'POTONGAN_RUPIAH' => 0],
+            ['KODE_ITEM' => $baru->ID, 'SATUAN' => 'Pcs', 'JUMLAH' => 1, 'HARGA_ASLI' => 5000, 'POTONGAN_PERSEN' => 0, 'POTONGAN_RUPIAH' => 0],
+        ]])->assertStatus(200)->assertJson(['status' => 'success']);
+
+        $ditambahkan = DB::table('ud84_penjualan_detail')->where('UNIQUE', $unique)->where('KODE', $baru->ID)->first();
+
+        $this->assertStringStartsWith('2026-03-01', (string) $ditambahkan->CREATED_AT);
+    }
+
     public function test_stock_may_go_negative_and_is_reported(): void
     {
         $produk = $this->seedProduct(['STOK' => 1]);
@@ -792,6 +847,31 @@ class PerbaikanTransaksiTest extends TestCase
         ]]])->assertStatus(200)->assertJson(['status' => 'error']);
 
         $this->assertSame(100, (int) DB::table('ud84_master_produk')->where('ID', $produk->ID)->value('STOK'));
+    }
+
+    /**
+     * Every other item test in this file passes both discount columns as
+     * zero, so the arithmetic HARGA_TERJUAL = (HARGA_ASLI - POTONGAN_PERSEN -
+     * POTONGAN_RUPIAH) * JUMLAH is never exercised with real discounts -- and
+     * that exact formula is what an earlier sub-project's headline defect got
+     * wrong. Promoted from the deferred list.
+     */
+    public function test_item_discounts_are_subtracted_before_multiplying_by_quantity(): void
+    {
+        $produk = $this->seedProduct(['STOK' => 100]);
+        $unique = $this->seedSale(['TOTAL' => 100000], [[
+            'KODE' => $produk->ID, 'NAMA' => $produk->NAMA, 'SATUAN' => 'Pcs',
+            'JUMLAH' => 2, 'HARGA_ASLI' => 50000, 'HARGA_TERJUAL' => 100000,
+        ]]);
+
+        // (50.000 - 5.000 - 2.000) * 3 = 129.000
+        $this->perbaiki($unique, ['ITEMS' => [[
+            'ID' => $this->lineId($unique), 'KODE_ITEM' => $produk->ID, 'SATUAN' => 'Pcs',
+            'JUMLAH' => 3, 'HARGA_ASLI' => 50000, 'POTONGAN_PERSEN' => 5000, 'POTONGAN_RUPIAH' => 2000,
+        ]]])->assertStatus(200)->assertJson(['status' => 'success']);
+
+        $this->assertSame(129000, (int) DB::table('ud84_penjualan_detail')->where('UNIQUE', $unique)->value('HARGA_TERJUAL'));
+        $this->assertSame(129000, (int) DB::table('ud84_penjualan_rekap')->where('UNIQUE', $unique)->value('TOTAL'));
     }
 
     public function test_a_product_with_no_per_item_count_cannot_be_sold_by_the_set(): void
