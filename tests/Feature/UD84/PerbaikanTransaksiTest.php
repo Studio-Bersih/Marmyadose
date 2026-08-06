@@ -817,8 +817,11 @@ class PerbaikanTransaksiTest extends TestCase
      * Stock, points, lines and header must go in together or not at all. Every
      * guard runs before the transaction opens, so the only way to prove the
      * rollback is to make a write inside it fail: this listener throws the
-     * moment the stock-card insert runs, which is after stock, points and the
-     * header have already been written.
+     * moment the audit-log insert runs, which is the LAST write in
+     * perbaikiTransaksi -- by that point stock, the detail rows, the member's
+     * points and the rekap header have all already been written, so all four
+     * assertions below carry real weight rather than passing vacuously
+     * because their writes were never attempted.
      */
     public function test_a_failure_midway_rolls_back_stock_points_lines_and_header(): void
     {
@@ -831,7 +834,7 @@ class PerbaikanTransaksiTest extends TestCase
         ]]);
 
         DB::listen(function ($query) {
-            if (str_contains($query->sql, 'insert into `ud84_logs`')) {
+            if (str_contains($query->sql, 'insert into `ud84_transaksi_log`')) {
                 throw new \RuntimeException('kegagalan buatan');
             }
         });
