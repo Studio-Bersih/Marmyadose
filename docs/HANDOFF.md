@@ -1,6 +1,6 @@
 # UD84 — Session Handoff
 
-**Written:** 2026-08-06, end of afternoon session (supersedes the morning version)
+**Written:** 2026-08-06, end of evening session (supersedes all earlier versions)
 **Read this first when resuming.** It is the state of play, what is half-finished, and the traps that already cost time once.
 
 ---
@@ -12,6 +12,7 @@
 | # | Item | Status |
 |---|---|---|
 | 1 | Cancel Invoice / retur | ✅ **Stage 1 merged** — see §3 for what "Stage 1" covers |
+| — | Perbaikan Pesanan (Stage 2 of the same sub-project) | ✅ **Merged** — see §3b |
 | 2 | QRIS di nota | ✅ Merged |
 | 3 | Format tanda tangan | ✅ Merged |
 | 4 | Cetak DL + thermal 58mm, dua button | ✅ Merged |
@@ -62,6 +63,27 @@ Frontend (`me` main): the `DIBATALKAN` banner on both nota papers, and the Trans
 
 Tests: `php artisan test` → **54 passed, 1 failed**. That one is the pre-existing `ExampleTest` on `GET /`, failing since before any of this work. Do not "fix" it.
 `npm run check` → **0 errors, 6 warnings**. That is the baseline; it must not grow.
+
+---
+
+## 3b. Sub-project 2, Stage 2 — done
+
+**Perbaikan Pesanan is complete on both sides and merged.**
+
+Spec: `me/docs/superpowers/specs/2026-08-06-ud84-perbaikan-pesanan-design.md`.
+Plan: `me/docs/superpowers/plans/2026-08-06-ud84-perbaikan-pesanan.md`.
+Deployment: `me/docs/deployment/2026-08-06-ud84-perbaikan-pesanan-deploy.md`.
+
+Panel staff can correct an order that has not been verified — customer, WhatsApp, salesperson, notes, quantities, added and removed products — in one atomic save recording who changed what. A verified order is immune to editing **and** deletion; deleting one records its full snapshot first; verifying one finally reports verification instead of deletion.
+
+Built with subagent-driven development: 8 tasks, each reviewed, plus a whole-branch review. 28 feature tests (`Marmyadose/tests/Feature/UD84/PerbaikanPesananTest.php`), full suite **84 passed / 1 pre-existing `ExampleTest` failure**. `npm run check` 0 errors / 6 warnings. Verified in headless Chrome over CDP: 36 assertions, including proof that one edit is one request.
+
+**The constraint that shaped the implementation:** `ud84_analisa_sales` is a VIEW dating every line by `ud84_pesanan_detail.CREATED_AT`, so lines are reconciled **in place** — the obvious delete-all-and-reinsert would move an edited March order's contribution into the present with nothing reporting an error. If Stage 3 touches this machinery, that property must survive.
+
+**Things review caught that are worth remembering:**
+- stored duplicate lines for one product used to collapse in the line map, so removing that product deleted only one row. Now refused outright rather than merged.
+- the verified lock is enforced under a `lockForUpdate` **inside** the transaction, not merely before it — a second operator pressing Validasi mid-edit used to be able to slip past.
+- `getItems` used to throw on an order whose product was deleted, making it unopenable and therefore unfixable. Such a line now returns `ADA: false` and can only be removed.
 
 ---
 
@@ -122,9 +144,15 @@ Test data: a real sale exists locally — `UNIQUE 6a738e24212fb` (product 111, q
 
 ## 7. Remaining stages of sub-project 2
 
-**Stage 2 — Perbaikan Pesanan** (unverified orders). Edit customer, WhatsApp, sales, notes, items and quantities on `ud84_pesanan_rekap`/`_detail` while `VALID` is null. Orders touch neither stock nor money, so this is the low-risk one. Not specced yet.
+**Stage 2 — Perbaikan Pesanan.** ✅ Done and merged — §3b.
 
-**Stage 3 — Perbaikan Transaksi** (completed sales, full item editing). Header plus add/remove/change lines, with stock re-adjustment, reversing logs and point recomputation. Reuses Stage 1's audit table and stock machinery. Gated to transactions where every line resolves. Not specced yet.
+**Stage 3 — Perbaikan Transaksi** (completed sales, full item editing). Header plus add/remove/change lines, with stock re-adjustment, reversing logs and point recomputation. Reuses Stage 1's audit table and stock machinery, and Stage 2's editor shape. Gated to transactions where every line resolves. Not specced yet.
+
+Stage 3 inherits four things Stage 2's reviews flagged as *mattering more for transactions than for orders*, all recorded in §9:
+- audit snapshots store `KODE_ITEM` with no product name, so a line the edit did not touch cannot be named later if the product is deleted. Low-stakes for an order; not for a sale.
+- `ringkasPerubahan` does not trim `CATATAN`, so a stored `NULL` note becomes `''` without the change list saying so. Stage 3 reuses that method.
+- `db.ts` retries a failed POST twice. Stage 2's endpoints are idempotent by accident — the no-op guard absorbs a duplicate save. Anything in Stage 3 that is **not** idempotent needs that thought through first.
+- `removeItem` already accepts an `ALASAN` the UI never sends. Stage 3 will want it.
 
 ---
 
@@ -138,7 +166,16 @@ The statement is at `Marmyadose/database/sql/2026_08_06_widen_pesanan_sales.sql`
 
 ## 9. Deferred minors, carried forward
 
-None blocking:
+None blocking. From Stage 2's reviews, triaged as safe to defer by the final whole-branch review:
+
+- **`db.ts` retries a failed POST twice**, so a save that commits but loses its response is re-sent. Stage 2 fails safe — the second attempt hits "Tidak ada perubahan untuk disimpan." — but the operator is told an error after a success. House-wide, shared with Stage 1.
+- **`getPesanan` returns 400 and `getItems`' catch returns 500**, against the house always-200 rule. Pre-existing, owned by no stage.
+- **No route in `api.php` carries auth middleware.** House-wide, pre-existing, and the largest of these.
+- **The Pesanan list has no `onMount`**, so it opens reading "Tidak ada data" until the operator presses search. Pre-existing on `main`; documented in the runbook so it is not mistaken for a broken deploy.
+- **`postPesanan` has no server-side dedupe**, so it remains the upstream source of the duplicate-line condition Stage 2 now refuses to edit around.
+- A deleted (not deactivated) salesperson, a decimal quantity, and a stale drawer after a failed refetch — all handled or harmless; see the plan's ledger for the full list.
+
+Carried from earlier work:
 
 - **A cancelled nota still prints the QRIS block and Sisa Tagihan** under the DIBATALKAN banner — it says "void" and then asks to be paid. Worth suppressing both on a cancelled receipt.
 - The detail response still embeds the raw `rekap` row beside `ringkasan`. Layouts must read `ringkasan.*` — `rekap.KEMBALIAN` is wrong whenever DP was used, and `rekap.TOTAL` is net of potongan. A `@deprecated` note on the `Rekap` type would help.
@@ -156,10 +193,11 @@ None blocking:
 
 ## 10. Deployment
 
-Two runbooks, in this order:
+Three runbooks, in this order:
 
 1. `me/docs/deployment/2026-08-06-ud84-nota-print-deploy.md` — sub-project 1 + sales CRUD.
-2. `me/docs/deployment/2026-08-06-ud84-cancel-invoice-deploy.md` — cancel invoice.
+2. `me/docs/deployment/2026-08-06-ud84-cancel-invoice-deploy.md` — cancel invoice (plus the `SALES` widening riding along).
+3. `me/docs/deployment/2026-08-06-ud84-perbaikan-pesanan-deploy.md` — perbaikan pesanan. **No SQL at all**, but it needs `ud84_transaksi_log` *and* `UD84/Transaksi.php`, both of which ship with release 2 — two independent reasons it cannot go first.
 
 **The order matters.** Release 2 edits `Report.php` and `Penjualan.php` again; uploading release 1's copies afterwards would quietly roll it back. Each guide says so at the top.
 
@@ -173,6 +211,6 @@ cd "D:/Coedes/Production/Marmyadose" && git log --oneline -3 && git status --sho
 cd "D:/Coedes/Production/Marmyadose" && php artisan test 2>&1 | tail -4
 ```
 
-Expect both repos on `main` and clean, and 54 passed / 1 pre-existing failure.
+Expect both repos on `main` and clean, and **84 passed / 1 pre-existing failure**.
 
-Then pick the next piece of work: Stage 2 (perbaikan pesanan, the low-risk one) is the natural continuation, and items 8, 9 and 10 are untouched. Item 7 stays blocked until someone decides how a completed sale gets attributed to a salesperson.
+Then pick the next piece of work. **Stage 3 (perbaikan transaksi) is the natural continuation** — it is what `Instruction.md` literally asks for, and Stages 1 and 2 have now built everything it needs: the audit table, the stock-reversal machinery, the editor shape, and the in-place reconciliation pattern. Read §7's four inherited concerns before speccing it. Items 8, 9 and 10 are untouched; item 7 stays blocked until someone decides how a completed sale gets attributed to a salesperson.
