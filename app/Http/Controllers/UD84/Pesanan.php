@@ -174,13 +174,25 @@ class Pesanan extends Controller
         try {
             $sebelum = json_encode(['rekap' => $rekap, 'detail' => $detail], JSON_UNESCAPED_UNICODE);
 
-            DB::table('ud84_pesanan_rekap')->where('KODE', $kode)->update([
+            // The guard above read VALID before this transaction opened, so a
+            // second operator pressing Validasi in that window would slip past
+            // it. whereNull('VALID') re-checks at the moment of the write --
+            // the only check that matters -- and rolling back here is what
+            // undoes nothing, since this update is the first write of the
+            // transaction.
+            $terkunci = DB::table('ud84_pesanan_rekap')->where('KODE', $kode)->whereNull('VALID')->update([
                 'NAMA'       => $nama,
                 'WHATSAPP'   => $whatsApp,
                 'SALES'      => $salesBaru,
                 'CATATAN'    => $catatan,
                 'UPDATED_AT' => now(),
             ]);
+
+            if ($terkunci === 0) {
+                DB::rollBack();
+
+                return $this->gagal('Pesanan yang sudah diverifikasi tidak bisa diubah.');
+            }
 
             $lama = [];
 
@@ -384,7 +396,18 @@ class Pesanan extends Controller
             ]);
 
             DB::table('ud84_pesanan_detail')->where('KODE', $kode)->delete();
-            DB::table('ud84_pesanan_rekap')->where('KODE', $kode)->delete();
+
+            // Same race as updatePesanan's write guard: the VALID read above
+            // happened before this transaction opened. whereNull('VALID')
+            // re-checks at delete time, and rolling back here undoes the
+            // detail-row delete and the audit insert above, not just this line.
+            $terkunci = DB::table('ud84_pesanan_rekap')->where('KODE', $kode)->whereNull('VALID')->delete();
+
+            if ($terkunci === 0) {
+                DB::rollBack();
+
+                return $this->gagal('Pesanan yang sudah diverifikasi tidak bisa dihapus.');
+            }
 
             DB::commit();
 

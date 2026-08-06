@@ -250,6 +250,53 @@ class PerbaikanPesananTest extends TestCase
         $this->ubah('tidak-ada')->assertStatus(200)->assertJson(['status' => 'error']);
     }
 
+    /**
+     * The early guard reads VALID before DB::beginTransaction() and cannot
+     * see a verification that lands after that read. A DB::listen hook fires
+     * the instant that guard's SELECT returns -- while $rekap in the
+     * controller still holds the pre-verification snapshot -- and flips the
+     * row to Verified right then, simulating a second operator pressing
+     * Validasi in that exact window. The early guard therefore necessarily
+     * passes here; only the whereNull('VALID') predicate on the update
+     * itself can catch this, which is what this test is proving.
+     */
+    public function test_an_order_verified_mid_request_is_refused_by_the_write_guard(): void
+    {
+        $produk = $this->seedProduct();
+        $kode   = $this->seedOrder([], [['KODE_ITEM' => $produk->ID, 'JUMLAH' => 3]]);
+
+        $sudahDipicu = false;
+
+        DB::listen(function ($query) use ($kode, &$sudahDipicu) {
+            if ($sudahDipicu) {
+                return;
+            }
+
+            if (str_contains($query->sql, 'select * from `ud84_pesanan_rekap`')
+                && in_array($kode, $query->bindings, true)) {
+                $sudahDipicu = true;
+
+                DB::table('ud84_pesanan_rekap')->where('KODE', $kode)->update(['VALID' => 'Verified']);
+            }
+        });
+
+        $this->ubah($kode, [
+            'NAMA'  => 'Diubah Diam-diam',
+            'ITEMS' => [['KODE_ITEM' => $produk->ID, 'JUMLAH' => 9]],
+        ])->assertStatus(200)->assertJson([
+            'status'  => 'error',
+            'message' => 'Pesanan yang sudah diverifikasi tidak bisa diubah.',
+        ]);
+
+        $this->assertTrue($sudahDipicu, 'The mid-request verification never fired -- this test proved nothing.');
+
+        // Had the write actually run, NAMA would be 'Diubah Diam-diam' and
+        // JUMLAH would be 9. Both stayed put, and no audit row was written.
+        $this->assertDatabaseHas('ud84_pesanan_rekap', ['KODE' => $kode, 'NAMA' => 'Pelanggan Tes', 'VALID' => 'Verified']);
+        $this->assertDatabaseHas('ud84_pesanan_detail', ['KODE' => $kode, 'KODE_ITEM' => $produk->ID, 'JUMLAH' => 3]);
+        $this->assertDatabaseMissing('ud84_transaksi_log', ['UNIQUE_TRANSAKSI' => $kode]);
+    }
+
     public function test_a_verified_order_cannot_be_edited(): void
     {
         $produk = $this->seedProduct();
@@ -449,6 +496,43 @@ class PerbaikanPesananTest extends TestCase
             ->assertStatus(200)->assertJson(['status' => 'error']);
 
         $this->assertDatabaseHas('ud84_pesanan_rekap', ['KODE' => $kode]);
+    }
+
+    /** Same race, same mechanism, for the delete path -- see the update-path test above. */
+    public function test_deleting_an_order_verified_mid_request_is_refused_by_the_write_guard(): void
+    {
+        $produk = $this->seedProduct();
+        $kode   = $this->seedOrder([], [['KODE_ITEM' => $produk->ID, 'JUMLAH' => 3]]);
+
+        $sudahDipicu = false;
+
+        DB::listen(function ($query) use ($kode, &$sudahDipicu) {
+            if ($sudahDipicu) {
+                return;
+            }
+
+            if (str_contains($query->sql, 'select * from `ud84_pesanan_rekap`')
+                && in_array($kode, $query->bindings, true)) {
+                $sudahDipicu = true;
+
+                DB::table('ud84_pesanan_rekap')->where('KODE', $kode)->update(['VALID' => 'Verified']);
+            }
+        });
+
+        $this->postJson('/api/UD84/Pesanan/Delete', ['ID' => $kode, 'OPERATOR' => 'Tester'])
+            ->assertStatus(200)->assertJson([
+                'status'  => 'error',
+                'message' => 'Pesanan yang sudah diverifikasi tidak bisa dihapus.',
+            ]);
+
+        $this->assertTrue($sudahDipicu, 'The mid-request verification never fired -- this test proved nothing.');
+
+        // Had the delete actually run, both rows and the audit insert made
+        // before the rekap delete would be gone. The rollback undoes all
+        // three, not just the last write.
+        $this->assertDatabaseHas('ud84_pesanan_rekap', ['KODE' => $kode, 'VALID' => 'Verified']);
+        $this->assertDatabaseHas('ud84_pesanan_detail', ['KODE' => $kode, 'KODE_ITEM' => $produk->ID, 'JUMLAH' => 3]);
+        $this->assertDatabaseMissing('ud84_transaksi_log', ['UNIQUE_TRANSAKSI' => $kode]);
     }
 
     public function test_deleting_an_unknown_order_is_refused(): void
