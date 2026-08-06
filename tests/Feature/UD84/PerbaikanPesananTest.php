@@ -227,4 +227,21 @@ class PerbaikanPesananTest extends TestCase
         $this->assertSame(3, (int) $sebelum['detail'][0]['JUMLAH']);
         $this->assertSame(9, (int) $sesudah['detail'][0]['JUMLAH']);
     }
+
+    public function test_a_duplicate_product_line_on_the_order_refuses_the_edit(): void
+    {
+        $produk = $this->seedProduct();
+        $kode   = $this->seedOrder([], [
+            ['KODE_ITEM' => $produk->ID, 'JUMLAH' => 2],
+            ['KODE_ITEM' => $produk->ID, 'JUMLAH' => 3],
+        ]);
+
+        $this->ubah($kode, ['ITEMS' => [['KODE_ITEM' => $produk->ID, 'JUMLAH' => 5]]])
+            ->assertStatus(200)->assertJson(['status' => 'error']);
+
+        $this->assertSame(2, DB::table('ud84_pesanan_detail')->where('KODE', $kode)->count());
+        $this->assertDatabaseHas('ud84_pesanan_detail', ['KODE' => $kode, 'KODE_ITEM' => $produk->ID, 'JUMLAH' => 2]);
+        $this->assertDatabaseHas('ud84_pesanan_detail', ['KODE' => $kode, 'KODE_ITEM' => $produk->ID, 'JUMLAH' => 3]);
+        $this->assertSame(0, DB::table('ud84_transaksi_log')->where('UNIQUE_TRANSAKSI', $kode)->count());
+    }
 }

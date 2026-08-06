@@ -140,6 +140,24 @@ class Pesanan extends Controller
 
         $detail = DB::table('ud84_pesanan_detail')->where('KODE', $kode)->get();
 
+        // Older data (and the pre-existing postPesanan, which never
+        // deduplicates) can leave two rows on one order for the same
+        // product. Mapping lines by KODE_ITEM would silently collapse one of
+        // them, so refuse the edit instead of guessing which row is real.
+        $terlihat = [];
+
+        foreach ($detail as $line) {
+            $kodeItem = (int) $line->KODE_ITEM;
+
+            if (isset($terlihat[$kodeItem])) {
+                $nama = DB::table('ud84_master_produk')->where('ID', $kodeItem)->value('NAMA') ?? "Produk #{$kodeItem}";
+
+                return $this->gagal("Pesanan ini punya dua baris untuk produk '{$nama}'. Hubungi admin sistem untuk merapikan datanya sebelum diubah.");
+            }
+
+            $terlihat[$kodeItem] = true;
+        }
+
         $catatanSistem = $this->ringkasPerubahan($rekap, $detail, [
             'NAMA'     => $nama,
             'WHATSAPP' => $whatsApp,
