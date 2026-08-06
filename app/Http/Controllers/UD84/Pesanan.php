@@ -272,7 +272,7 @@ class Pesanan extends Controller
             return response()->json([
                 "status"  => "error",
                 "message" => "Harap masukkan tanggal awal dan akhir."
-            ], 400);
+            ], 200);
         }
 
         // Pastikan endDate tidak lebih awal dari startDate
@@ -280,7 +280,7 @@ class Pesanan extends Controller
             return response()->json([
                 "status"  => "error",
                 "message" => "Tanggal akhir tidak boleh lebih awal dari tanggal mulai."
-            ], 400);
+            ], 200);
         }
 
         $DB = DB::table('ud84_pesanan_rekap')->where('CREATED_AT', '>=', $startDate)->where('CREATED_AT', '<=', $endDate)->orderByDesc('ID')->get();
@@ -374,7 +374,7 @@ class Pesanan extends Controller
             return response()->json([
                 "status"  => "error",
                 "message" => "Ada kesalahan pada server."
-            ], 500);
+            ], 200);
         }
     }
 
@@ -492,8 +492,8 @@ class Pesanan extends Controller
         } catch (\Exception $e) {
             return response()->json([
                 "status"  => "error",
-                "message" => "Terjadi kesalahan: " . $e->getMessage()
-            ], 500);
+                "message" => "Ada kesalahan pada server."
+            ], 200);
         }
     }
 
