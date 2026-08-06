@@ -322,4 +322,205 @@ class PerbaikanTransaksiTest extends TestCase
         $this->assertSame('SESUDAH', $sesudah['rekap']['NAMA']);
         $this->assertCount(1, $sebelum['detail']);
     }
+
+    /** The line ID of a sale's single stored line. */
+    private function lineId(string $unique): int
+    {
+        return (int) DB::table('ud84_penjualan_detail')->where('UNIQUE', $unique)->value('ID');
+    }
+
+    public function test_raising_a_quantity_takes_more_stock_and_recomputes_the_total(): void
+    {
+        $produk = $this->seedProduct(['STOK' => 100]);
+        $unique = $this->seedSale(['TOTAL' => 100000], [[
+            'KODE' => $produk->ID, 'NAMA' => $produk->NAMA, 'SATUAN' => 'Pcs',
+            'JUMLAH' => 2, 'HARGA_ASLI' => 50000, 'HARGA_TERJUAL' => 100000,
+        ]]);
+
+        $this->perbaiki($unique, ['ITEMS' => [[
+            'ID' => $this->lineId($unique), 'KODE_ITEM' => $produk->ID, 'SATUAN' => 'Pcs',
+            'JUMLAH' => 5, 'HARGA_ASLI' => 50000, 'POTONGAN_PERSEN' => 0, 'POTONGAN_RUPIAH' => 0,
+        ]]])->assertStatus(200)->assertJson(['status' => 'success']);
+
+        $this->assertSame(97, (int) DB::table('ud84_master_produk')->where('ID', $produk->ID)->value('STOK'));
+        $this->assertSame(250000, (int) DB::table('ud84_penjualan_rekap')->where('UNIQUE', $unique)->value('TOTAL'));
+        $this->assertSame(250000, (int) DB::table('ud84_penjualan_detail')->where('UNIQUE', $unique)->value('HARGA_TERJUAL'));
+    }
+
+    public function test_lowering_a_quantity_returns_stock(): void
+    {
+        $produk = $this->seedProduct(['STOK' => 100]);
+        $unique = $this->seedSale(['TOTAL' => 100000], [[
+            'KODE' => $produk->ID, 'NAMA' => $produk->NAMA, 'SATUAN' => 'Pcs',
+            'JUMLAH' => 2, 'HARGA_ASLI' => 50000, 'HARGA_TERJUAL' => 100000,
+        ]]);
+
+        $this->perbaiki($unique, ['ITEMS' => [[
+            'ID' => $this->lineId($unique), 'KODE_ITEM' => $produk->ID, 'SATUAN' => 'Pcs',
+            'JUMLAH' => 1, 'HARGA_ASLI' => 50000, 'POTONGAN_PERSEN' => 0, 'POTONGAN_RUPIAH' => 0,
+        ]]]);
+
+        $this->assertSame(101, (int) DB::table('ud84_master_produk')->where('ID', $produk->ID)->value('STOK'));
+    }
+
+    public function test_a_set_line_moves_stock_by_the_per_item_multiplier(): void
+    {
+        $produk = $this->seedProduct(['STOK' => 100, 'TIPE' => 'Set', 'JUMLAH_PER_ITEM' => 6]);
+        $unique = $this->seedSale(['TOTAL' => 100000], [[
+            'KODE' => $produk->ID, 'NAMA' => $produk->NAMA, 'SATUAN' => 'Set',
+            'JUMLAH' => 2, 'HARGA_ASLI' => 50000, 'HARGA_TERJUAL' => 100000,
+        ]]);
+
+        // 2 Set -> 3 Set is one more Set, which is six more pieces.
+        $this->perbaiki($unique, ['ITEMS' => [[
+            'ID' => $this->lineId($unique), 'KODE_ITEM' => $produk->ID, 'SATUAN' => 'Set',
+            'JUMLAH' => 3, 'HARGA_ASLI' => 50000, 'POTONGAN_PERSEN' => 0, 'POTONGAN_RUPIAH' => 0,
+        ]]]);
+
+        $this->assertSame(94, (int) DB::table('ud84_master_produk')->where('ID', $produk->ID)->value('STOK'));
+    }
+
+    public function test_stock_nets_across_two_lines_of_the_same_product(): void
+    {
+        $produk = $this->seedProduct(['STOK' => 100]);
+        $unique = $this->seedSale(['TOTAL' => 100000], [
+            ['KODE' => $produk->ID, 'NAMA' => $produk->NAMA, 'SATUAN' => 'Pcs', 'JUMLAH' => 4, 'HARGA_ASLI' => 10000, 'HARGA_TERJUAL' => 40000],
+            ['KODE' => $produk->ID, 'NAMA' => $produk->NAMA, 'SATUAN' => 'Pcs', 'JUMLAH' => 6, 'HARGA_ASLI' => 10000, 'HARGA_TERJUAL' => 60000],
+        ]);
+
+        $ids = DB::table('ud84_penjualan_detail')->where('UNIQUE', $unique)->orderBy('ID')->pluck('ID')->all();
+
+        // One line up by 3, the other down by 3: ten pieces before, ten after,
+        // so stock must not move at all and no log row is written.
+        $this->perbaiki($unique, ['ITEMS' => [
+            ['ID' => $ids[0], 'KODE_ITEM' => $produk->ID, 'SATUAN' => 'Pcs', 'JUMLAH' => 7, 'HARGA_ASLI' => 10000, 'POTONGAN_PERSEN' => 0, 'POTONGAN_RUPIAH' => 0],
+            ['ID' => $ids[1], 'KODE_ITEM' => $produk->ID, 'SATUAN' => 'Pcs', 'JUMLAH' => 3, 'HARGA_ASLI' => 10000, 'POTONGAN_PERSEN' => 0, 'POTONGAN_RUPIAH' => 0],
+        ]])->assertStatus(200)->assertJson(['status' => 'success']);
+
+        $this->assertSame(100, (int) DB::table('ud84_master_produk')->where('ID', $produk->ID)->value('STOK'));
+        $this->assertSame(0, DB::table('ud84_logs')->where('KODE_ITEM', $produk->ID)->where('ASAL', 'Perbaikan Transaksi')->count());
+    }
+
+    public function test_a_product_moving_between_lines_returns_one_and_takes_the_other(): void
+    {
+        $lama = $this->seedProduct(['STOK' => 100]);
+        $baru = $this->seedProduct(['STOK' => 100]);
+        $unique = $this->seedSale(['TOTAL' => 40000], [[
+            'KODE' => $lama->ID, 'NAMA' => $lama->NAMA, 'SATUAN' => 'Pcs',
+            'JUMLAH' => 4, 'HARGA_ASLI' => 10000, 'HARGA_TERJUAL' => 40000,
+        ]]);
+
+        $this->perbaiki($unique, ['ITEMS' => [[
+            'ID' => $this->lineId($unique), 'KODE_ITEM' => $baru->ID, 'SATUAN' => 'Pcs',
+            'JUMLAH' => 4, 'HARGA_ASLI' => 10000, 'POTONGAN_PERSEN' => 0, 'POTONGAN_RUPIAH' => 0,
+        ]]]);
+
+        $this->assertSame(104, (int) DB::table('ud84_master_produk')->where('ID', $lama->ID)->value('STOK'));
+        $this->assertSame(96, (int) DB::table('ud84_master_produk')->where('ID', $baru->ID)->value('STOK'));
+    }
+
+    public function test_a_line_can_be_added_and_another_removed(): void
+    {
+        $lama = $this->seedProduct(['STOK' => 100]);
+        $baru = $this->seedProduct(['STOK' => 100]);
+        $unique = $this->seedSale(['TOTAL' => 40000], [[
+            'KODE' => $lama->ID, 'NAMA' => $lama->NAMA, 'SATUAN' => 'Pcs',
+            'JUMLAH' => 4, 'HARGA_ASLI' => 10000, 'HARGA_TERJUAL' => 40000,
+        ]]);
+
+        $this->perbaiki($unique, ['ITEMS' => [[
+            'KODE_ITEM' => $baru->ID, 'SATUAN' => 'Pcs',
+            'JUMLAH' => 2, 'HARGA_ASLI' => 5000, 'POTONGAN_PERSEN' => 0, 'POTONGAN_RUPIAH' => 0,
+        ]]])->assertStatus(200)->assertJson(['status' => 'success']);
+
+        $this->assertDatabaseMissing('ud84_penjualan_detail', ['UNIQUE' => $unique, 'KODE' => $lama->ID]);
+        $this->assertDatabaseHas('ud84_penjualan_detail', ['UNIQUE' => $unique, 'KODE' => $baru->ID, 'JUMLAH' => 2]);
+        $this->assertSame(104, (int) DB::table('ud84_master_produk')->where('ID', $lama->ID)->value('STOK'));
+        $this->assertSame(98, (int) DB::table('ud84_master_produk')->where('ID', $baru->ID)->value('STOK'));
+        $this->assertSame(10000, (int) DB::table('ud84_penjualan_rekap')->where('UNIQUE', $unique)->value('TOTAL'));
+    }
+
+    public function test_a_surviving_line_keeps_its_created_date(): void
+    {
+        $produk = $this->seedProduct();
+        $unique = $this->seedSale(['TOTAL' => 100000], [[
+            'KODE' => $produk->ID, 'NAMA' => $produk->NAMA, 'SATUAN' => 'Pcs',
+            'JUMLAH' => 2, 'HARGA_ASLI' => 50000, 'HARGA_TERJUAL' => 100000,
+        ]]);
+
+        $this->perbaiki($unique, ['ITEMS' => [[
+            'ID' => $this->lineId($unique), 'KODE_ITEM' => $produk->ID, 'SATUAN' => 'Pcs',
+            'JUMLAH' => 3, 'HARGA_ASLI' => 50000, 'POTONGAN_PERSEN' => 0, 'POTONGAN_RUPIAH' => 0,
+        ]]]);
+
+        $line = DB::table('ud84_penjualan_detail')->where('UNIQUE', $unique)->first();
+
+        $this->assertStringStartsWith('2026-03-01', (string) $line->CREATED_AT);
+    }
+
+    public function test_stock_may_go_negative_and_is_reported(): void
+    {
+        $produk = $this->seedProduct(['STOK' => 1]);
+        $unique = $this->seedSale(['TOTAL' => 10000], [[
+            'KODE' => $produk->ID, 'NAMA' => $produk->NAMA, 'SATUAN' => 'Pcs',
+            'JUMLAH' => 1, 'HARGA_ASLI' => 10000, 'HARGA_TERJUAL' => 10000,
+        ]]);
+
+        $response = $this->perbaiki($unique, ['ITEMS' => [[
+            'ID' => $this->lineId($unique), 'KODE_ITEM' => $produk->ID, 'SATUAN' => 'Pcs',
+            'JUMLAH' => 6, 'HARGA_ASLI' => 10000, 'POTONGAN_PERSEN' => 0, 'POTONGAN_RUPIAH' => 0,
+        ]]])->assertStatus(200)->assertJson(['status' => 'success']);
+
+        $this->assertSame(-4, (int) DB::table('ud84_master_produk')->where('ID', $produk->ID)->value('STOK'));
+        $this->assertContains($produk->NAMA, $response->json('data.STOK_MINUS'));
+    }
+
+    public function test_a_stock_adjustment_writes_a_log_row_without_touching_the_original(): void
+    {
+        $produk = $this->seedProduct(['STOK' => 100]);
+        $unique = $this->seedSale(['TOTAL' => 20000], [[
+            'KODE' => $produk->ID, 'NAMA' => $produk->NAMA, 'SATUAN' => 'Pcs',
+            'JUMLAH' => 2, 'HARGA_ASLI' => 10000, 'HARGA_TERJUAL' => 20000,
+        ]]);
+
+        DB::table('ud84_logs')->insert([
+            'KODE_ITEM' => $produk->ID, 'NAMA_ITEM' => $produk->NAMA, 'ASAL' => 'Retail',
+            'MASUK' => 0, 'KELUAR' => 2, 'STOK_FINAL' => 100, 'CREATED_AT' => '2026-03-01 09:00:00',
+        ]);
+
+        $this->perbaiki($unique, ['ITEMS' => [[
+            'ID' => $this->lineId($unique), 'KODE_ITEM' => $produk->ID, 'SATUAN' => 'Pcs',
+            'JUMLAH' => 5, 'HARGA_ASLI' => 10000, 'POTONGAN_PERSEN' => 0, 'POTONGAN_RUPIAH' => 0,
+        ]]]);
+
+        $koreksi = DB::table('ud84_logs')->where('KODE_ITEM', $produk->ID)->where('ASAL', 'Perbaikan Transaksi')->first();
+
+        $this->assertSame(3, (int) $koreksi->KELUAR);
+        $this->assertSame(0, (int) $koreksi->MASUK);
+        $this->assertSame(97, (int) $koreksi->STOK_FINAL);
+
+        // The sale's original movement is history and stays untouched.
+        $asli = DB::table('ud84_logs')->where('KODE_ITEM', $produk->ID)->where('ASAL', 'Retail')->first();
+
+        $this->assertSame(2, (int) $asli->KELUAR);
+        $this->assertSame(100, (int) $asli->STOK_FINAL);
+    }
+
+    public function test_the_change_list_names_the_stock_movement(): void
+    {
+        $produk = $this->seedProduct(['STOK' => 100]);
+        $unique = $this->seedSale(['TOTAL' => 20000], [[
+            'KODE' => $produk->ID, 'NAMA' => $produk->NAMA, 'SATUAN' => 'Pcs',
+            'JUMLAH' => 2, 'HARGA_ASLI' => 10000, 'HARGA_TERJUAL' => 20000,
+        ]]);
+
+        $this->perbaiki($unique, ['ITEMS' => [[
+            'ID' => $this->lineId($unique), 'KODE_ITEM' => $produk->ID, 'SATUAN' => 'Pcs',
+            'JUMLAH' => 5, 'HARGA_ASLI' => 10000, 'POTONGAN_PERSEN' => 0, 'POTONGAN_RUPIAH' => 0,
+        ]]]);
+
+        $catatan = DB::table('ud84_transaksi_log')->where('UNIQUE_TRANSAKSI', $unique)->value('CATATAN_SISTEM');
+
+        $this->assertStringContainsString("Stok '{$produk->NAMA}' dikurangi 3 pcs (100 -> 97)", $catatan);
+    }
 }

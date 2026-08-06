@@ -241,6 +241,84 @@ class Transaksi extends Controller
     }
 
     /**
+     * Pieces one line represents. STOK counts pieces, so a line sold as a whole
+     * Set/Dus multiplies by JUMLAH_PER_ITEM.
+     *
+     * Returns null when the product does not record a per-item count and the
+     * line is not loose -- the caller refuses rather than guessing, because
+     * guessing is wrong by that very multiplier.
+     */
+    private function piecesBaris(string $satuan, int $jumlah, object $produk): ?int
+    {
+        if ($satuan === 'Pcs') {
+            return $jumlah;
+        }
+
+        $perItem = (int) ($produk->JUMLAH_PER_ITEM ?? 0);
+
+        return $perItem > 0 ? $jumlah * $perItem : null;
+    }
+
+    /**
+     * Applies one net adjustment per product and records each on the stock card.
+     *
+     * $selisih maps product ID to the change in pieces sold: positive means more
+     * goods left the shop, so STOK falls. Netting happens before this is called,
+     * which is what makes a product moving between lines safe -- otherwise two
+     * lines of one product would each apply their own adjustment and fight.
+     *
+     * Stock may end below zero. postPenjualan already subtracts without a floor,
+     * so refusing here would block a correction that is probably right while
+     * leaving the same outcome reachable through the POS; a negative figure is a
+     * visible instruction to recount. Every such product is returned so the
+     * operator can be told.
+     */
+    private function terapkanStok(array $selisih): array
+    {
+        $catatan = [];
+        $minus   = [];
+
+        foreach ($selisih as $produkId => $delta) {
+            if ($delta === 0) {
+                continue;
+            }
+
+            $produk = DB::table('ud84_master_produk')->where('ID', $produkId)->first();
+
+            if (empty($produk)) {
+                continue;
+            }
+
+            $stokAwal = (int) $produk->STOK;
+            $stokBaru = $stokAwal - $delta;
+
+            DB::table('ud84_master_produk')->where('ID', $produkId)->update([
+                'STOK'       => $stokBaru,
+                'UPDATED_AT' => now(),
+            ]);
+
+            DB::table('ud84_logs')->insert([
+                'KODE_ITEM'  => $produkId,
+                'NAMA_ITEM'  => $produk->NAMA,
+                'ASAL'       => 'Perbaikan Transaksi',
+                'MASUK'      => $delta < 0 ? abs($delta) : 0,
+                'KELUAR'     => $delta > 0 ? $delta : 0,
+                'STOK_FINAL' => $stokBaru,
+                'CREATED_AT' => now(),
+            ]);
+
+            $arah      = $delta > 0 ? 'dikurangi' : 'ditambah';
+            $catatan[] = "Stok '{$produk->NAMA}' {$arah} ".abs($delta)." pcs ({$stokAwal} -> {$stokBaru}).";
+
+            if ($stokBaru < 0) {
+                $minus[] = $produk->NAMA;
+            }
+        }
+
+        return ['CATATAN' => $catatan, 'MINUS' => $minus];
+    }
+
+    /**
      * Reverses exactly what the sale granted, read from rekap.POIN. Sales made
      * before that column existed fall back to recomputing from CASH.
      *
@@ -454,6 +532,23 @@ class Transaksi extends Controller
             return $this->gagal('Nominal tidak boleh minus.');
         }
 
+        $items = $request->input('ITEMS');
+
+        if ($items !== null) {
+            // Validated before anything is written, so an edit the detail
+            // screen would refuse never gets this far -- syaratUbahItem is the
+            // single source of truth for whether a sale's lines can move.
+            [$boleh, $alasanGate] = self::syaratUbahItem($kode);
+
+            if (!$boleh) {
+                return $this->gagal($alasanGate);
+            }
+
+            if (!is_array($items) || count($items) === 0) {
+                return $this->gagal('Transaksi harus punya minimal satu item. Untuk mengosongkan, batalkan transaksinya.');
+            }
+        }
+
         DB::beginTransaction();
 
         try {
@@ -474,11 +569,90 @@ class Transaksi extends Controller
                 return $this->gagal('Transaksi yang sudah dibatalkan tidak bisa diperbaiki.');
             }
 
-            $detailLama  = DB::table('ud84_penjualan_detail')->where('UNIQUE', $kode)->get();
+            $detailLama = DB::table('ud84_penjualan_detail')->where('UNIQUE', $kode)->get();
+
+            $idSah       = $detailLama->pluck('ID')->map(fn ($id) => (int) $id)->all();
+            $barisBaru   = [];
             $totalBarang = 0;
 
-            foreach ($detailLama as $line) {
-                $totalBarang += (int) $line->HARGA_TERJUAL;
+            if ($items === null) {
+                // Header-only correction: the stored lines stand as they are.
+                foreach ($detailLama as $line) {
+                    $totalBarang += (int) $line->HARGA_TERJUAL;
+                }
+            } else {
+                foreach ($items as $item) {
+                    $id       = isset($item['ID']) && $item['ID'] !== null ? (int) $item['ID'] : null;
+                    $produkId = (int) ($item['KODE_ITEM'] ?? 0);
+                    $satuan   = trim((string) ($item['SATUAN'] ?? ''));
+                    $jumlah   = (int) ($item['JUMLAH'] ?? 0);
+                    $harga    = (int) ($item['HARGA_ASLI'] ?? 0);
+                    $persen   = (int) ($item['POTONGAN_PERSEN'] ?? 0);
+                    $rupiah   = (int) ($item['POTONGAN_RUPIAH'] ?? 0);
+
+                    if ($id !== null && !in_array($id, $idSah, true)) {
+                        DB::rollBack();
+
+                        return $this->gagal('Ada baris item yang bukan milik transaksi ini.');
+                    }
+
+                    $produk = DB::table('ud84_master_produk')->where('ID', $produkId)->first();
+
+                    if (empty($produk)) {
+                        DB::rollBack();
+
+                        return $this->gagal("Produk dengan kode {$produkId} tidak ditemukan.");
+                    }
+
+                    if ($satuan !== 'Pcs' && $satuan !== (string) ($produk->TIPE ?? '')) {
+                        DB::rollBack();
+
+                        return $this->gagal("Satuan '{$satuan}' tidak berlaku untuk produk '{$produk->NAMA}'.");
+                    }
+
+                    if ($jumlah <= 0) {
+                        DB::rollBack();
+
+                        return $this->gagal("Jumlah item '{$produk->NAMA}' harus lebih dari nol.");
+                    }
+
+                    if ($harga < 0 || $persen < 0 || $rupiah < 0) {
+                        DB::rollBack();
+
+                        return $this->gagal("Harga dan potongan item '{$produk->NAMA}' tidak boleh minus.");
+                    }
+
+                    $hargaSatuan = $harga - $persen - $rupiah;
+
+                    if ($hargaSatuan < 0) {
+                        DB::rollBack();
+
+                        return $this->gagal("Potongan item '{$produk->NAMA}' melebihi harganya.");
+                    }
+
+                    $pieces = $this->piecesBaris($satuan, $jumlah, $produk);
+
+                    if ($pieces === null) {
+                        DB::rollBack();
+
+                        return $this->gagal("Produk '{$produk->NAMA}' tidak mencatat isi per satuan, jadi stoknya tidak bisa dihitung.");
+                    }
+
+                    $barisBaru[] = [
+                        'ID'              => $id,
+                        'KODE'            => $produkId,
+                        'NAMA'            => $produk->NAMA,
+                        'SATUAN'          => $satuan,
+                        'JUMLAH'          => $jumlah,
+                        'HARGA_ASLI'      => $harga,
+                        'POTONGAN_PERSEN' => $persen,
+                        'POTONGAN_RUPIAH' => $rupiah,
+                        'HARGA_TERJUAL'   => $hargaSatuan * $jumlah,
+                        'PIECES'          => $pieces,
+                    ];
+
+                    $totalBarang += $hargaSatuan * $jumlah;
+                }
             }
 
             if ($potongan > $totalBarang) {
@@ -504,6 +678,10 @@ class Transaksi extends Controller
                 'TOTAL'       => $total,
             ]);
 
+            if ($items !== null) {
+                $catatan = array_merge($catatan, $this->ringkasBaris($detailLama, $barisBaru));
+            }
+
             if (empty($catatan)) {
                 DB::rollBack();
 
@@ -511,6 +689,70 @@ class Transaksi extends Controller
             }
 
             $sebelum = json_encode(['rekap' => $rekap, 'detail' => $detailLama], JSON_UNESCAPED_UNICODE);
+
+            $stok = ['CATATAN' => [], 'MINUS' => []];
+
+            if ($items !== null) {
+                // Pieces per product, before and after, netted before anything is
+                // written -- a product moving between lines is a return to one and
+                // a withdrawal from the other, and two lines of one product must
+                // not fight each other.
+                $selisih = [];
+
+                foreach ($detailLama as $line) {
+                    $produkLama = DB::table('ud84_master_produk')->where('ID', $line->KODE)->first();
+
+                    if (empty($produkLama)) {
+                        continue;
+                    }
+
+                    $piecesLama = $this->piecesBaris((string) $line->SATUAN, (int) $line->JUMLAH, $produkLama);
+                    $selisih[(int) $line->KODE] = ($selisih[(int) $line->KODE] ?? 0) - (int) $piecesLama;
+                }
+
+                foreach ($barisBaru as $baris) {
+                    $selisih[$baris['KODE']] = ($selisih[$baris['KODE']] ?? 0) + $baris['PIECES'];
+                }
+
+                $stok    = $this->terapkanStok($selisih);
+                $catatan = array_merge($catatan, $stok['CATATAN']);
+
+                $dipakai = [];
+
+                foreach ($barisBaru as $baris) {
+                    $isi = [
+                        'KODE'            => $baris['KODE'],
+                        'NAMA'            => $baris['NAMA'],
+                        'SATUAN'          => $baris['SATUAN'],
+                        'JUMLAH'          => $baris['JUMLAH'],
+                        'HARGA_ASLI'      => $baris['HARGA_ASLI'],
+                        'HARGA_TERJUAL'   => $baris['HARGA_TERJUAL'],
+                        'POTONGAN_PERSEN' => $baris['POTONGAN_PERSEN'],
+                        'POTONGAN_RUPIAH' => $baris['POTONGAN_RUPIAH'],
+                        'UPDATED_AT'      => now(),
+                    ];
+
+                    if ($baris['ID'] === null) {
+                        DB::table('ud84_penjualan_detail')->insert(array_merge($isi, [
+                            'UNIQUE'     => $kode,
+                            'CREATED_AT' => now(),
+                        ]));
+
+                        continue;
+                    }
+
+                    // CREATED_AT deliberately untouched: it is the date this line
+                    // reports under.
+                    DB::table('ud84_penjualan_detail')->where('ID', $baris['ID'])->update($isi);
+                    $dipakai[] = $baris['ID'];
+                }
+
+                foreach ($detailLama as $line) {
+                    if (!in_array((int) $line->ID, $dipakai, true)) {
+                        DB::table('ud84_penjualan_detail')->where('ID', $line->ID)->delete();
+                    }
+                }
+            }
 
             $poin = $this->selaraskanPoin($rekap, $namaBaru, $cash);
             $catatan = array_merge($catatan, $poin['CATATAN']);
@@ -550,7 +792,7 @@ class Transaksi extends Controller
                 'message' => 'Transaksi berhasil diperbaiki.',
                 'data'    => [
                     'CATATAN'    => $catatan,
-                    'STOK_MINUS' => [],
+                    'STOK_MINUS' => $stok['MINUS'],
                 ],
             ], 200);
         } catch (\Throwable $e) {
@@ -597,6 +839,51 @@ class Transaksi extends Controller
 
             if ($lama !== $isi) {
                 $catatan[] = "{$label}: Rp ".number_format($lama, 0, ',', '.').' -> Rp '.number_format($isi, 0, ',', '.');
+            }
+        }
+
+        return $catatan;
+    }
+
+    /** The line half of the change list, in the operator's language. */
+    private function ringkasBaris($detailLama, array $barisBaru): array
+    {
+        $catatan = [];
+        $lama    = [];
+
+        foreach ($detailLama as $line) {
+            $lama[(int) $line->ID] = $line;
+        }
+
+        $dipakai = [];
+
+        foreach ($barisBaru as $baris) {
+            if ($baris['ID'] === null) {
+                $catatan[] = "Item '{$baris['NAMA']}' ditambahkan ({$baris['JUMLAH']} {$baris['SATUAN']})";
+
+                continue;
+            }
+
+            $dipakai[] = $baris['ID'];
+            $asal      = $lama[$baris['ID']];
+
+            if ((int) $asal->KODE !== $baris['KODE']) {
+                $catatan[] = "Item '{$asal->NAMA}' diganti menjadi '{$baris['NAMA']}'";
+            }
+
+            if ((int) $asal->JUMLAH !== $baris['JUMLAH'] || (string) $asal->SATUAN !== $baris['SATUAN']) {
+                $catatan[] = "Jumlah '{$baris['NAMA']}': {$asal->JUMLAH} {$asal->SATUAN} -> {$baris['JUMLAH']} {$baris['SATUAN']}";
+            }
+
+            if ((int) $asal->HARGA_TERJUAL !== $baris['HARGA_TERJUAL']) {
+                $catatan[] = "Nilai '{$baris['NAMA']}': Rp ".number_format((int) $asal->HARGA_TERJUAL, 0, ',', '.')
+                    .' -> Rp '.number_format($baris['HARGA_TERJUAL'], 0, ',', '.');
+            }
+        }
+
+        foreach ($lama as $id => $line) {
+            if (!in_array($id, $dipakai, true)) {
+                $catatan[] = "Item '{$line->NAMA}' dihapus";
             }
         }
 
