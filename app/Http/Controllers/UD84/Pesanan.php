@@ -62,6 +62,170 @@ class Pesanan extends Controller
         }
     }
 
+    /**
+     * Correcting an order rewrites nothing it does not have to. Lines are
+     * reconciled in place: ud84_analisa_sales dates every line by
+     * ud84_pesanan_detail.CREATED_AT, so deleting and re-inserting an untouched
+     * line would move an old order's contribution into today, silently.
+     */
+    public function updatePesanan(Request $request)
+    {
+        $kode     = trim((string) $request->input('KODE'));
+        $nama     = trim((string) $request->input('NAMA'));
+        $whatsApp = trim((string) $request->input('WHATSAPP'));
+        $catatan  = $request->input('CATATAN');
+        $operator = trim((string) $request->input('OPERATOR'));
+        $alasan   = trim((string) $request->input('ALASAN'));
+
+        $rekap = DB::table('ud84_pesanan_rekap')->where('KODE', $kode)->first();
+
+        if (empty($rekap)) {
+            return $this->gagal('Pesanan tidak ditemukan.');
+        }
+
+        if (!empty($rekap->VALID)) {
+            return $this->gagal('Pesanan yang sudah diverifikasi tidak bisa diubah.');
+        }
+
+        if ($nama === '' || $whatsApp === '') {
+            return $this->gagal('Nama dan WhatsApp pelanggan wajib diisi.');
+        }
+
+        $items = $request->input('ITEMS');
+
+        if (!is_array($items) || count($items) === 0) {
+            return $this->gagal('Pesanan harus punya minimal satu item.');
+        }
+
+        $diminta    = [];
+        $namaProduk = [];
+
+        foreach ($items as $item) {
+            $kodeItem = (int) ($item['KODE_ITEM'] ?? 0);
+            $jumlah   = (int) ($item['JUMLAH'] ?? 0);
+            $produk   = DB::table('ud84_master_produk')->where('ID', $kodeItem)->first(['ID', 'NAMA']);
+
+            if (empty($produk)) {
+                return $this->gagal("Produk dengan kode {$kodeItem} tidak ditemukan lagi.");
+            }
+
+            if (isset($diminta[$kodeItem])) {
+                return $this->gagal("Produk '{$produk->NAMA}' muncul dua kali.");
+            }
+
+            if ($jumlah <= 0) {
+                return $this->gagal("Jumlah item '{$produk->NAMA}' harus lebih dari nol.");
+            }
+
+            $diminta[$kodeItem]    = $jumlah;
+            $namaProduk[$kodeItem] = $produk->NAMA;
+        }
+
+        $salesLama = $rekap->SALES === null ? null : (int) $rekap->SALES;
+        $salesBaru = $this->bacaSales($request->input('SALES'));
+
+        // An order that already names a deactivated salesperson keeps them --
+        // history stays intact. Only a CHANGE to one is refused.
+        if ($salesBaru !== null && $salesBaru !== $salesLama) {
+            $orang = DB::table('ud84_sales')->where('ID', $salesBaru)->first(['NAMA', 'STATUS']);
+
+            if (empty($orang)) {
+                return $this->gagal('Sales tidak ditemukan.');
+            }
+
+            if ($orang->STATUS === 'Nonaktif') {
+                return $this->gagal("Sales '{$orang->NAMA}' sudah nonaktif.");
+            }
+        }
+
+        $detail = DB::table('ud84_pesanan_detail')->where('KODE', $kode)->get();
+
+        $catatanSistem = $this->ringkasPerubahan($rekap, $detail, [
+            'NAMA'     => $nama,
+            'WHATSAPP' => $whatsApp,
+            'CATATAN'  => $catatan,
+            'SALES'    => $salesBaru,
+        ], $diminta, $namaProduk);
+
+        if (empty($catatanSistem)) {
+            return $this->gagal('Tidak ada perubahan untuk disimpan.');
+        }
+
+        DB::beginTransaction();
+
+        try {
+            $sebelum = json_encode(['rekap' => $rekap, 'detail' => $detail], JSON_UNESCAPED_UNICODE);
+
+            DB::table('ud84_pesanan_rekap')->where('KODE', $kode)->update([
+                'NAMA'       => $nama,
+                'WHATSAPP'   => $whatsApp,
+                'SALES'      => $salesBaru,
+                'CATATAN'    => $catatan,
+                'UPDATED_AT' => now(),
+            ]);
+
+            $lama = [];
+
+            foreach ($detail as $line) {
+                $lama[(int) $line->KODE_ITEM] = $line;
+            }
+
+            foreach ($diminta as $kodeItem => $jumlah) {
+                if (!isset($lama[$kodeItem])) {
+                    DB::table('ud84_pesanan_detail')->insert([
+                        'KODE'       => $kode,
+                        'KODE_ITEM'  => $kodeItem,
+                        'JUMLAH'     => $jumlah,
+                        'CREATED_AT' => now(),
+                    ]);
+
+                    continue;
+                }
+
+                if ((int) $lama[$kodeItem]->JUMLAH !== $jumlah) {
+                    // CREATED_AT is deliberately untouched -- see the note above.
+                    DB::table('ud84_pesanan_detail')->where('ID', $lama[$kodeItem]->ID)->update([
+                        'JUMLAH'     => $jumlah,
+                        'UPDATED_AT' => now(),
+                    ]);
+                }
+            }
+
+            foreach ($lama as $kodeItem => $line) {
+                if (!isset($diminta[$kodeItem])) {
+                    DB::table('ud84_pesanan_detail')->where('ID', $line->ID)->delete();
+                }
+            }
+
+            $sesudahRekap  = DB::table('ud84_pesanan_rekap')->where('KODE', $kode)->first();
+            $sesudahDetail = DB::table('ud84_pesanan_detail')->where('KODE', $kode)->get();
+
+            DB::table('ud84_transaksi_log')->insert([
+                'UNIQUE_TRANSAKSI' => $kode,
+                'AKSI'             => 'Edit Pesanan',
+                'OPERATOR'         => $operator !== '' ? $operator : 'Tidak diketahui',
+                'ALASAN'           => $alasan !== '' ? $alasan : null,
+                'CATATAN_SISTEM'   => implode("\n", $catatanSistem),
+                'SEBELUM'          => $sebelum,
+                'SESUDAH'          => json_encode(['rekap' => $sesudahRekap, 'detail' => $sesudahDetail], JSON_UNESCAPED_UNICODE),
+                'CREATED_AT'       => now(),
+            ]);
+
+            DB::commit();
+
+            return response()->json([
+                'status'  => 'success',
+                'message' => 'Pesanan berhasil diperbarui.',
+                'data'    => ['CATATAN' => $catatanSistem],
+            ], 200);
+        } catch (\Throwable $e) {
+            DB::rollBack();
+            Log::info($e);
+
+            return $this->gagal('Perubahan gagal disimpan, tidak ada yang berubah.');
+        }
+    }
+
     public function getPesanan(Request $request) {
         $startDate = $request->input('start');
         $endDate   = $request->input('end');
@@ -205,5 +369,85 @@ class Pesanan extends Controller
                 "message" => "Terjadi kesalahan: " . $e->getMessage()
             ], 500);
         }
+    }
+
+    private function gagal(string $pesan)
+    {
+        return response()->json([
+            'status'  => 'error',
+            'message' => $pesan,
+        ], 200);
+    }
+
+    /** "Tanpa Sales" arrives as null or an empty string; both mean no salesperson. */
+    private function bacaSales($nilai): ?int
+    {
+        return ($nilai === null || $nilai === '') ? null : (int) $nilai;
+    }
+
+    private function namaSales(?int $id): string
+    {
+        if ($id === null) {
+            return 'Tanpa Sales';
+        }
+
+        return DB::table('ud84_sales')->where('ID', $id)->value('NAMA') ?? "Sales #{$id}";
+    }
+
+    /**
+     * A plain-language list of what this edit changes, built BEFORE anything is
+     * written. It doubles as the check for an edit that changes nothing: an
+     * empty list means there is nothing to save, and an audit trail full of
+     * empty entries is worse than no entry.
+     */
+    private function ringkasPerubahan(object $rekap, $detail, array $baru, array $diminta, array $namaProduk): array
+    {
+        $catatan = [];
+
+        $header = [
+            'NAMA'     => 'Nama pelanggan',
+            'WHATSAPP' => 'WhatsApp',
+            'CATATAN'  => 'Keterangan',
+        ];
+
+        foreach ($header as $kolom => $label) {
+            $lama = (string) ($rekap->$kolom ?? '');
+            $isi  = (string) ($baru[$kolom] ?? '');
+
+            if ($lama !== $isi) {
+                $catatan[] = "{$label}: '{$lama}' -> '{$isi}'";
+            }
+        }
+
+        $salesLama = $rekap->SALES === null ? null : (int) $rekap->SALES;
+
+        if ($salesLama !== $baru['SALES']) {
+            $catatan[] = "Sales: '".$this->namaSales($salesLama)."' -> '".$this->namaSales($baru['SALES'])."'";
+        }
+
+        $lamaItem = [];
+
+        foreach ($detail as $line) {
+            $lamaItem[(int) $line->KODE_ITEM] = (int) $line->JUMLAH;
+        }
+
+        foreach ($diminta as $kodeItem => $jumlah) {
+            $nama = $namaProduk[$kodeItem];
+
+            if (!isset($lamaItem[$kodeItem])) {
+                $catatan[] = "Item '{$nama}' ditambahkan ({$jumlah})";
+            } elseif ($lamaItem[$kodeItem] !== $jumlah) {
+                $catatan[] = "Jumlah '{$nama}': {$lamaItem[$kodeItem]} -> {$jumlah}";
+            }
+        }
+
+        foreach ($lamaItem as $kodeItem => $jumlah) {
+            if (!isset($diminta[$kodeItem])) {
+                $nama = DB::table('ud84_master_produk')->where('ID', $kodeItem)->value('NAMA') ?? "Produk #{$kodeItem}";
+                $catatan[] = "Item '{$nama}' dihapus";
+            }
+        }
+
+        return $catatan;
     }
 }

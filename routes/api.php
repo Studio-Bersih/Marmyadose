@@ -158,6 +158,7 @@ Route::post('/UD84/Pesanan/Retrieve', [UD84_Pesanan::class, 'getPesanan']);
 Route::post('/UD84/Pesanan/Retrieve-Items', [UD84_Pesanan::class, 'getItems']);
 Route::post('/UD84/Pesanan/Delete', [UD84_Pesanan::class, 'removeItem']);
 Route::post('/UD84/Pesanan/Validate-Order', [UD84_Pesanan::class, 'validateItem']);
+Route::post('/UD84/Pesanan/Update', [UD84_Pesanan::class, 'updatePesanan']);
 
 // Same reader as the transaction audit trail -- ud84_transaksi_log is keyed by
 // UNIQUE_TRANSAKSI, which for an order is its KODE. Routed separately so the

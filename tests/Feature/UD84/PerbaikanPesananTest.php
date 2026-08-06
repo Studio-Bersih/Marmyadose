@@ -126,4 +126,105 @@ class PerbaikanPesananTest extends TestCase
         $this->assertCount(1, $rows);
         $this->assertSame('Edit Pesanan', $rows[0]['AKSI']);
     }
+
+    private function ubah(string $kode, array $payload = [])
+    {
+        return $this->postJson('/api/UD84/Pesanan/Update', array_merge([
+            'KODE'     => $kode,
+            'NAMA'     => 'Pelanggan Tes',
+            'WHATSAPP' => '08123456789',
+            'SALES'    => null,
+            'CATATAN'  => 'Catatan awal',
+            'ITEMS'    => [],
+            'OPERATOR' => 'Tester',
+            'ALASAN'   => '',
+        ], $payload));
+    }
+
+    public function test_a_header_edit_updates_the_order_and_records_one_audit_row(): void
+    {
+        $produk = $this->seedProduct();
+        $kode   = $this->seedOrder([], [['KODE_ITEM' => $produk->ID, 'JUMLAH' => 3]]);
+
+        $this->ubah($kode, [
+            'NAMA'    => 'Pelanggan Baru',
+            'CATATAN' => 'Antar sore',
+            'ITEMS'   => [['KODE_ITEM' => $produk->ID, 'JUMLAH' => 3]],
+        ])->assertStatus(200)->assertJson(['status' => 'success']);
+
+        $this->assertDatabaseHas('ud84_pesanan_rekap', [
+            'KODE' => $kode, 'NAMA' => 'Pelanggan Baru', 'CATATAN' => 'Antar sore',
+        ]);
+
+        $log = DB::table('ud84_transaksi_log')->where('UNIQUE_TRANSAKSI', $kode)->get();
+
+        $this->assertCount(1, $log);
+        $this->assertSame('Edit Pesanan', $log[0]->AKSI);
+        $this->assertSame('Tester', $log[0]->OPERATOR);
+        $this->assertStringContainsString("Nama pelanggan: 'Pelanggan Tes' -> 'Pelanggan Baru'", $log[0]->CATATAN_SISTEM);
+    }
+
+    public function test_changing_a_quantity_leaves_the_line_created_date_alone(): void
+    {
+        $produk = $this->seedProduct();
+        $kode   = $this->seedOrder([], [['KODE_ITEM' => $produk->ID, 'JUMLAH' => 3]]);
+
+        $this->ubah($kode, ['ITEMS' => [['KODE_ITEM' => $produk->ID, 'JUMLAH' => 5]]])
+            ->assertStatus(200)->assertJson(['status' => 'success']);
+
+        $line = DB::table('ud84_pesanan_detail')->where('KODE', $kode)->first();
+
+        $this->assertSame(5, (int) $line->JUMLAH);
+        // ud84_analisa_sales dates every line by this column. Rewriting the
+        // line would move an old order's contribution into today.
+        $this->assertStringStartsWith('2026-03-01', (string) $line->CREATED_AT);
+    }
+
+    public function test_an_item_can_be_added_and_another_removed(): void
+    {
+        $lama = $this->seedProduct();
+        $baru = $this->seedProduct();
+        $kode = $this->seedOrder([], [['KODE_ITEM' => $lama->ID, 'JUMLAH' => 3]]);
+
+        $this->ubah($kode, ['ITEMS' => [['KODE_ITEM' => $baru->ID, 'JUMLAH' => 2]]])
+            ->assertStatus(200)->assertJson(['status' => 'success']);
+
+        $this->assertDatabaseMissing('ud84_pesanan_detail', ['KODE' => $kode, 'KODE_ITEM' => $lama->ID]);
+        $this->assertDatabaseHas('ud84_pesanan_detail', ['KODE' => $kode, 'KODE_ITEM' => $baru->ID, 'JUMLAH' => 2]);
+
+        $catatan = DB::table('ud84_transaksi_log')->where('UNIQUE_TRANSAKSI', $kode)->value('CATATAN_SISTEM');
+
+        $this->assertStringContainsString("Item '{$baru->NAMA}' ditambahkan (2)", $catatan);
+        $this->assertStringContainsString("Item '{$lama->NAMA}' dihapus", $catatan);
+    }
+
+    public function test_the_salesperson_can_be_changed(): void
+    {
+        $produk  = $this->seedProduct();
+        $salesId = $this->seedSalesperson();
+        $kode    = $this->seedOrder([], [['KODE_ITEM' => $produk->ID, 'JUMLAH' => 1]]);
+
+        $this->ubah($kode, [
+            'SALES' => $salesId,
+            'ITEMS' => [['KODE_ITEM' => $produk->ID, 'JUMLAH' => 1]],
+        ])->assertStatus(200)->assertJson(['status' => 'success']);
+
+        $this->assertDatabaseHas('ud84_pesanan_rekap', ['KODE' => $kode, 'SALES' => $salesId]);
+    }
+
+    public function test_the_before_and_after_snapshots_are_stored(): void
+    {
+        $produk = $this->seedProduct();
+        $kode   = $this->seedOrder([], [['KODE_ITEM' => $produk->ID, 'JUMLAH' => 3]]);
+
+        $this->ubah($kode, ['ITEMS' => [['KODE_ITEM' => $produk->ID, 'JUMLAH' => 9]]]);
+
+        $log = DB::table('ud84_transaksi_log')->where('UNIQUE_TRANSAKSI', $kode)->first();
+
+        $sebelum = json_decode($log->SEBELUM, true);
+        $sesudah = json_decode($log->SESUDAH, true);
+
+        $this->assertSame(3, (int) $sebelum['detail'][0]['JUMLAH']);
+        $this->assertSame(9, (int) $sesudah['detail'][0]['JUMLAH']);
+    }
 }
