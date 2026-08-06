@@ -276,6 +276,14 @@ class Report extends Controller
         $dataDetail = DB::table('ud84_penjualan_detail')->where('UNIQUE',$ID)->get();
         $dataMember = DB::table('ud84_member')->where('NAMA', $dataRekap->NAMA)->first();
 
+        // A correction is recorded, not flagged -- the audit row IS the fact, so
+        // there is no column to keep in step with it.
+        $dikoreksi = DB::table('ud84_transaksi_log')
+            ->where('UNIQUE_TRANSAKSI', $ID)
+            ->where('AKSI', 'Perbaikan')
+            ->orderByDesc('ID')
+            ->value('CREATED_AT');
+
         $listDetail = [];
         $totalSum   = [];
         foreach($dataDetail as $data){
@@ -323,6 +331,8 @@ class Report extends Controller
                 // Surfaced at the top level so the layouts never have to read
                 // the raw rekap row, whose KEMBALIAN and TOTAL are unsafe.
                 "dibatalkan" => $dataRekap->STATUS === 'Dibatalkan',
+                "dikoreksi"  => !empty($dikoreksi),
+                "dikoreksi_pada" => !empty($dikoreksi) ? Carbon::parse($dikoreksi)->translatedFormat('d F Y') : null,
                 "rekap"     => $dataRekap,
                 "alamat"    => empty($dataMember->ALAMAT) ? '-' : $dataMember->ALAMAT,
                 "point"     => empty($dataMember->POINT) ? 0 : $dataMember->POINT

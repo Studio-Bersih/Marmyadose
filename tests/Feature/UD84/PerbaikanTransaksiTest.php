@@ -869,4 +869,25 @@ class PerbaikanTransaksiTest extends TestCase
         $this->assertDatabaseMissing('ud84_transaksi_log', ['UNIQUE_TRANSAKSI' => $unique]);
         $this->assertDatabaseHas('ud84_penjualan_rekap', ['UNIQUE' => $unique, 'UPDATED_AT' => null]);
     }
+
+    public function test_a_corrected_sale_reports_itself_as_corrected_to_the_nota(): void
+    {
+        $produk = $this->seedProduct();
+        $unique = $this->seedSale(['NAMA' => 'ASLI', 'TOTAL' => 20000], [[
+            'KODE' => $produk->ID, 'NAMA' => $produk->NAMA, 'SATUAN' => 'Pcs',
+            'JUMLAH' => 2, 'HARGA_ASLI' => 10000, 'HARGA_TERJUAL' => 20000,
+        ]]);
+
+        $sebelum = $this->getJson('/api/UD84/Get-Invoices/'.$unique)->assertStatus(200)->json('data');
+
+        $this->assertFalse($sebelum['dikoreksi']);
+        $this->assertNull($sebelum['dikoreksi_pada']);
+
+        $this->perbaiki($unique, ['NAMA' => 'DIPERBAIKI'])->assertJson(['status' => 'success']);
+
+        $sesudah = $this->getJson('/api/UD84/Get-Invoices/'.$unique)->assertStatus(200)->json('data');
+
+        $this->assertTrue($sesudah['dikoreksi']);
+        $this->assertNotNull($sesudah['dikoreksi_pada']);
+    }
 }
