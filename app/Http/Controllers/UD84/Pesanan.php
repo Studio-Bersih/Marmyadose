@@ -37,10 +37,15 @@ class Pesanan extends Controller
 
             $useCarts = [];
             for($i = 0; $i < count($carts); $i++) {
+                // An empty box is "no request". Stored as NULL rather than ''
+                // so there is one such value instead of two.
+                $diskon = trim((string) ($carts[$i]['DISKON'] ?? ''));
+
                 $useCarts[] = [
                     "KODE"      => $unique,
                     "KODE_ITEM" => $carts[$i]['ID'],
                     "JUMLAH"    => $carts[$i]['QUANTITY'],
+                    "DISKON"    => $diskon === '' ? null : $diskon,
                 ];
             }
 
@@ -286,6 +291,16 @@ class Pesanan extends Controller
             // Sales" on the order form), and the row is gone if a salesperson
             // was ever deleted. Either way there is no name to show.
             $salesName = DB::table('ud84_sales')->where('ID', $DB->SALES)->first(['NAMA']);
+
+            // Whether anything on this order is asking for a discount. Without
+            // it the request sits unread unless somebody opens the drawer,
+            // which is the whole failure this is meant to prevent.
+            $adaDiskon = DB::table('ud84_pesanan_detail')
+                ->where('KODE', $DB->KODE)
+                ->whereNotNull('DISKON')
+                ->where('DISKON', '!=', '')
+                ->exists();
+
             $useDB[] = [
                 "NAMA"          => $DB->NAMA,
                 "WHATSAPP"      => $DB->WHATSAPP,
@@ -294,6 +309,7 @@ class Pesanan extends Controller
                 "CATATAN"       => $DB->CATATAN,
                 "KODE"          => $DB->KODE,
                 "VALID"         => $DB->VALID,
+                "ADA_DISKON"    => $adaDiskon,
                 "CREATED_AT"    => $DB->CREATED_AT
             ];
         }
@@ -309,7 +325,7 @@ class Pesanan extends Controller
         $id = $request->input("ID");
 
         try {
-            $DB = DB::table('ud84_pesanan_detail')->where('KODE', $id)->get(['KODE_ITEM', 'JUMLAH']);
+            $DB = DB::table('ud84_pesanan_detail')->where('KODE', $id)->get(['KODE_ITEM', 'JUMLAH', 'DISKON']);
 
             $useCarts = [];
             foreach($DB as $DB) {
@@ -328,7 +344,8 @@ class Pesanan extends Controller
                         "SATUAN"            => '-',
                         "HARGA_PER_ITEM"    => 0,
                         "HARGA_JUAL"        => 0,
-                        "DISTRIBUTOR"       => '-'
+                        "DISTRIBUTOR"       => '-',
+                        "DISKON"            => $DB->DISKON
                     ];
                     continue;
                 }
@@ -342,7 +359,8 @@ class Pesanan extends Controller
                     "SATUAN"            => $findItem->TIPE,
                     "HARGA_PER_ITEM"    => $findItem->HARGA_PER_ITEM,
                     "HARGA_JUAL"        => $findItem->HARGA_JUAL,
-                    "DISTRIBUTOR"       => $findItem->DISTRIBUTOR
+                    "DISTRIBUTOR"       => $findItem->DISTRIBUTOR,
+                    "DISKON"            => $DB->DISKON
                 ];
             }
 
