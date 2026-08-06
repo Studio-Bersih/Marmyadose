@@ -346,14 +346,58 @@ class Pesanan extends Controller
         }
     }
 
+    /**
+     * Deleting used to succeed against anything, verified or not, and left no
+     * trace at all. A verified order feeds ud84_analisa_sales, so removing one
+     * moves sales figures exactly as editing one would -- the same hole by
+     * another door.
+     */
     public function removeItem(Request $request){
-        $id = $request->input('ID');
-        DB::table('ud84_pesanan_rekap')->where('KODE', $id)->delete();
-        DB::table('ud84_pesanan_detail')->where('KODE', $id)->delete();
-        return response()->json([
-            "status"  => "success",
-            "message" => "Pesanan berhasil dihapus."
-        ], 200);
+        $kode     = trim((string) $request->input('ID'));
+        $operator = trim((string) $request->input('OPERATOR'));
+        $alasan   = trim((string) $request->input('ALASAN'));
+
+        $rekap = DB::table('ud84_pesanan_rekap')->where('KODE', $kode)->first();
+
+        if (empty($rekap)) {
+            return $this->gagal('Pesanan tidak ditemukan.');
+        }
+
+        if (!empty($rekap->VALID)) {
+            return $this->gagal('Pesanan yang sudah diverifikasi tidak bisa dihapus.');
+        }
+
+        DB::beginTransaction();
+
+        try {
+            $detail = DB::table('ud84_pesanan_detail')->where('KODE', $kode)->get();
+
+            DB::table('ud84_transaksi_log')->insert([
+                'UNIQUE_TRANSAKSI' => $kode,
+                'AKSI'             => 'Hapus Pesanan',
+                'OPERATOR'         => $operator !== '' ? $operator : 'Tidak diketahui',
+                'ALASAN'           => $alasan !== '' ? $alasan : null,
+                'CATATAN_SISTEM'   => 'Pesanan dihapus beserta '.count($detail).' item.',
+                'SEBELUM'          => json_encode(['rekap' => $rekap, 'detail' => $detail], JSON_UNESCAPED_UNICODE),
+                'SESUDAH'          => null,
+                'CREATED_AT'       => now(),
+            ]);
+
+            DB::table('ud84_pesanan_detail')->where('KODE', $kode)->delete();
+            DB::table('ud84_pesanan_rekap')->where('KODE', $kode)->delete();
+
+            DB::commit();
+
+            return response()->json([
+                "status"  => "success",
+                "message" => "Pesanan berhasil dihapus."
+            ], 200);
+        } catch (\Throwable $e) {
+            DB::rollBack();
+            Log::info($e);
+
+            return $this->gagal('Pesanan gagal dihapus.');
+        }
     }
 
     public function validateItem(Request $request){

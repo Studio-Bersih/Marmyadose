@@ -414,4 +414,46 @@ class PerbaikanPesananTest extends TestCase
 
         $this->assertDatabaseMissing('ud84_pesanan_detail', ['KODE' => $kode, 'KODE_ITEM' => 999999]);
     }
+
+    public function test_deleting_an_order_records_what_was_deleted(): void
+    {
+        $produk = $this->seedProduct();
+        $kode   = $this->seedOrder([], [['KODE_ITEM' => $produk->ID, 'JUMLAH' => 3]]);
+
+        $this->postJson('/api/UD84/Pesanan/Delete', ['ID' => $kode, 'OPERATOR' => 'Tester'])
+            ->assertStatus(200)->assertJson(['status' => 'success']);
+
+        $this->assertDatabaseMissing('ud84_pesanan_rekap', ['KODE' => $kode]);
+        $this->assertDatabaseMissing('ud84_pesanan_detail', ['KODE' => $kode]);
+
+        $log = DB::table('ud84_transaksi_log')->where('UNIQUE_TRANSAKSI', $kode)->first();
+
+        $this->assertSame('Hapus Pesanan', $log->AKSI);
+        $this->assertSame('Tester', $log->OPERATOR);
+
+        // Decoded rather than string-matched: MySQL returns smallint columns
+        // as strings under some PDO settings, so "JUMLAH":3 and "JUMLAH":"3"
+        // are both possible and both correct.
+        $sebelum = json_decode($log->SEBELUM, true);
+
+        $this->assertSame(3, (int) $sebelum['detail'][0]['JUMLAH']);
+        $this->assertSame($kode, $sebelum['rekap']['KODE']);
+    }
+
+    public function test_a_verified_order_cannot_be_deleted(): void
+    {
+        $produk = $this->seedProduct();
+        $kode   = $this->seedOrder(['VALID' => 'Verified'], [['KODE_ITEM' => $produk->ID, 'JUMLAH' => 3]]);
+
+        $this->postJson('/api/UD84/Pesanan/Delete', ['ID' => $kode, 'OPERATOR' => 'Tester'])
+            ->assertStatus(200)->assertJson(['status' => 'error']);
+
+        $this->assertDatabaseHas('ud84_pesanan_rekap', ['KODE' => $kode]);
+    }
+
+    public function test_deleting_an_unknown_order_is_refused(): void
+    {
+        $this->postJson('/api/UD84/Pesanan/Delete', ['ID' => 'tidak-ada'])
+            ->assertStatus(200)->assertJson(['status' => 'error']);
+    }
 }
