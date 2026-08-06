@@ -245,12 +245,20 @@ class Report extends Controller
         $rekap  = DB::table('ud84_penjualan_rekap')->where('UNIQUE',$ID)->first();
         $detail = DB::table('ud84_penjualan_detail')->where('UNIQUE',$ID)->get();
 
+        // Whether the line editor may be offered at all, and if not, why --
+        // decided by Transaksi so the endpoint and this screen cannot disagree.
+        [$dapatUbahItem, $alasanKoreksi] = Transaksi::syaratUbahItem($ID);
+
         return response()->json([
             "status"    => "success",
             "message"   => "Loaded",
             "data"      => [
                 "rekap"     => $rekap,
-                "detail"    => $detail
+                "detail"    => $detail,
+                "KOREKSI"   => [
+                    "DAPAT_UBAH_ITEM" => $dapatUbahItem,
+                    "ALASAN"          => $alasanKoreksi,
+                ]
             ]
         ],200);
     }

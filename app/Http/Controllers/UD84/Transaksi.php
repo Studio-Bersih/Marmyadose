@@ -159,6 +159,40 @@ class Transaksi extends Controller
     }
 
     /**
+     * Whether a sale's lines can be edited at all.
+     *
+     * Editing a line means re-adjusting stock, and that needs two things the
+     * older rows do not have: a KODE that still resolves to a product, and a
+     * SATUAN saying whether the line was sold loose or as a whole Set/Dus.
+     * Without the unit the multiplier is a guess, wrong by JUMLAH_PER_ITEM --
+     * commonly ten -- so such a sale gets header and money correction only.
+     *
+     * Returns [bool $boleh, ?string $alasan]; the reason names the first line
+     * that blocks it, because "this sale cannot be edited" without saying why
+     * is a dead end for whoever reads it.
+     */
+    public static function syaratUbahItem(string $unique): array
+    {
+        $lines = DB::table('ud84_penjualan_detail')->where('UNIQUE', $unique)->get();
+
+        if ($lines->isEmpty()) {
+            return [false, 'Transaksi ini tidak menyimpan rincian item, jadi itemnya tidak bisa diubah.'];
+        }
+
+        foreach ($lines as $line) {
+            if (empty($line->KODE) || !DB::table('ud84_master_produk')->where('ID', $line->KODE)->exists()) {
+                return [false, "Item '{$line->NAMA}' tidak terhubung ke produk yang masih ada, jadi stoknya tidak bisa dihitung ulang."];
+            }
+
+            if (empty($line->SATUAN)) {
+                return [false, "Item '{$line->NAMA}' tidak mencatat satuan penjualan, jadi jumlah pcs-nya tidak bisa dipastikan."];
+            }
+        }
+
+        return [true, null];
+    }
+
+    /**
      * KODE is the reliable reference for sales written after this sub-project.
      * Older rows have it empty because postPenjualan always matched by name, so
      * NAMA is the fallback -- and for products since deleted, neither resolves.
