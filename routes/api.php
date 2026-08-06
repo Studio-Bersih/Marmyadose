@@ -8,6 +8,7 @@ use App\Http\Controllers\UD84\Pesanan as UD84_Pesanan;
 use App\Http\Controllers\UD84\Stock as UD84_Stocks;
 use App\Http\Controllers\UD84\Sales as UD84_Sales;
 use App\Http\Controllers\UD84\Transaksi as UD84_Transaksi;
+use App\Http\Controllers\UD84\Poin as UD84_Poin;
 
 use App\Http\Controllers\Kosada\Kredit as Kosada_Kredit;
 use App\Http\Controllers\Kosada\Member as Kosada_Member;
@@ -172,6 +173,9 @@ Route::get('/UD84/Member/Retrieve', [UD84_Member::class,'getMember']);
 Route::post('/UD84/Member/Insert', [UD84_Member::class, 'postMember']);
 Route::post('/UD84/Member/Delete', [UD84_Member::class, 'deleteMember']);
 Route::post('/UD84/Member/Create-Sales', [UD84_Member::class, 'salesCreate']);
+
+// UD84 - Poin Member
+Route::get('/UD84/Poin/Retrieve', [UD84_Poin::class, 'getPoin']);
 
 // UD84 - Sales (manajemen tim sales)
 Route::get('/UD84/Sales/Retrieve', [UD84_Sales::class, 'getSales']);

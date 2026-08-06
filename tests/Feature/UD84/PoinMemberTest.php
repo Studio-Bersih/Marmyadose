@@ -121,4 +121,53 @@ class PoinMemberTest extends TestCase
 
         $this->assertSame(2, (int) $poin);
     }
+
+    private function daftarPoin(): array
+    {
+        return $this->getJson('/api/UD84/Poin/Retrieve')
+            ->assertStatus(200)->assertJson(['status' => 'success'])->json('data');
+    }
+
+    public function test_the_list_returns_every_member_with_a_balance(): void
+    {
+        $member = $this->seedMember(7);
+
+        $data  = $this->daftarPoin();
+        $found = collect($data['MEMBER'])->firstWhere('ID', $member->ID);
+
+        $this->assertNotNull($found);
+        $this->assertSame(7, (int) $found['POINT']);
+        $this->assertSame($member->NAMA, $found['NAMA']);
+        $this->assertSame('Singosari', $found['LOKASI']);
+    }
+
+    public function test_a_member_with_no_points_is_still_listed(): void
+    {
+        $member = $this->seedMember(0);
+
+        // Excluding them would make giving anyone their first point impossible.
+        $this->assertNotNull(collect($this->daftarPoin()['MEMBER'])->firstWhere('ID', $member->ID));
+    }
+
+    public function test_the_list_is_ordered_by_balance_highest_first(): void
+    {
+        $this->seedMember(3);
+        $this->seedMember(9);
+
+        $poin = collect($this->daftarPoin()['MEMBER'])->pluck('POINT')->map(fn ($p) => (int) $p)->all();
+
+        $urut = $poin;
+        rsort($urut);
+
+        $this->assertSame($urut, $poin);
+    }
+
+    public function test_the_total_is_every_balance_added_up(): void
+    {
+        $data = $this->daftarPoin();
+
+        $jumlah = collect($data['MEMBER'])->sum(fn ($m) => (int) $m['POINT']);
+
+        $this->assertSame($jumlah, (int) $data['TOTAL']);
+    }
 }
