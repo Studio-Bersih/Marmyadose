@@ -400,14 +400,31 @@ class Pesanan extends Controller
         }
     }
 
+    /**
+     * The success message used to read "Pesanan berhasil dihapus." -- telling
+     * the operator the opposite of what happened -- and re-verifying an
+     * already-verified order was accepted silently.
+     */
     public function validateItem(Request $request){
-        $id = $request->input('ID');
-        DB::table('ud84_pesanan_rekap')->where('KODE', $id)->update([
-            "VALID" => "Verified"
+        $kode  = trim((string) $request->input('ID'));
+        $rekap = DB::table('ud84_pesanan_rekap')->where('KODE', $kode)->first();
+
+        if (empty($rekap)) {
+            return $this->gagal('Pesanan tidak ditemukan.');
+        }
+
+        if (!empty($rekap->VALID)) {
+            return $this->gagal('Pesanan ini sudah diverifikasi sebelumnya.');
+        }
+
+        DB::table('ud84_pesanan_rekap')->where('KODE', $kode)->update([
+            "VALID"      => "Verified",
+            "UPDATED_AT" => now(),
         ]);
+
         return response()->json([
             "status"  => "success",
-            "message" => "Pesanan berhasil dihapus."
+            "message" => "Pesanan berhasil diverifikasi."
         ], 200);
     }
 

@@ -456,4 +456,29 @@ class PerbaikanPesananTest extends TestCase
         $this->postJson('/api/UD84/Pesanan/Delete', ['ID' => 'tidak-ada'])
             ->assertStatus(200)->assertJson(['status' => 'error']);
     }
+
+    public function test_verifying_reports_verification_not_deletion(): void
+    {
+        $kode = $this->seedOrder();
+
+        $this->postJson('/api/UD84/Pesanan/Validate-Order', ['ID' => $kode])
+            ->assertStatus(200)
+            ->assertJson(['status' => 'success', 'message' => 'Pesanan berhasil diverifikasi.']);
+
+        $this->assertDatabaseHas('ud84_pesanan_rekap', ['KODE' => $kode, 'VALID' => 'Verified']);
+    }
+
+    public function test_verifying_twice_is_refused(): void
+    {
+        $kode = $this->seedOrder(['VALID' => 'Verified']);
+
+        $this->postJson('/api/UD84/Pesanan/Validate-Order', ['ID' => $kode])
+            ->assertStatus(200)->assertJson(['status' => 'error']);
+    }
+
+    public function test_verifying_an_unknown_order_is_refused(): void
+    {
+        $this->postJson('/api/UD84/Pesanan/Validate-Order', ['ID' => 'tidak-ada'])
+            ->assertStatus(200)->assertJson(['status' => 'error']);
+    }
 }
