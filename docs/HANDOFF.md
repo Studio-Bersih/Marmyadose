@@ -34,7 +34,11 @@ Plus one item **not** in `Instruction.md`, requested and delivered:
 
 **Every code item in `Instruction.md` is done.** The owner removed the sales-dashboard line on 2026-08-07: that feature already exists as "Analisa Hasil Kerja Sales" on the Analisa page. What remains is deployment, and the deferred-minor backlog in §9.
 
-**Nothing has been pushed to any remote, and nothing is deployed.** Both repos have local commits on `main` only. **Six releases** are now written up and waiting, and their order is not optional — see §10. That backlog is the largest risk in the project right now: every release has been verified locally and none has met production data.
+**`Marmyadose` is pushed to `origin/main`** (`https://github.com/Studio-Bersih/Marmyadose.git`) as of 2026-08-07. There is no CI on that repo, so pushing updates GitHub and nothing else — the server is still updated by hand.
+
+**`me` has not been pushed**, and pushing it triggers a Vercel deployment of the frontend. Do that only as part of a deliberate release, alongside the backend upload.
+
+**Nothing is deployed to the server.** **Six releases** are written up and waiting, and their order is not optional — see §10. That backlog is the largest risk in the project right now: every release has been verified locally and none has met production data.
 
 ---
 
