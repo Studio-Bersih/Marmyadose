@@ -1,6 +1,6 @@
 # UD84 — Session Handoff
 
-**Written:** 2026-08-06, end of evening session (supersedes all earlier versions)
+**Written:** 2026-08-07, end of session (supersedes all earlier versions)
 **Read this first when resuming.** It is the state of play, what is half-finished, and the traps that already cost time once.
 
 ---
@@ -17,7 +17,7 @@
 | 3 | Format tanda tangan | ✅ Merged |
 | 4 | Cetak DL + thermal 58mm, dua button | ✅ Merged |
 | 5 | Satuan item di nota | ✅ Merged |
-| 6 | Perbaikan Transaksi | 🟡 Stage 2 done (§3b); **Stage 3 not started** (§7) |
+| 6 | Perbaikan Transaksi | ✅ **Merged** — Stage 3, see §3c. Sub-project 2 is now complete |
 | 7 | Dashboard Sales (omzet & kinerja) | ⬜ Not started — **blocked**, see §6 |
 | 8 | Sales melihat harga jual di Pesan Online | ⬜ Not started |
 | 9 | Sales pengajuan discount → panel/pesanan | ⬜ Not started |
@@ -29,7 +29,9 @@ Plus one item **not** in `Instruction.md`, requested and delivered:
 
 "Bantu Buat QRIS" is a business service; "Desain Icon Baru" is a design deliverable. Neither is code.
 
-**Nothing has been pushed to any remote, and nothing is deployed.** Both repos have local commits on `main` only. Three releases are now written up and waiting, and their order is not optional — see §10.
+**Six of the ten code items are done. Four remain: 7 (blocked), 8, 9 and 10.**
+
+**Nothing has been pushed to any remote, and nothing is deployed.** Both repos have local commits on `main` only. **Four releases** are now written up and waiting, and their order is not optional — see §10. That backlog is the largest risk in the project right now: every release has been verified locally and none has met production data.
 
 ---
 
@@ -40,7 +42,7 @@ Plus one item **not** in `Instruction.md`, requested and delivered:
 | Frontend | `D:\Coedes\Production\me` | `main` | working tree clean |
 | Backend | `D:\Coedes\Production\Marmyadose` | `main` | working tree clean |
 
-All UD84 branches are merged and deleted: `ud84-nota-print`, `ud84-sales-crud`, `ud84-cancel-invoice`, `ud84-perbaikan-pesanan`.
+All UD84 branches are merged and deleted: `ud84-nota-print`, `ud84-sales-crud`, `ud84-cancel-invoice`, `ud84-perbaikan-pesanan`, `ud84-perbaikan-transaksi`.
 
 The owner's unrelated WIP (POS, Kosada, E-Money, DTOs) is **committed on `Marmyadose` main** as of `02e5c6c`. It is no longer sitting unstaged, so `git status` is clean — but it is still unfinished work that must not be deployed except where a release explicitly needs it (see the `EMoney.php` note in the cancel deployment guide).
 
@@ -84,6 +86,32 @@ Built with subagent-driven development: 8 tasks, each reviewed, plus a whole-bra
 - stored duplicate lines for one product used to collapse in the line map, so removing that product deleted only one row. Now refused outright rather than merged.
 - the verified lock is enforced under a `lockForUpdate` **inside** the transaction, not merely before it — a second operator pressing Validasi mid-edit used to be able to slip past.
 - `getItems` used to throw on an order whose product was deleted, making it unopenable and therefore unfixable. Such a line now returns `ADA: false` and can only be removed.
+
+---
+
+## 3c. Sub-project 2, Stage 3 — done, and the sub-project with it
+
+**Perbaikan Transaksi is complete on both sides and merged.**
+
+Spec: `me/docs/superpowers/specs/2026-08-06-ud84-perbaikan-transaksi-design.md`.
+Plan: `me/docs/superpowers/plans/2026-08-06-ud84-perbaikan-transaksi.md`.
+Deployment: `me/docs/deployment/2026-08-06-ud84-perbaikan-transaksi-deploy.md`.
+
+Staff can correct a sale that has already happened. Every active sale takes customer, notes, due date and money; sales whose lines all resolve to a product **and** record their unit also take line edits. One save recomputes the total, re-adjusts stock, settles the member's points and records what it did, in one transaction. Both nota papers print **NOTA KOREKSI** with the date.
+
+43 feature tests; full suite **130 passed / 1 pre-existing `ExampleTest` failure**. `npm run check` 0 errors / 6 warnings. Verified in a real browser end to end. **No schema** — the nota learns a sale was corrected from the audit row.
+
+**The three properties it rests on**, all re-derived by hand at the final review and worth preserving if this code is ever touched:
+- **stock nets per product before any write**, so a product on two lines or moving between them gets exactly one adjustment, taken under a row lock
+- **points settle the difference**, never the whole figure, and `POIN` records only what actually reached a member's balance — which is what stops a later cancellation clawing back points nobody was given
+- **lines reconcile by row ID**, so two lines of one product survive as two lines
+
+**Expect the item editor to do nothing at first.** It needs a sale whose lines record both product and unit, and `SATUAN` has only been written since the nota-print release — which is not deployed. Locally exactly 1 of 29 sales qualified. Every other sale gets header-and-money correction, which is correct, not a fault. The runbook says so; do not let its silence be mistaken for a broken release.
+
+**What review caught that testing did not:**
+- an added line was dated *today*, so correcting an August sale in September moved that item into September's product reports while its money stayed in August — the exact reconciliation failure the design cites as its reason not to cancel-and-re-ring
+- the gate was weaker than the endpoint: **114 of 409 products** record no per-item count, and a sale containing one opened the full editor and then refused every save, with no way back to a header-only correction
+- the unit dropdown could offer `Pcs` and `Pieces` as two options differing by up to 48× in stock effect, inverting the vocabulary the till uses
 
 ---
 
@@ -142,17 +170,15 @@ Test data: a real sale exists locally — `UNIQUE 6a738e24212fb` (product 111, q
 
 ---
 
-## 7. Remaining stages of sub-project 2
+## 7. Sub-project 2 — complete
 
-**Stage 2 — Perbaikan Pesanan.** ✅ Done and merged — §3b.
+All three stages are merged: cancel (§3), perbaikan pesanan (§3b), perbaikan transaksi (§3c). Nothing remains in this sub-project.
 
-**Stage 3 — Perbaikan Transaksi** (completed sales, full item editing). Header plus add/remove/change lines, with stock re-adjustment, reversing logs and point recomputation. Reuses Stage 1's audit table and stock machinery, and Stage 2's editor shape. Gated to transactions where every line resolves. Not specced yet.
-
-Stage 3 inherits four things Stage 2's reviews flagged as *mattering more for transactions than for orders*, all recorded in §9:
-- audit snapshots store `KODE_ITEM` with no product name, so a line the edit did not touch cannot be named later if the product is deleted. Low-stakes for an order; not for a sale.
-- `ringkasPerubahan` does not trim `CATATAN`, so a stored `NULL` note becomes `''` without the change list saying so. Stage 3 reuses that method.
-- `db.ts` retries a failed POST twice. Stage 2's endpoints are idempotent by accident — the no-op guard absorbs a duplicate save. Anything in Stage 3 that is **not** idempotent needs that thought through first.
-- `removeItem` already accepts an `ALASAN` the UI never sends. Stage 3 will want it.
+**What the next sub-project inherits from it**, all recorded in §9 and none of it blocking:
+- `db.ts` retries a failed POST twice. Every endpoint written across these three stages happens to be idempotent — absolute writes plus a no-op guard absorb the replay — but the operator can still be shown an error for a save that succeeded. **Anything written next that is not idempotent needs this thought through first.**
+- audit snapshots store `KODE_ITEM` with no product name, so a line an edit did not touch cannot be named later if the product is deleted.
+- two deadlock windows, both fail-safe: member-pair locks in the point settlement, product-pair locks in the stock adjustment. Each replaced a lost update, and each resolves into a clean rollback. Ordering locks by ID would remove them.
+- `ud84_master_produk.TIPE` is a free varchar whose most common value is the literal string `Pieces`, which reads as a synonym for `Pcs` but means the whole carton. Any future screen offering a unit choice has to disambiguate it, as the correction editor now does.
 
 ---
 
@@ -193,13 +219,16 @@ Carried from earlier work:
 
 ## 10. Deployment
 
-Three runbooks, in this order:
+Four runbooks, in this order:
 
 1. `me/docs/deployment/2026-08-06-ud84-nota-print-deploy.md` — sub-project 1 + sales CRUD.
 2. `me/docs/deployment/2026-08-06-ud84-cancel-invoice-deploy.md` — cancel invoice (plus the `SALES` widening riding along).
 3. `me/docs/deployment/2026-08-06-ud84-perbaikan-pesanan-deploy.md` — perbaikan pesanan. **No SQL at all**, but it needs `ud84_transaksi_log` *and* `UD84/Transaksi.php`, both of which ship with release 2 — two independent reasons it cannot go first.
+4. `me/docs/deployment/2026-08-06-ud84-perbaikan-transaksi-deploy.md` — perbaikan transaksi. **No SQL either.** It needs `ud84_transaksi_log` and `config/ud84.php` from release 2, and `postPenjualan` writing `SATUAN` from release **1** — without that third one, no sale will ever qualify for item editing.
 
-**The order matters.** Release 2 edits `Report.php` and `Penjualan.php` again; uploading release 1's copies afterwards would quietly roll it back. Each guide says so at the top.
+**The order matters.** Release 2 edits `Report.php` and `Penjualan.php` again; uploading release 1's copies afterwards would quietly roll it back. Releases 3 and 4 both edit `Transaksi.php`, so 4 must follow 3. Each guide says so at the top.
+
+**Nothing has met production data yet.** Four releases have accumulated behind a deployment that has not happened, and every one of them was verified against a 29-sale local database. The first deploy will be the largest single change this system has taken. If any of it goes out piecemeal, keep the order.
 
 ---
 
@@ -211,6 +240,15 @@ cd "D:/Coedes/Production/Marmyadose" && git log --oneline -3 && git status --sho
 cd "D:/Coedes/Production/Marmyadose" && php artisan test 2>&1 | tail -4
 ```
 
-Expect both repos on `main` and clean, and **84 passed / 1 pre-existing failure**.
+Expect both repos on `main` and clean, and **130 passed / 1 pre-existing failure**.
 
-Then pick the next piece of work. **Stage 3 (perbaikan transaksi) is the natural continuation** — it is what `Instruction.md` literally asks for, and Stages 1 and 2 have now built everything it needs: the audit table, the stock-reversal machinery, the editor shape, and the in-place reconciliation pattern. Read §7's four inherited concerns before speccing it. Items 8, 9 and 10 are untouched; item 7 stays blocked until someone decides how a completed sale gets attributed to a salesperson.
+Then decide between two things, and the choice is the owner's:
+
+**Deploy what exists.** Four releases are written up, verified locally and waiting (§10). Nothing has met production data. Each additional release makes the first deployment larger and its failure harder to attribute.
+
+**Or build the next item.** Three are open and one is blocked:
+
+- **Item 8 — sales see the selling price in Pesan Online.** The smallest of the three. `UD84/Master-Produk/Katalog` already returns `HARGA_JUAL` and `HARGA_PCS`, and the catalogue component already receives them, so this is mostly a question of who is allowed to see them — which runs into the same identity gap as item 9.
+- **Item 9 — sales submit a discount request, appearing in the panel's Pesanan page.** Needs somewhere to store a request and a state for it. **It also needs to know which salesperson is asking**, and `/ud84` is behind one shared password with a name picked from a dropdown — the same gap that kept Stage 2's editing out of that page. Solve identity once, properly, and items 8 and 9 both become straightforward.
+- **Item 10 — 1 juta = 1 poin, plus a points dashboard.** The rule change itself is one constant: `config/ud84.php`'s `poin_per_rupiah`, which earning, cancellation and correction all read, so they cannot drift. The dashboard is the real work. Note that changing the constant does **not** rewrite history — sales store what they granted in `rekap.POIN`, so an old sale still reverses exactly what it gave.
+- **Item 7 — sales dashboard** stays blocked (§6): `ud84_penjualan_rekap` has no salesperson column, so a completed sale cannot be attributed to anyone. It needs a schema change plus a decision about how attribution happens at checkout.
