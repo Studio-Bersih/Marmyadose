@@ -197,5 +197,90 @@ class EMoney extends Controller
             "message" => "Kategori utama berhasil dihapus!"
         ]);
     }
+    
+    public function deleteTransaction(Request $request) {
+        $id = $request->input('id');
+
+        if (!$id) {
+            return response()->json([
+                'status' => 'error',
+                'message' => 'ID transaksi tidak valid atau tidak ditemukan!',
+                'data' => null
+            ]);
+        }
+
+        try {
+            $deleted = DB::table('pos_rekap_emoney')
+                ->where('ID', $id)
+                ->delete();
+
+            if ($deleted) {
+                return response()->json([
+                    'status' => 'success',
+                    'message' => 'Transaksi berhasil dihapus.',
+                    'data' => null
+                ]);
+            } else {
+                return response()->json([
+                    'status' => 'error',
+                    'message' => 'Transaksi tidak ditemukan!',
+                    'data' => null
+                ]);
+            }
+        } catch (\Throwable $e) {
+            return response()->json([
+                'status' => 'error',
+                'message' => 'Terjadi kesalahan saat menghapus transaksi: ' . $e->getMessage(),
+                'data' => null
+            ]);
+        }
+    }
+
+    public function updateTransactionDate(Request $request) {
+        $id = $request->input('id');
+        $new_date = $request->input('new_date');
+
+        if (!$id || !$new_date) {
+            return response()->json([
+                'status' => 'error',
+                'message' => 'Data tidak lengkap (ID atau Tanggal baru kosong)!',
+                'data' => null
+            ]);
+        }
+
+        try {
+            $getData = DB::table('pos_rekap_emoney')->where('ID', $id)->first();
+            if (!$getData) {
+                return response()->json([
+                    'status' => 'error',
+                    'message' => 'Transaksi tidak ditemukan!',
+                    'data' => null
+                ]);
+            }
+
+            // Keep current time from the DB or fallback to 00:00:00
+            $time = '00:00:00';
+            if (!empty($getData->CREATED_AT)) {
+                $time = date('H:i:s', strtotime($getData->CREATED_AT));
+            }
+            $finalDateTime = $new_date . ' ' . $time;
+
+            DB::table('pos_rekap_emoney')->where('ID', $id)->update([
+                'CREATED_AT' => $finalDateTime
+            ]);
+
+            return response()->json([
+                'status' => 'success',
+                'message' => 'Tanggal transaksi berhasil diubah.',
+                'data' => null
+            ]);
+        } catch (\Throwable $e) {
+            return response()->json([
+                'status' => 'error',
+                'message' => 'Terjadi kesalahan saat mengubah tanggal transaksi: ' . $e->getMessage(),
+                'data' => null
+            ]);
+        }
+    }
 
 }

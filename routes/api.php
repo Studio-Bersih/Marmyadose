@@ -133,6 +133,10 @@ Route::post('/POS/E-Money/View-Range', [POS_E_Money::class, 'viewRange']);
 Route::post('/POS/E-Money/Update-Range', [POS_E_Money::class, 'updateRange']);
 Route::post('/POS/E-Money/Delete-Range', [POS_E_Money::class, 'deleteRange']);
 
+// Layescent - E-Money Management
+Route::post('/POS/Report/Delete-EMoney', [POS_E_Money::class, 'deleteTransaction']);
+Route::post('/POS/Report/Update-EMoney', [POS_E_Money::class, 'updateTransactionDate']);
+
 // UD84 - Katalog
 Route::get('/UD84/Master-Produk/Katalog', [UD84_Master::class, 'katalogProduk']);
 
