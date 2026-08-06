@@ -272,6 +272,11 @@ class Transaksi extends Controller
      * leaving the same outcome reachable through the POS; a negative figure is a
      * visible instruction to recount. Every such product is returned so the
      * operator can be told.
+     *
+     * The product row is read WITH lockForUpdate -- geserPoin locks a member row
+     * for the identical reason: without it, two concurrent corrections of
+     * DIFFERENT sales that both touch product P can each read the same starting
+     * STOK and each write their own adjustment on top of it, and one vanishes.
      */
     private function terapkanStok(array $selisih): array
     {
@@ -283,7 +288,7 @@ class Transaksi extends Controller
                 continue;
             }
 
-            $produk = DB::table('ud84_master_produk')->where('ID', $produkId)->first();
+            $produk = DB::table('ud84_master_produk')->where('ID', $produkId)->lockForUpdate()->first();
 
             if (empty($produk)) {
                 continue;
@@ -581,6 +586,8 @@ class Transaksi extends Controller
                     $totalBarang += (int) $line->HARGA_TERJUAL;
                 }
             } else {
+                $idDipakai = [];
+
                 foreach ($items as $item) {
                     $id       = isset($item['ID']) && $item['ID'] !== null ? (int) $item['ID'] : null;
                     $produkId = (int) ($item['KODE_ITEM'] ?? 0);
@@ -594,6 +601,19 @@ class Transaksi extends Controller
                         DB::rollBack();
 
                         return $this->gagal('Ada baris item yang bukan milik transaksi ini.');
+                    }
+
+                    // Keyed on the row ID, not the product -- two lines of one
+                    // product are legitimate, this is what stops one stored row
+                    // from being submitted twice under two payload entries.
+                    if ($id !== null) {
+                        if (isset($idDipakai[$id])) {
+                            DB::rollBack();
+
+                            return $this->gagal("Baris item dengan ID {$id} dikirim dua kali dalam permintaan ini.");
+                        }
+
+                        $idDipakai[$id] = true;
                     }
 
                     $produk = DB::table('ud84_master_produk')->where('ID', $produkId)->first();
@@ -707,7 +727,17 @@ class Transaksi extends Controller
                     }
 
                     $piecesLama = $this->piecesBaris((string) $line->SATUAN, (int) $line->JUMLAH, $produkLama);
-                    $selisih[(int) $line->KODE] = ($selisih[(int) $line->KODE] ?? 0) - (int) $piecesLama;
+
+                    if ($piecesLama === null) {
+                        // Same refusal as the new-line path: guessing here would
+                        // be wrong by JUMLAH_PER_ITEM, and syaratUbahItem's gate
+                        // checks KODE and SATUAN but never JUMLAH_PER_ITEM.
+                        DB::rollBack();
+
+                        return $this->gagal("Produk '{$produkLama->NAMA}' tidak mencatat isi per satuan, jadi stoknya tidak bisa dihitung.");
+                    }
+
+                    $selisih[(int) $line->KODE] = ($selisih[(int) $line->KODE] ?? 0) - $piecesLama;
                 }
 
                 foreach ($barisBaru as $baris) {

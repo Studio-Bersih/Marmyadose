@@ -399,6 +399,13 @@ class PerbaikanTransaksiTest extends TestCase
 
         $this->assertSame(100, (int) DB::table('ud84_master_produk')->where('ID', $produk->ID)->value('STOK'));
         $this->assertSame(0, DB::table('ud84_logs')->where('KODE_ITEM', $produk->ID)->where('ASAL', 'Perbaikan Transaksi')->count());
+
+        // Netting correctly is not enough if it netted by collapsing the two
+        // rows into one -- both original rows must still exist, each carrying
+        // its own new quantity.
+        $this->assertSame(2, DB::table('ud84_penjualan_detail')->where('UNIQUE', $unique)->count());
+        $this->assertSame(7, (int) DB::table('ud84_penjualan_detail')->where('ID', $ids[0])->value('JUMLAH'));
+        $this->assertSame(3, (int) DB::table('ud84_penjualan_detail')->where('ID', $ids[1])->value('JUMLAH'));
     }
 
     public function test_a_product_moving_between_lines_returns_one_and_takes_the_other(): void
@@ -410,13 +417,21 @@ class PerbaikanTransaksiTest extends TestCase
             'JUMLAH' => 4, 'HARGA_ASLI' => 10000, 'HARGA_TERJUAL' => 40000,
         ]]);
 
+        $id = $this->lineId($unique);
+
         $this->perbaiki($unique, ['ITEMS' => [[
-            'ID' => $this->lineId($unique), 'KODE_ITEM' => $baru->ID, 'SATUAN' => 'Pcs',
+            'ID' => $id, 'KODE_ITEM' => $baru->ID, 'SATUAN' => 'Pcs',
             'JUMLAH' => 4, 'HARGA_ASLI' => 10000, 'POTONGAN_PERSEN' => 0, 'POTONGAN_RUPIAH' => 0,
         ]]]);
 
         $this->assertSame(104, (int) DB::table('ud84_master_produk')->where('ID', $lama->ID)->value('STOK'));
         $this->assertSame(96, (int) DB::table('ud84_master_produk')->where('ID', $baru->ID)->value('STOK'));
+
+        // The swap is an edit of the same row, not a delete-plus-add: one
+        // detail row for this sale, still on its original ID, now pointing
+        // at the new product.
+        $this->assertSame(1, DB::table('ud84_penjualan_detail')->where('UNIQUE', $unique)->count());
+        $this->assertSame((int) $baru->ID, (int) DB::table('ud84_penjualan_detail')->where('ID', $id)->value('KODE'));
     }
 
     public function test_a_line_can_be_added_and_another_removed(): void
@@ -522,5 +537,68 @@ class PerbaikanTransaksiTest extends TestCase
         $catatan = DB::table('ud84_transaksi_log')->where('UNIQUE_TRANSAKSI', $unique)->value('CATATAN_SISTEM');
 
         $this->assertStringContainsString("Stok '{$produk->NAMA}' dikurangi 3 pcs (100 -> 97)", $catatan);
+    }
+
+    /**
+     * Two payload entries referencing the same stored row would otherwise both
+     * pass the ownership check, both apply their own stock delta on top of the
+     * same starting line, and collapse to a single surviving row -- inventory
+     * short with no line accounting for it, and TOTAL disagreeing with its own
+     * detail. Review round 1 finding 1.
+     */
+    public function test_a_duplicate_line_id_is_refused(): void
+    {
+        $produk = $this->seedProduct(['STOK' => 100]);
+        $unique = $this->seedSale(['TOTAL' => 40000], [[
+            'KODE' => $produk->ID, 'NAMA' => $produk->NAMA, 'SATUAN' => 'Pcs',
+            'JUMLAH' => 4, 'HARGA_ASLI' => 10000, 'HARGA_TERJUAL' => 40000,
+        ]]);
+
+        $id = $this->lineId($unique);
+
+        $response = $this->perbaiki($unique, ['ITEMS' => [
+            ['ID' => $id, 'KODE_ITEM' => $produk->ID, 'SATUAN' => 'Pcs', 'JUMLAH' => 4, 'HARGA_ASLI' => 10000, 'POTONGAN_PERSEN' => 0, 'POTONGAN_RUPIAH' => 0],
+            ['ID' => $id, 'KODE_ITEM' => $produk->ID, 'SATUAN' => 'Pcs', 'JUMLAH' => 4, 'HARGA_ASLI' => 10000, 'POTONGAN_PERSEN' => 0, 'POTONGAN_RUPIAH' => 0],
+        ]]);
+
+        $response->assertStatus(200)->assertJson(['status' => 'error']);
+        $this->assertSame(100, (int) DB::table('ud84_master_produk')->where('ID', $produk->ID)->value('STOK'));
+        $this->assertSame(1, DB::table('ud84_penjualan_detail')->where('UNIQUE', $unique)->count());
+        $this->assertSame(4, (int) DB::table('ud84_penjualan_detail')->where('ID', $id)->value('JUMLAH'));
+        $this->assertSame(40000, (int) DB::table('ud84_penjualan_rekap')->where('UNIQUE', $unique)->value('TOTAL'));
+    }
+
+    /**
+     * A line the request never mentions is still implicitly deleted if it is
+     * not among the submitted IDs, and deleting it still needs to know how
+     * many pieces it represents so stock can be returned. syaratUbahItem's
+     * gate checks KODE and SATUAN but not JUMLAH_PER_ITEM, so a product that
+     * lost its per-item count slips past the gate; only the netting step
+     * would notice. Review round 1 finding 3.
+     */
+    public function test_an_untouched_old_line_whose_product_lacks_a_per_item_count_blocks_the_correction(): void
+    {
+        $bad  = $this->seedProduct(['STOK' => 100, 'TIPE' => 'Set', 'JUMLAH_PER_ITEM' => 0]);
+        $good = $this->seedProduct(['STOK' => 100]);
+        $unique = $this->seedSale(['TOTAL' => 150000], [
+            ['KODE' => $bad->ID, 'NAMA' => $bad->NAMA, 'SATUAN' => 'Set', 'JUMLAH' => 2, 'HARGA_ASLI' => 50000, 'HARGA_TERJUAL' => 100000],
+            ['KODE' => $good->ID, 'NAMA' => $good->NAMA, 'SATUAN' => 'Pcs', 'JUMLAH' => 5, 'HARGA_ASLI' => 10000, 'HARGA_TERJUAL' => 50000],
+        ]);
+
+        $goodId = DB::table('ud84_penjualan_detail')->where('UNIQUE', $unique)->where('KODE', $good->ID)->value('ID');
+
+        // Only the good line is resubmitted; the bad line would be implicitly
+        // removed, which still requires knowing how many pieces it represents.
+        $response = $this->perbaiki($unique, ['ITEMS' => [[
+            'ID' => $goodId, 'KODE_ITEM' => $good->ID, 'SATUAN' => 'Pcs',
+            'JUMLAH' => 6, 'HARGA_ASLI' => 10000, 'POTONGAN_PERSEN' => 0, 'POTONGAN_RUPIAH' => 0,
+        ]]]);
+
+        $response->assertStatus(200)->assertJson(['status' => 'error']);
+        $this->assertStringContainsString($bad->NAMA, $response->json('message'));
+        $this->assertSame(100, (int) DB::table('ud84_master_produk')->where('ID', $bad->ID)->value('STOK'));
+        $this->assertSame(100, (int) DB::table('ud84_master_produk')->where('ID', $good->ID)->value('STOK'));
+        $this->assertSame(5, (int) DB::table('ud84_penjualan_detail')->where('ID', $goodId)->value('JUMLAH'));
+        $this->assertSame(2, DB::table('ud84_penjualan_detail')->where('UNIQUE', $unique)->count());
     }
 }
