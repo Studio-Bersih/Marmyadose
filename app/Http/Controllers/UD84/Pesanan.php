@@ -94,6 +94,7 @@ class Pesanan extends Controller
                 "NAMA"          => $DB->NAMA,
                 "WHATSAPP"      => $DB->WHATSAPP,
                 "SALES"         => $salesName->NAMA ?? '-',
+                "SALES_ID"      => $DB->SALES === null ? null : (int) $DB->SALES,
                 "CATATAN"       => $DB->CATATAN,
                 "KODE"          => $DB->KODE,
                 "VALID"         => $DB->VALID,
@@ -117,9 +118,30 @@ class Pesanan extends Controller
             $useCarts = [];
             foreach($DB as $DB) {
                 $findItem = DB::table('ud84_master_produk')->where('ID', $DB->KODE_ITEM)->first();
+
+                // A product deleted since the order was placed used to throw
+                // here, which made the order impossible even to open. The line
+                // is reported as unresolvable instead, so it can be removed.
+                if (empty($findItem)) {
+                    $useCarts[] = [
+                        "KODE_ITEM"         => (int) $DB->KODE_ITEM,
+                        "ADA"               => false,
+                        "NAMA"              => "Produk #{$DB->KODE_ITEM} tidak ditemukan",
+                        "JUMLAH"            => (int) $DB->JUMLAH,
+                        "STOK"              => 0,
+                        "SATUAN"            => '-',
+                        "HARGA_PER_ITEM"    => 0,
+                        "HARGA_JUAL"        => 0,
+                        "DISTRIBUTOR"       => '-'
+                    ];
+                    continue;
+                }
+
                 $useCarts[] = [
+                    "KODE_ITEM"         => (int) $DB->KODE_ITEM,
+                    "ADA"               => true,
                     "NAMA"              => $findItem->NAMA,
-                    "JUMLAH"            => $DB->JUMLAH,
+                    "JUMLAH"            => (int) $DB->JUMLAH,
                     "STOK"              => $findItem->STOK,
                     "SATUAN"            => $findItem->TIPE,
                     "HARGA_PER_ITEM"    => $findItem->HARGA_PER_ITEM,
