@@ -51,7 +51,7 @@ class Report extends Controller
     }
 
     public function commonCharts(){
-        $dataOmset          = DB::table('ud84_penjualan_rekap')->whereMonth('CREATED_AT',Carbon::now()->month)->sum('TOTAL');
+        $dataOmset          = DB::table('ud84_penjualan_rekap')->where('STATUS','Aktif')->whereMonth('CREATED_AT',Carbon::now()->month)->sum('TOTAL');
         $dataOperasional    = DB::table('ud84_operasional')->whereMonth('CREATED_AT',Carbon::now()->month)->sum('NOMINAL');
         return response()->json([
             "status"    => "success",
@@ -90,13 +90,17 @@ class Report extends Controller
     }
 
     public function omsetDetail(){
-        $monthDetail = DB::table('ud84_penjualan_detail')
-        ->whereMonth('CREATED_AT',Carbon::now()->month)
-        ->groupBy('NAMA')
+        // ud84_penjualan_detail has no status of its own, so cancelled sales
+        // are excluded by joining to their rekap row.
+        $monthDetail = DB::table('ud84_penjualan_detail as d')
+        ->join('ud84_penjualan_rekap as r','r.UNIQUE','=','d.UNIQUE')
+        ->where('r.STATUS','Aktif')
+        ->whereMonth('d.CREATED_AT',Carbon::now()->month)
+        ->groupBy('d.NAMA')
         ->select(DB::raw("
-            SUM(JUMLAH) as 'JUMLAH',
-            SUM(HARGA_TERJUAL) as 'TOTAL'
-        "),'NAMA')
+            SUM(d.JUMLAH) as 'JUMLAH',
+            SUM(d.HARGA_TERJUAL) as 'TOTAL'
+        "),'d.NAMA')
         ->skip(0)->take(10)->get();
 
         $operationalDetail  = DB::table('ud84_operasional')->whereMonth('CREATED_AT',Carbon::now()->month)->orderByDesc('NOMINAL')->skip(0)->take(10)->get();
@@ -125,7 +129,7 @@ class Report extends Controller
     }
 
     public function daftarTransaksi(){
-        $data = DB::table('ud84_penjualan_rekap')->skip(0)->take(10)->orderByDesc('ID')->get();
+        $data = DB::table('ud84_penjualan_rekap')->where('STATUS','Aktif')->skip(0)->take(10)->orderByDesc('ID')->get();
         $listData = $nominalTransaksi = $nominalDP = $nominalBayarTunai = $nominalPotongan = $nominalKembalian = [];
         foreach($data as $data){
             $listData[] = [
@@ -180,17 +184,25 @@ class Report extends Controller
             ], 400);
         }
 
-        // Query pencarian data
-        $data = DB::table('ud84_penjualan_rekap')
+        // Cancelled sales are hidden unless explicitly asked for.
+        $tampilkanBatal = filter_var($request->input('TAMPILKAN_BATAL', false), FILTER_VALIDATE_BOOLEAN);
+
+        $query = DB::table('ud84_penjualan_rekap')
             ->whereBetween('CREATED_AT', [$startDate, $endDate])
-            ->orderByDesc('ID')
-            ->get();
+            ->orderByDesc('ID');
+
+        if (!$tampilkanBatal) {
+            $query->where('STATUS', 'Aktif');
+        }
+
+        $data = $query->get();
 
         // Inisialisasi variabel
         $listData = $nominalTransaksi = $nominalDP = $nominalBayarTunai = $nominalPotongan = $nominalKembalian = [];
         foreach($data as $data){
             $listData[] = [
                 "ID"            => $data->UNIQUE,
+                "STATUS"        => $data->STATUS,
                 "TANGGAL"       => Carbon::parse($data->CREATED_AT)->translatedFormat('d F Y'),
                 "JATUH_TEMPO"   => empty($data->JATUH_TEMPO) ? '-' : Carbon::parse($data->JATUH_TEMPO)->translatedFormat('d F Y'),
                 "NAMA"          => empty($data->NAMA) ? 'UMUM' : ucwords(trans($data->NAMA)),
@@ -200,6 +212,14 @@ class Report extends Controller
                 "BAYAR_TUNAI"   => empty($data->CASH) ? 0 : $data->CASH,
                 "POTONGAN"      => empty($data->POTONGAN) ? 0 : $data->POTONGAN
             ];
+
+            // Totals always exclude cancelled sales, even when the list is
+            // showing them. A row displayed above a footer that counts it
+            // would be worse than not showing the row at all.
+            if ($data->STATUS === 'Dibatalkan') {
+                continue;
+            }
+
             $nominalDP[]            = $data->DP;
             $nominalTransaksi[]     = $data->TOTAL;
             $nominalBayarTunai[]    = $data->CASH;
@@ -292,6 +312,9 @@ class Report extends Controller
                     "SISA"          => max(0, $totalTagihan - $dibayar),
                     "KEMBALIAN"     => max(0, $dibayar - $totalTagihan),
                 ],
+                // Surfaced at the top level so the layouts never have to read
+                // the raw rekap row, whose KEMBALIAN and TOTAL are unsafe.
+                "dibatalkan" => $dataRekap->STATUS === 'Dibatalkan',
                 "rekap"     => $dataRekap,
                 "alamat"    => empty($dataMember->ALAMAT) ? '-' : $dataMember->ALAMAT,
                 "point"     => empty($dataMember->POINT) ? 0 : $dataMember->POINT
@@ -300,7 +323,14 @@ class Report extends Controller
     }
 
     public function singleItemReport($ID){
-        $dataDetail = DB::table('ud84_penjualan_detail')->where('NAMA',$ID)->whereMonth('CREATED_AT',Carbon::now()->month)->orderByDesc('ID')->get();
+        $dataDetail = DB::table('ud84_penjualan_detail as d')
+            ->join('ud84_penjualan_rekap as r','r.UNIQUE','=','d.UNIQUE')
+            ->where('r.STATUS','Aktif')
+            ->where('d.NAMA',$ID)
+            ->whereMonth('d.CREATED_AT',Carbon::now()->month)
+            ->orderByDesc('d.ID')
+            ->select('d.*')
+            ->get();
         $listData = [];
         foreach($dataDetail as $data){
             $listData[] = [
@@ -320,10 +350,16 @@ class Report extends Controller
 
     public function singleItem(Request $request){
         $getItem    = DB::table('ud84_master_produk')->where('ID',$request->input('ID'))->first();
-        $getItems   = DB::table('ud84_penjualan_detail')->where('NAMA',$getItem->NAMA)->whereBetween('CREATED_AT',[
-            $request->input('START'),
-            $request->input('FINISH'),
-        ])->get();
+        $getItems   = DB::table('ud84_penjualan_detail as d')
+            ->join('ud84_penjualan_rekap as r','r.UNIQUE','=','d.UNIQUE')
+            ->where('r.STATUS','Aktif')
+            ->where('d.NAMA',$getItem->NAMA)
+            ->whereBetween('d.CREATED_AT',[
+                $request->input('START'),
+                $request->input('FINISH'),
+            ])
+            ->select('d.*')
+            ->get();
 
         $listItem           = [];
         $totalKotor         = [];
@@ -361,6 +397,20 @@ class Report extends Controller
 
     public function updateDP(Request $request){
         $DB = DB::table('ud84_penjualan_rekap')->where('UNIQUE',$request->input('KODE'))->first();
+
+        if (empty($DB)) {
+            return response()->json([
+                "status"    => "error",
+                "message"   => "Transaksi tidak ditemukan."
+            ],200);
+        }
+
+        if ($DB->STATUS === 'Dibatalkan') {
+            return response()->json([
+                "status"    => "error",
+                "message"   => "Transaksi ini sudah dibatalkan, pelunasan DP tidak bisa diproses."
+            ],200);
+        }
 
         $nominalBaru = $request->input('DP') + $request->input('OLD_DP');
         DB::table('ud84_penjualan_rekap')->where('UNIQUE',$request->input('KODE'))->update([

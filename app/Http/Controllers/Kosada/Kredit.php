@@ -21,6 +21,29 @@ class Kredit extends Controller
         ],200);
     }
 
+    public function getRealisasiKreditRange(Request $request) {
+        $data = KreditModel::where('CREATED_AT', '>=', $request->input('start'))->where('CREATED_AT', '<=', $request->input('end'))
+        ->where('STATUS', 'Yes')->orderByDesc('id');
+
+        if ($request->input('kategori') != "SEMUA") {
+            $data = $data->where('MARKETING', $request->input('kategori'));
+        }
+
+        $data = $data->get(['CREATED_AT','NAMA','STATUS','MARKETING','JUMLAH_PENGAJUAN','KETERANGAN','ID'])->map(function($item) {
+            return [
+                "ID"                => $item->ID,
+                "NAMA"              => $item->NAMA,
+                "MARKETING"         => $item->MARKETING,
+                "JUMLAH_PENGAJUAN"  => $item->JUMLAH_PENGAJUAN,
+                "KETERANGAN"        => $item->KETERANGAN,
+                'LUNAS'             => $item->STATUS,
+                "CREATED_AT"        => Carbon::parse($item->CREATED_AT)->translatedFormat('d F Y'),
+            ];
+        })->toArray();
+
+        return response()->json($data,200);
+    }
+
     public function getRealisasiKredit(){
         $data = KreditModel::where('STATUS', 'Yes')->orderByDesc('id')->get(['CREATED_AT','NAMA','STATUS','MARKETING','JUMLAH_PENGAJUAN','KETERANGAN','ID']);
         $currentData = [];

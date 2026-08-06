@@ -42,7 +42,7 @@ class Authenticate extends Controller
                 'message'   => 'Data anda tidak ditemukan'
             ],401);       
         } catch (\Throwable $e){
-            // Log::info($e);
+            Log::info($e);
             return response($e,200);
         }
     }

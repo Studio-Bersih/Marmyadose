@@ -186,15 +186,9 @@ class Transaksi extends Controller
             "CREATED_AT" => $createdAt
         ]);
 
-        if ($updated) {
-            return response()->json(new Responses(
-                "success", "Tanggal berhasil diupdate!"
-            ), 200);
-        } else {
-            return response()->json(new Responses(
-                "error", "Tanggal gagal diupdate.", null
-            ), 404);
-        }
+        return response()->json(new Responses(
+            "success", "Tanggal berhasil diupdate!"
+        ), 200);
     }
 
 }
