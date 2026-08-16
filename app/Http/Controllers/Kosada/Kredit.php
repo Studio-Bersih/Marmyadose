@@ -29,6 +29,10 @@ class Kredit extends Controller
             $data = $data->where('MARKETING', $request->input('kategori'));
         }
 
+        if ($request->filled('nama')) {
+            $data = $data->where('NAMA', 'LIKE', '%' . $request->input('nama') . '%');
+        }
+
         $data = $data->get(['CREATED_AT','NAMA','STATUS','MARKETING','JUMLAH_PENGAJUAN','KETERANGAN','ID'])->map(function($item) {
             return [
                 "ID"                => $item->ID,
@@ -72,17 +76,22 @@ class Kredit extends Controller
             $items[] = [
                 "ID"            => $loop->ID,
                 "NOMINAL"       => $loop->NOMINAL,
-                "KASBON"        => $data->KASBON,
+                // Must read $loop, not $data. $data is the loan header, whose KASBON is
+                // the denormalised SUM of every installment's kasbon — using it here gave
+                // every row the same figure and made the per-row TOTAL wrong.
+                "KASBON"        => $loop->KASBON,
                 "JATUH_TEMPO"   => Carbon::parse($loop->JATUH_TEMPO)->translatedFormat('d F Y'),
                 "LUNAS"         => $loop->LUNAS,
                 "STATUS"        => $loop->STATUS,
                 "UPDATED_AT"    => Carbon::parse($loop->UPDATED_AT)->translatedFormat('d F Y'),
             ];
 
-            $kasbonBelumLunas[] = $loop->KASBON;
-
+            // Only unpaid installments count toward either figure. This used to sum
+            // kasbon across every row regardless of LUNAS, so a loan whose kasbon sat
+            // on an already-settled installment still reported it as outstanding.
             if($loop->LUNAS == 'Belum'){
-                $totalBelumLunas[] = $loop->NOMINAL;
+                $kasbonBelumLunas[] = $loop->KASBON;
+                $totalBelumLunas[]  = $loop->NOMINAL;
             }
         }
 
@@ -109,6 +118,7 @@ class Kredit extends Controller
 
         $fillme = new KreditModel();
         $fillme->NO_KREDIT = $uniqueID;
+        $fillme->MEMBER_ID = $DB->ID;
         $fillme->NAMA = $DB->NAMA;
         $fillme->ALAMAT = $DB->ALAMAT;
         $fillme->MARKETING = $request->input('MARKETING');
