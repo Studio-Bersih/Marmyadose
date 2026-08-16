@@ -90,6 +90,9 @@ Route::post('/Kosada/Report',[Kosada_Report::class, 'getReport']);
 Route::post('/Kosada/Sembunyikan-Laporan',[Kosada_Report::class, 'toggleHidden']);
 Route::get('/Kosada/Laporan-Tersembunyi',[Kosada_Report::class, 'getHidden']);
 
+// Kosada - Akun
+Route::post('/Kosada/Ganti-Password',[Authenticate::class, 'changePassword']);
+
 // Layescent - Master Product
 Route::post('/POS/Master-Product', [POS_Master::class, 'masterProduct']);
 Route::post('/POS/List-Item', [POS_Master::class, 'getItem']);
