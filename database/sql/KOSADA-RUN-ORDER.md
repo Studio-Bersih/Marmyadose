@@ -14,6 +14,13 @@ Apply these in phpMyAdmin **in this order**, and **before** deploying the backen
 | 4 | `2026_08_16_kosada_create_kredit_macet.sql` | Creates `kosada_kredit_macet` | **Yes** |
 | 5 | `2026_08_16_kosada_create_transfer_harian.sql` | Creates `kosada_transfer_harian` | **Yes** |
 | 6 | `2026_08_16_kosada_performance_indexes.sql` | Indexes the list-page filter and sort columns | No, but do it |
+| 7 | `2026_08_16_users_add_status.sql` | Adds `users.STATUS` (Aktif/Nonaktif) | **Yes** |
+
+**For an actual cPanel deployment, use `deploy/2026-08-16-kosada/` instead of this folder.** It
+carries these same seven files renumbered `01`–`07`, plus a read-only `00_PREFLIGHT.sql` that
+reports which of them are already applied, a `99_VERIFY.sql` that proves they all landed, and a
+`RUN-ALL.sql` for a server where none of them have been. The runbook is `DEPLOY.md` beside them.
+This file remains the explanation of *why* the order is what it is.
 
 ## Why the order matters
 
@@ -25,6 +32,10 @@ Apply these in phpMyAdmin **in this order**, and **before** deploying the backen
   it, *every* report request errors.
 - **#3 is performance, not correctness** — but skip it and the Laporan page's new "SEMUA" option
   will be slow enough to time out. See below.
+- **#7 before the backend deploys.** `Kosada\Akun` selects and writes `users.STATUS`; without the
+  column the account list and every account update fails. It is independent of #1–#6 and may be
+  run at any point before the code goes up. Login itself survives without it — `Authenticate@logIn`
+  reads `$data->STATUS ?? 'Aktif'` — so a missed #7 breaks only the Akun page, not access.
 
 ## What to expect when running #1
 
@@ -77,6 +88,12 @@ New routes will 404 until the route cache is cleared.
 
 ## Rollback
 
-Files #1–#3 are additive and safe to leave in place if you roll the code back — the old code
-simply ignores the new columns. Files #4 and #5 create standalone tables that nothing else
-references; dropping them affects no existing feature.
+Files #1–#3, #6 and #7 are additive and safe to leave in place if you roll the code back — the old
+code simply ignores the new columns and indexes. Files #4 and #5 create standalone tables that
+nothing else references; dropping them affects no existing feature.
+
+#7 is the only file that touches a table shared with UD84. It is additive with a default of
+`Aktif`, and UD84's `Authenticate@logIn` calls `Auth::attempt()` without reading `STATUS`, so UD84
+is unaffected either way — including on rollback.
+
+Nothing here needs rolling back, and rolling #1 back would throw away the `MEMBER_ID` backfill.
