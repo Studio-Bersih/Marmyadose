@@ -11,9 +11,11 @@ use App\Http\Controllers\UD84\Transaksi as UD84_Transaksi;
 use App\Http\Controllers\UD84\Poin as UD84_Poin;
 
 use App\Http\Controllers\Kosada\Kredit as Kosada_Kredit;
+use App\Http\Controllers\Kosada\Macet as Kosada_Macet;
 use App\Http\Controllers\Kosada\Member as Kosada_Member;
 use App\Http\Controllers\Kosada\Report as Kosada_Report;
 use App\Http\Controllers\Kosada\Surat as Kosada_Surat;
+use App\Http\Controllers\Kosada\Transfer as Kosada_Transfer;
 
 use App\Http\Controllers\Clyfar\Result as Clyfar_Result;
 use App\Http\Controllers\Clyfar\Account as Clyfar_Account;
@@ -92,6 +94,13 @@ Route::get('/Kosada/Laporan-Tersembunyi',[Kosada_Report::class, 'getHidden']);
 
 // Kosada - Akun
 Route::post('/Kosada/Ganti-Password',[Authenticate::class, 'changePassword']);
+
+// Kosada - Kredit Macet
+Route::get('/Kosada/Data-Macet',[Kosada_Macet::class, 'getDataMacet']);
+Route::get('/Kosada/Data-Macet/Print',[Kosada_Macet::class, 'printDataMacet']);
+Route::post('/Kosada/Tambah-Macet',[Kosada_Macet::class, 'addMacet']);
+Route::post('/Kosada/Selesai-Macet',[Kosada_Macet::class, 'selesaiMacet']);
+Route::post('/Kosada/Status-Macet',[Kosada_Macet::class, 'statusMacet']);
 
 // Layescent - Master Product
 Route::post('/POS/Master-Product', [POS_Master::class, 'masterProduct']);

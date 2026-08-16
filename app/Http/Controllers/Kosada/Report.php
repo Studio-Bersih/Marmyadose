@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Kosada;
 
 use App\Http\Controllers\Controller;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Validator;
 use Carbon\Carbon;
 use DB;
 
@@ -85,10 +86,26 @@ class Report extends Controller
     | rows out of the monthly report, not erased.
     */
     public function toggleHidden(Request $request){
-        $request->validate([
+        /*
+        | Validator::make rather than $request->validate(): the latter throws a
+        | ValidationException, which Laravel renders as a 302 redirect to HTML
+        | unless the caller sent `Accept: application/json`. The frontend sends
+        | only Content-Type, so it would receive HTML and fail on .json().
+        */
+        $validator = Validator::make($request->all(),[
             'ID'     => ['required','integer'],
             'HIDDEN' => ['required','boolean'],
+        ],[
+            'ID.required'     => 'Data kredit wajib dipilih',
+            'HIDDEN.required' => 'Status sembunyikan wajib diisi',
         ]);
+
+        if($validator->fails()){
+            return response()->json([
+                "status"  => "error",
+                "message" => $validator->errors()->first(),
+            ],422);
+        }
 
         $affected = DB::table('kosada_kredit')
             ->where('ID',$request->input('ID'))
