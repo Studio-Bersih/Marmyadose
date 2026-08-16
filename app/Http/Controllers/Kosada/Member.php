@@ -11,8 +11,21 @@ use App\Models\Kosada\AdministratorModel;
 
 class Member extends Controller
 {
-    public function getMember(){
-        $data = AdministratorModel::orderByDesc('CREATED_AT')->get([
+    public function getMember(Request $request){
+        $query = AdministratorModel::orderByDesc('CREATED_AT');
+
+        // Both filters are optional. With neither supplied this behaves exactly as
+        // before and returns every member, so existing callers are unaffected.
+        if($request->filled('nama')){
+            $query = $query->where('NAMA','LIKE','%' . $request->input('nama') . '%');
+        }
+
+        $marketing = $request->input('marketing');
+        if(!empty($marketing) && $marketing != 'SEMUA'){
+            $query = $query->where('DATA_MARKETING',$marketing);
+        }
+
+        $data = $query->get([
             'ID','NAMA','ALAMAT','KOTA',
             'TELEPON','CREATED_AT','KETERANGAN',
             'DATA_MARKETING','KTP','PIN_ATM',

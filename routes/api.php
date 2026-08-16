@@ -87,6 +87,8 @@ Route::get('/Kosada/Surat-Tugas/Lihat/{ID}', [Kosada_Surat::class, 'lihatSurat']
 
 // Kosada - Report
 Route::post('/Kosada/Report',[Kosada_Report::class, 'getReport']);
+Route::post('/Kosada/Sembunyikan-Laporan',[Kosada_Report::class, 'toggleHidden']);
+Route::get('/Kosada/Laporan-Tersembunyi',[Kosada_Report::class, 'getHidden']);
 
 // Layescent - Master Product
 Route::post('/POS/Master-Product', [POS_Master::class, 'masterProduct']);
