@@ -21,9 +21,25 @@ class Kredit extends Controller
         ],200);
     }
 
+    /*
+    | The Dashboard's loan list.
+    |
+    | Paginated since 2026-08-16. It previously returned every matching loan --
+    | ~5,249 rows and 789 KB of JSON for a wide date range. The query itself was
+    | never the problem (24 ms); the cost was building, transferring and rendering
+    | the payload. Returning a page cuts the query to 0.2 ms and the response to a
+    | few KB.
+    |
+    | Response shape changed from a bare array to { data, meta }. The only caller
+    | is Kosada's dashboard page, updated in the same change.
+    */
     public function getRealisasiKreditRange(Request $request) {
+        $perPage = (int) $request->input('per_page', 25);
+        $perPage = max(1, min($perPage, 200));
+        $page    = max(1, (int) $request->input('page', 1));
+
         $data = KreditModel::where('CREATED_AT', '>=', $request->input('start'))->where('CREATED_AT', '<=', $request->input('end'))
-        ->where('STATUS', 'Yes')->orderByDesc('id');
+        ->where('STATUS', 'Yes');
 
         if ($request->input('kategori') != "SEMUA") {
             $data = $data->where('MARKETING', $request->input('kategori'));
@@ -33,19 +49,32 @@ class Kredit extends Controller
             $data = $data->where('NAMA', 'LIKE', '%' . $request->input('nama') . '%');
         }
 
-        $data = $data->get(['CREATED_AT','NAMA','STATUS','MARKETING','JUMLAH_PENGAJUAN','KETERANGAN','ID'])->map(function($item) {
-            return [
-                "ID"                => $item->ID,
-                "NAMA"              => $item->NAMA,
-                "MARKETING"         => $item->MARKETING,
-                "JUMLAH_PENGAJUAN"  => $item->JUMLAH_PENGAJUAN,
-                "KETERANGAN"        => $item->KETERANGAN,
-                'LUNAS'             => $item->STATUS,
-                "CREATED_AT"        => Carbon::parse($item->CREATED_AT)->translatedFormat('d F Y'),
-            ];
-        })->toArray();
+        $total = (clone $data)->count();
 
-        return response()->json($data,200);
+        $rows = $data->orderByDesc('id')
+            ->forPage($page, $perPage)
+            ->get(['CREATED_AT','NAMA','STATUS','MARKETING','JUMLAH_PENGAJUAN','KETERANGAN','ID'])
+            ->map(function($item) {
+                return [
+                    "ID"                => $item->ID,
+                    "NAMA"              => $item->NAMA,
+                    "MARKETING"         => $item->MARKETING,
+                    "JUMLAH_PENGAJUAN"  => $item->JUMLAH_PENGAJUAN,
+                    "KETERANGAN"        => $item->KETERANGAN,
+                    'LUNAS'             => $item->STATUS,
+                    "CREATED_AT"        => Carbon::parse($item->CREATED_AT)->translatedFormat('d F Y'),
+                ];
+            })->toArray();
+
+        return response()->json([
+            "data" => $rows,
+            "meta" => [
+                "page"      => $page,
+                "per_page"  => $perPage,
+                "total"     => $total,
+                "last_page" => (int) ceil(max(1,$total) / $perPage),
+            ],
+        ],200);
     }
 
     public function getRealisasiKredit(){

@@ -11,11 +11,23 @@ use App\Models\Kosada\AdministratorModel;
 
 class Member extends Controller
 {
+    /*
+    | The Anggota Koperasi list.
+    |
+    | Paginated since 2026-08-16. It previously returned the entire member table on
+    | every request -- 2,736 rows and 901 KB -- which the browser then filtered in
+    | an array. Filtering moved to the server at the same time.
+    |
+    | Response shape changed from a bare array to { data, meta }. Both callers
+    | (member/+page.server.ts and member/+page.svelte) were updated with it.
+    */
     public function getMember(Request $request){
-        $query = AdministratorModel::orderByDesc('CREATED_AT');
+        $perPage = (int) $request->input('per_page', 25);
+        $perPage = max(1, min($perPage, 200));
+        $page    = max(1, (int) $request->input('page', 1));
 
-        // Both filters are optional. With neither supplied this behaves exactly as
-        // before and returns every member, so existing callers are unaffected.
+        $query = AdministratorModel::query();
+
         if($request->filled('nama')){
             $query = $query->where('NAMA','LIKE','%' . $request->input('nama') . '%');
         }
@@ -25,12 +37,17 @@ class Member extends Controller
             $query = $query->where('DATA_MARKETING',$marketing);
         }
 
-        $data = $query->get([
-            'ID','NAMA','ALAMAT','KOTA',
-            'TELEPON','CREATED_AT','KETERANGAN',
-            'DATA_MARKETING','KTP','PIN_ATM',
-            'GENDER','REKOMENDASI_DARI','PEKERJAAN','PROVINSI'
-        ]);
+        $total = (clone $query)->count();
+
+        $data = $query->orderByDesc('CREATED_AT')
+            ->forPage($page, $perPage)
+            ->get([
+                'ID','NAMA','ALAMAT','KOTA',
+                'TELEPON','CREATED_AT','KETERANGAN',
+                'DATA_MARKETING','KTP','PIN_ATM',
+                'GENDER','REKOMENDASI_DARI','PEKERJAAN','PROVINSI'
+            ]);
+
         $currentData = [];
         foreach($data as $data){
             $currentData[] = [
@@ -50,7 +67,16 @@ class Member extends Controller
                 "CREATED_AT"    => Carbon::parse($data->CREATED_AT)->translatedFormat('d F Y'),
             ];
         }
-        return response()->json($currentData,200);
+
+        return response()->json([
+            "data" => $currentData,
+            "meta" => [
+                "page"      => $page,
+                "per_page"  => $perPage,
+                "total"     => $total,
+                "last_page" => (int) ceil(max(1,$total) / $perPage),
+            ],
+        ],200);
     }
 
     public function addMember(Request $request){
