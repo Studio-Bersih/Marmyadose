@@ -13,6 +13,7 @@ Apply these in phpMyAdmin **in this order**, and **before** deploying the backen
 | 3 | `2026_08_16_kosada_index_no_kredit.sql` | Indexes `NO_KREDIT` on both credit tables | No, but do it |
 | 4 | `2026_08_16_kosada_create_kredit_macet.sql` | Creates `kosada_kredit_macet` | **Yes** |
 | 5 | `2026_08_16_kosada_create_transfer_harian.sql` | Creates `kosada_transfer_harian` | **Yes** |
+| 6 | `2026_08_16_kosada_performance_indexes.sql` | Indexes the list-page filter and sort columns | No, but do it |
 
 ## Why the order matters
 
@@ -51,6 +52,19 @@ This stayed hidden while the Laporan page forced you to pick a single marketing 
 new "SEMUA" option takes it to ~5,249 loans, which killed the request on PHP's 30-second limit.
 The controller's N+1 loop was rewritten as a single grouped query at the same time; with both
 changes the same report returns in **~0.9s**.
+
+## Why #6 matters
+
+`kosada_member` had **no index at all** beyond `PRIMARY` and the `KTP` unique key. Sorting the
+member list by `CREATED_AT` was a full table scan plus a filesort over all 2,736 rows on every
+request (`EXPLAIN`: `type=ALL ... Using filesort`). With the index it reads only the rows on the
+requested page: **3.13 ms → 0.30 ms**.
+
+The `(STATUS, CREATED_AT)` composite on `kosada_kredit` turns the pagination `COUNT` into a
+covering-index scan — **8.24 ms → 4.59 ms**. Column order is deliberate: `STATUS` first because it
+is an equality test, `CREATED_AT` second because it is a range.
+
+Like #3, this is performance only. Nothing breaks without it; the list pages are just slower.
 
 ## After deploying the backend
 
