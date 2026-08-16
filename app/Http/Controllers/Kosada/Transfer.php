@@ -8,11 +8,14 @@ use Illuminate\Support\Facades\Validator;
 use Carbon\Carbon;
 use DB;
 
+use App\Http\Controllers\Kosada\Concerns\RequiresAdmin;
 use App\Models\Kosada\TransferHarianModel;
 use App\Models\Kosada\KreditModel;
 
 class Transfer extends Controller
 {
+    use RequiresAdmin;
+
     private const JENIS = ['Kasbon','Top Up','Pinjaman Baru'];
 
     /*
@@ -201,6 +204,10 @@ class Transfer extends Controller
     | correctable; nothing else references these rows.
     */
     public function deleteTransfer(Request $request){
+        // Administrator only. A deleted transfer line vanishes from the day's
+        // recap with nothing recording that it existed.
+        if($denied = $this->requireAdmin($request)) return $denied;
+
         $invalid = $this->validateOrFail($request,[
             'ID' => ['required','integer'],
         ],[

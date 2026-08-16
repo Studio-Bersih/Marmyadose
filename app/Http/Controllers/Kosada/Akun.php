@@ -9,6 +9,7 @@ use Illuminate\Support\Facades\Auth;
 use Carbon\Carbon;
 use Hash;
 
+use App\Http\Controllers\Kosada\Concerns\RequiresAdmin;
 use App\Models\User;
 
 /*
@@ -36,57 +37,10 @@ use App\Models\User;
 */
 class Akun extends Controller
 {
+    use RequiresAdmin;
+
     private const GROUP = 'Kosada';
 
-    /*
-    | Verifies the acting administrator. Returns a JSON error response when the
-    | caller is not one, or null when they are.
-    */
-    private function requireAdmin(Request $request){
-        $email    = $request->input('ADMIN_EMAIL');
-        $password = $request->input('ADMIN_PASSWORD');
-
-        if(empty($email) || empty($password)){
-            return response()->json([
-                'status'  => 'error',
-                'message' => 'Konfirmasi email dan password administrator diperlukan',
-            ],401);
-        }
-
-        // Auth::validate, not attempt: this only needs to verify the credential,
-        // not start a session.
-        if(!Auth::validate(['email' => $email, 'password' => $password])){
-            return response()->json([
-                'status'  => 'error',
-                'message' => 'Email atau password administrator tidak sesuai',
-            ],401);
-        }
-
-        $admin = User::where('email',$email)->first();
-
-        if(empty($admin) || $admin->groups !== self::GROUP){
-            return response()->json([
-                'status'  => 'error',
-                'message' => 'Akun ini bukan akun Kosada',
-            ],403);
-        }
-
-        if($admin->privilege !== 'Administrator'){
-            return response()->json([
-                'status'  => 'error',
-                'message' => 'Hanya akun Administrator yang dapat mengelola akun',
-            ],403);
-        }
-
-        if(($admin->STATUS ?? 'Aktif') !== 'Aktif'){
-            return response()->json([
-                'status'  => 'error',
-                'message' => 'Akun administrator ini sudah nonaktif',
-            ],403);
-        }
-
-        return null;
-    }
 
     private function validateOrFail(Request $request, array $rules, array $messages){
         $validator = Validator::make($request->all(), $rules, $messages);

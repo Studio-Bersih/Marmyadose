@@ -8,11 +8,14 @@ use Illuminate\Support\Facades\Validator;
 use Carbon\Carbon;
 use DB;
 
+use App\Http\Controllers\Kosada\Concerns\RequiresAdmin;
 use App\Models\Kosada\KreditMacetModel;
 use App\Models\Kosada\KreditModel;
 
 class Macet extends Controller
 {
+    use RequiresAdmin;
+
     /*
     | Validate and hand back a ready-made JSON error, or null when the input is
     | fine.
@@ -109,6 +112,10 @@ class Macet extends Controller
     | Close a case. The row stays -- the cooperative keeps its history.
     */
     public function selesaiMacet(Request $request){
+        // Administrator only. Closing a case takes a loan off the collections
+        // list -- a decision about money owed, not a data entry.
+        if($denied = $this->requireAdmin($request)) return $denied;
+
         $invalid = $this->validateOrFail($request,[
             'ID'             => ['required','integer'],
             'ALASAN_SELESAI' => ['required','string','max:2000'],
