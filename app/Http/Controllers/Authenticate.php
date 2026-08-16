@@ -26,14 +26,29 @@ class Authenticate extends Controller
                         "MESSAGE"   => "Data anda tidak ditemukan (201)"
                     ],200);
                 }
-    
+
+                /*
+                | A deactivated Kosada account must not get in, even with the right
+                | password — otherwise "deactivate" would only hide someone from a
+                | list. Scoped to Kosada so UD84's own login is untouched.
+                */
+                if($data->groups === 'Kosada' && ($data->STATUS ?? 'Aktif') !== 'Aktif'){
+                    return response()->json([
+                        'status'  => 'Unauthorized',
+                        'message' => 'Akun ini sudah dinonaktifkan. Hubungi administrator koperasi.',
+                    ],403);
+                }
+
                 $loginData = [
                     'status'    => 'Authenticated',
                     'message'   => 'Authorized',
                     'name'      => $data->name,
-                    // Returned so the frontend knows which account is signed in and
-                    // can prefill the change-password form. It is NOT authorisation:
-                    // changePassword still requires the current password.
+                    /*
+                    | Returned so the frontend knows which account is signed in and
+                    | which nav items to show. NOT authorisation: every account
+                    | action re-verifies an administrator's password server-side —
+                    | see Kosada\Akun::requireAdmin.
+                    */
                     'email'     => $data->email,
                     'privilege' => $data->privilege
                 ];
@@ -57,85 +72,16 @@ class Authenticate extends Controller
             'email'             => 'admin@kosada.id',
             'email_verified_at' => now(),
             'password'          => Hash::make('koperasikosada'),
-            'group'             => 'Kosada',
+            // The column is `groups`, plural. This said `group`, which is not a
+            // column, so mass assignment dropped it and the seeded account landed
+            // with no app scope.
+            'groups'            => 'Kosada',
             'privilege'         => 'Administrator',
             'created_at'        => now(),
             'updated_at'        => now(),
         ]);
     }
 
-    /*
-    | Change the password of an existing account.
-    |
-    | The current password is required and verified with Auth::attempt, so this is
-    | safe despite there being no session: knowing an email alone gets you nothing.
-    |
-    | Note for Kosada specifically: staff share a single account, so a change here
-    | affects everyone. The frontend warns about that.
-    */
-    public function changePassword(Request $request){
-        try {
-            // Messages are spelled out because Laravel humanises the UPPER_SNAKE
-            // field names into "p a s s w o r d  b a r u", which staff would see.
-            $validated = $request->validate([
-                'email'         => ['required','string','email'],
-                'PASSWORD_LAMA' => ['required','string'],
-                'PASSWORD_BARU' => ['required','string','min:8'],
-            ],[
-                'email.required'         => 'Email akun wajib diisi',
-                'email.email'            => 'Format email tidak valid',
-                'PASSWORD_LAMA.required' => 'Password lama wajib diisi',
-                'PASSWORD_BARU.required' => 'Password baru wajib diisi',
-                'PASSWORD_BARU.min'      => 'Password baru minimal 8 karakter',
-            ]);
-
-            $email      = $validated['email'];
-            $lama       = $validated['PASSWORD_LAMA'];
-            $baru       = $validated['PASSWORD_BARU'];
-
-            if($lama === $baru){
-                return response()->json([
-                    'status'  => 'error',
-                    'message' => 'Password baru tidak boleh sama dengan password lama',
-                ],422);
-            }
-
-            if(!Auth::validate(['email' => $email, 'password' => $lama])){
-                return response()->json([
-                    'status'  => 'error',
-                    'message' => 'Password lama tidak sesuai',
-                ],401);
-            }
-
-            $user = User::where('email',$email)->first();
-            if(empty($user)){
-                return response()->json([
-                    'status'  => 'error',
-                    'message' => 'Akun tidak ditemukan',
-                ],404);
-            }
-
-            $user->password = Hash::make($baru);
-            $user->save();
-
-            return response()->json([
-                'status'  => 'success',
-                'message' => 'Password berhasil diubah!',
-            ],200);
-
-        } catch (\Illuminate\Validation\ValidationException $e){
-            return response()->json([
-                'status'  => 'error',
-                'message' => collect($e->errors())->flatten()->first(),
-            ],422);
-        } catch (\Throwable $e){
-            Log::info($e);
-            return response()->json([
-                'status'  => 'error',
-                'message' => 'Terjadi kesalahan pada server',
-            ],500);
-        }
-    }
 
     public function whoAmI(){
         return Hash::make('ud84staff');

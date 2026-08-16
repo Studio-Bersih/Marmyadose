@@ -10,6 +10,7 @@ use App\Http\Controllers\UD84\Sales as UD84_Sales;
 use App\Http\Controllers\UD84\Transaksi as UD84_Transaksi;
 use App\Http\Controllers\UD84\Poin as UD84_Poin;
 
+use App\Http\Controllers\Kosada\Akun as Kosada_Akun;
 use App\Http\Controllers\Kosada\Kredit as Kosada_Kredit;
 use App\Http\Controllers\Kosada\Macet as Kosada_Macet;
 use App\Http\Controllers\Kosada\Member as Kosada_Member;
@@ -95,7 +96,11 @@ Route::post('/Kosada/Sembunyikan-Laporan',[Kosada_Report::class, 'toggleHidden']
 Route::get('/Kosada/Laporan-Tersembunyi',[Kosada_Report::class, 'getHidden']);
 
 // Kosada - Akun
-Route::post('/Kosada/Ganti-Password',[Authenticate::class, 'changePassword']);
+Route::get('/Kosada/Akun',[Kosada_Akun::class, 'getAkun']);
+Route::post('/Kosada/Tambah-Akun',[Kosada_Akun::class, 'addAkun']);
+Route::post('/Kosada/Update-Akun',[Kosada_Akun::class, 'updateAkun']);
+Route::post('/Kosada/Status-Akun',[Kosada_Akun::class, 'statusAkun']);
+Route::post('/Kosada/Hapus-Akun',[Kosada_Akun::class, 'deleteAkun']);
 
 // Kosada - Kredit Macet
 Route::get('/Kosada/Data-Macet',[Kosada_Macet::class, 'getDataMacet']);

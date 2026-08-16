@@ -16,10 +16,22 @@ class User extends Authenticatable
      *
      * @var array<int, string>
      */
+    /*
+    | privilege, groups and STATUS are mass-assignable because Kosada's account
+    | management creates users with all three. Without them here, User::create()
+    | silently drops the values and every new account lands with no role and no
+    | app scope — a failure that looks like it worked.
+    |
+    | Note the column is `groups`, plural. Authenticate@generateAdmin used to pass
+    | `group`, which was dropped for exactly this reason.
+    */
     protected $fillable = [
         'name',
         'email',
         'password',
+        'privilege',
+        'groups',
+        'STATUS',
     ];
 
     /**
