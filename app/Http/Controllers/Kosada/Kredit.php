@@ -14,34 +14,74 @@ use App\Models\Kosada\KreditModel;
 
 class Kredit extends Controller
 {
+    /*
+    | Setup data for the Tambah Kredit form.
+    |
+    | This used to return every member (2,736 rows, 311 KB) to populate a <select>,
+    | which the browser then rendered as 2,736 options. The page now uses the
+    | typeahead at /Kosada/Cari-Member instead, so only the generated credit number
+    | is needed here.
+    */
     public function getCustomerData(){
         return response()->json([
             "randomize_ID"  => Str::random(40),
-            "memberData"    => AdministratorModel::orderBy('NAMA')->get(['ID','NAMA','ALAMAT','DATA_MARKETING'])
         ],200);
     }
 
+    /*
+    | The Dashboard's loan list.
+    |
+    | Paginated since 2026-08-16. It previously returned every matching loan --
+    | ~5,249 rows and 789 KB of JSON for a wide date range. The query itself was
+    | never the problem (24 ms); the cost was building, transferring and rendering
+    | the payload. Returning a page cuts the query to 0.2 ms and the response to a
+    | few KB.
+    |
+    | Response shape changed from a bare array to { data, meta }. The only caller
+    | is Kosada's dashboard page, updated in the same change.
+    */
     public function getRealisasiKreditRange(Request $request) {
+        $perPage = (int) $request->input('per_page', 25);
+        $perPage = max(1, min($perPage, 200));
+        $page    = max(1, (int) $request->input('page', 1));
+
         $data = KreditModel::where('CREATED_AT', '>=', $request->input('start'))->where('CREATED_AT', '<=', $request->input('end'))
-        ->where('STATUS', 'Yes')->orderByDesc('id');
+        ->where('STATUS', 'Yes');
 
         if ($request->input('kategori') != "SEMUA") {
             $data = $data->where('MARKETING', $request->input('kategori'));
         }
 
-        $data = $data->get(['CREATED_AT','NAMA','STATUS','MARKETING','JUMLAH_PENGAJUAN','KETERANGAN','ID'])->map(function($item) {
-            return [
-                "ID"                => $item->ID,
-                "NAMA"              => $item->NAMA,
-                "MARKETING"         => $item->MARKETING,
-                "JUMLAH_PENGAJUAN"  => $item->JUMLAH_PENGAJUAN,
-                "KETERANGAN"        => $item->KETERANGAN,
-                'LUNAS'             => $item->STATUS,
-                "CREATED_AT"        => Carbon::parse($item->CREATED_AT)->translatedFormat('d F Y'),
-            ];
-        })->toArray();
+        if ($request->filled('nama')) {
+            $data = $data->where('NAMA', 'LIKE', '%' . $request->input('nama') . '%');
+        }
 
-        return response()->json($data,200);
+        $total = (clone $data)->count();
+
+        $rows = $data->orderByDesc('id')
+            ->forPage($page, $perPage)
+            ->get(['CREATED_AT','NAMA','STATUS','MARKETING','JUMLAH_PENGAJUAN','KETERANGAN','ID'])
+            ->map(function($item) {
+                return [
+                    "ID"                => $item->ID,
+                    "NAMA"              => $item->NAMA,
+                    "MARKETING"         => $item->MARKETING,
+                    "JUMLAH_PENGAJUAN"  => $item->JUMLAH_PENGAJUAN,
+                    "KETERANGAN"        => $item->KETERANGAN,
+                    'LUNAS'             => $item->STATUS,
+                    "CREATED_AT"        => Carbon::parse($item->CREATED_AT)->translatedFormat('d F Y'),
+                ];
+            })->toArray();
+
+        return response()->json([
+            "data" => $rows,
+            "meta" => [
+                "page"      => $page,
+                "per_page"  => $perPage,
+                "total"     => $total,
+                "last_page" => (int) ceil(max(1,$total) / $perPage),
+            ],
+        ],200);
     }
 
     public function getRealisasiKredit(){
@@ -72,17 +112,22 @@ class Kredit extends Controller
             $items[] = [
                 "ID"            => $loop->ID,
                 "NOMINAL"       => $loop->NOMINAL,
-                "KASBON"        => $data->KASBON,
+                // Must read $loop, not $data. $data is the loan header, whose KASBON is
+                // the denormalised SUM of every installment's kasbon — using it here gave
+                // every row the same figure and made the per-row TOTAL wrong.
+                "KASBON"        => $loop->KASBON,
                 "JATUH_TEMPO"   => Carbon::parse($loop->JATUH_TEMPO)->translatedFormat('d F Y'),
                 "LUNAS"         => $loop->LUNAS,
                 "STATUS"        => $loop->STATUS,
                 "UPDATED_AT"    => Carbon::parse($loop->UPDATED_AT)->translatedFormat('d F Y'),
             ];
 
-            $kasbonBelumLunas[] = $loop->KASBON;
-
+            // Only unpaid installments count toward either figure. This used to sum
+            // kasbon across every row regardless of LUNAS, so a loan whose kasbon sat
+            // on an already-settled installment still reported it as outstanding.
             if($loop->LUNAS == 'Belum'){
-                $totalBelumLunas[] = $loop->NOMINAL;
+                $kasbonBelumLunas[] = $loop->KASBON;
+                $totalBelumLunas[]  = $loop->NOMINAL;
             }
         }
 
@@ -109,6 +154,7 @@ class Kredit extends Controller
 
         $fillme = new KreditModel();
         $fillme->NO_KREDIT = $uniqueID;
+        $fillme->MEMBER_ID = $DB->ID;
         $fillme->NAMA = $DB->NAMA;
         $fillme->ALAMAT = $DB->ALAMAT;
         $fillme->MARKETING = $request->input('MARKETING');

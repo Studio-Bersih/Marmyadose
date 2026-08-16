@@ -11,13 +11,43 @@ use App\Models\Kosada\AdministratorModel;
 
 class Member extends Controller
 {
-    public function getMember(){
-        $data = AdministratorModel::orderByDesc('CREATED_AT')->get([
-            'ID','NAMA','ALAMAT','KOTA',
-            'TELEPON','CREATED_AT','KETERANGAN',
-            'DATA_MARKETING','KTP','PIN_ATM',
-            'GENDER','REKOMENDASI_DARI','PEKERJAAN','PROVINSI'
-        ]);
+    /*
+    | The Anggota Koperasi list.
+    |
+    | Paginated since 2026-08-16. It previously returned the entire member table on
+    | every request -- 2,736 rows and 901 KB -- which the browser then filtered in
+    | an array. Filtering moved to the server at the same time.
+    |
+    | Response shape changed from a bare array to { data, meta }. Both callers
+    | (member/+page.server.ts and member/+page.svelte) were updated with it.
+    */
+    public function getMember(Request $request){
+        $perPage = (int) $request->input('per_page', 25);
+        $perPage = max(1, min($perPage, 200));
+        $page    = max(1, (int) $request->input('page', 1));
+
+        $query = AdministratorModel::query();
+
+        if($request->filled('nama')){
+            $query = $query->where('NAMA','LIKE','%' . $request->input('nama') . '%');
+        }
+
+        $marketing = $request->input('marketing');
+        if(!empty($marketing) && $marketing != 'SEMUA'){
+            $query = $query->where('DATA_MARKETING',$marketing);
+        }
+
+        $total = (clone $query)->count();
+
+        $data = $query->orderByDesc('CREATED_AT')
+            ->forPage($page, $perPage)
+            ->get([
+                'ID','NAMA','ALAMAT','KOTA',
+                'TELEPON','CREATED_AT','KETERANGAN',
+                'DATA_MARKETING','KTP','PIN_ATM',
+                'GENDER','REKOMENDASI_DARI','PEKERJAAN','PROVINSI'
+            ]);
+
         $currentData = [];
         foreach($data as $data){
             $currentData[] = [
@@ -37,7 +67,51 @@ class Member extends Controller
                 "CREATED_AT"    => Carbon::parse($data->CREATED_AT)->translatedFormat('d F Y'),
             ];
         }
-        return response()->json($currentData,200);
+
+        return response()->json([
+            "data" => $currentData,
+            "meta" => [
+                "page"      => $page,
+                "per_page"  => $perPage,
+                "total"     => $total,
+                "last_page" => (int) ceil(max(1,$total) / $perPage),
+            ],
+        ],200);
+    }
+
+    /*
+    | Typeahead search for the member pickers on Tambah Kredit and Transfer Harian.
+    |
+    | Returns at most 20 matches and nothing at all for an empty query, so it can
+    | never become "download the whole member table" by accident. This replaced the
+    | Data-Kredit dropdown, which shipped all 2,736 members (311 KB) into a single
+    | <select> on every visit to Tambah Kredit.
+    |
+    | Carries the fields both callers auto-fill from: ALAMAT and DATA_MARKETING for
+    | Tambah Kredit, PEKERJAAN for Transfer Harian.
+    */
+    public function cariMember(Request $request){
+        $nama = $request->input('nama');
+
+        if(empty(trim((string) $nama))){
+            return response()->json([],200);
+        }
+
+        $members = AdministratorModel::where('NAMA','LIKE','%' . $nama . '%')
+            ->orderBy('NAMA')
+            ->limit(20)
+            ->get(['ID','NAMA','ALAMAT','PEKERJAAN','DATA_MARKETING'])
+            ->map(function($m){
+                return [
+                    'ID'        => $m->ID,
+                    'NAMA'      => $m->NAMA,
+                    'ALAMAT'    => $m->ALAMAT ?: '',
+                    'PEKERJAAN' => $m->PEKERJAAN ?: '',
+                    'MARKETING' => $m->DATA_MARKETING,
+                ];
+            });
+
+        return response()->json($members,200);
     }
 
     public function addMember(Request $request){

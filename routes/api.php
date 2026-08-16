@@ -10,10 +10,13 @@ use App\Http\Controllers\UD84\Sales as UD84_Sales;
 use App\Http\Controllers\UD84\Transaksi as UD84_Transaksi;
 use App\Http\Controllers\UD84\Poin as UD84_Poin;
 
+use App\Http\Controllers\Kosada\Akun as Kosada_Akun;
 use App\Http\Controllers\Kosada\Kredit as Kosada_Kredit;
+use App\Http\Controllers\Kosada\Macet as Kosada_Macet;
 use App\Http\Controllers\Kosada\Member as Kosada_Member;
 use App\Http\Controllers\Kosada\Report as Kosada_Report;
 use App\Http\Controllers\Kosada\Surat as Kosada_Surat;
+use App\Http\Controllers\Kosada\Transfer as Kosada_Transfer;
 
 use App\Http\Controllers\Clyfar\Result as Clyfar_Result;
 use App\Http\Controllers\Clyfar\Account as Clyfar_Account;
@@ -76,6 +79,7 @@ Route::post('/Kosada/Tambah-Kasbon',[Kosada_Kredit::class, 'addKasbon']);
 
 // Kosada - Member
 Route::get('/Kosada/Semua-Member',[Kosada_Member::class,'getMember']);
+Route::get('/Kosada/Cari-Member',[Kosada_Member::class,'cariMember']);
 Route::post('/Kosada/Tambah-Member',[Kosada_Member::class, 'addMember']);
 Route::post('/Kosada/Update-Member',[Kosada_Member::class, 'updateMember']);
 Route::post('/Kosada/Hapus-Member',[Kosada_Member::class, 'deleteMember']);
@@ -87,6 +91,30 @@ Route::get('/Kosada/Surat-Tugas/Lihat/{ID}', [Kosada_Surat::class, 'lihatSurat']
 
 // Kosada - Report
 Route::post('/Kosada/Report',[Kosada_Report::class, 'getReport']);
+Route::post('/Kosada/Report/Print',[Kosada_Report::class, 'getReportPrint']);
+Route::post('/Kosada/Sembunyikan-Laporan',[Kosada_Report::class, 'toggleHidden']);
+Route::get('/Kosada/Laporan-Tersembunyi',[Kosada_Report::class, 'getHidden']);
+
+// Kosada - Akun
+Route::get('/Kosada/Akun',[Kosada_Akun::class, 'getAkun']);
+Route::post('/Kosada/Tambah-Akun',[Kosada_Akun::class, 'addAkun']);
+Route::post('/Kosada/Update-Akun',[Kosada_Akun::class, 'updateAkun']);
+Route::post('/Kosada/Status-Akun',[Kosada_Akun::class, 'statusAkun']);
+Route::post('/Kosada/Hapus-Akun',[Kosada_Akun::class, 'deleteAkun']);
+
+// Kosada - Kredit Macet
+Route::get('/Kosada/Data-Macet',[Kosada_Macet::class, 'getDataMacet']);
+Route::get('/Kosada/Data-Macet/Print',[Kosada_Macet::class, 'printDataMacet']);
+Route::post('/Kosada/Tambah-Macet',[Kosada_Macet::class, 'addMacet']);
+Route::post('/Kosada/Selesai-Macet',[Kosada_Macet::class, 'selesaiMacet']);
+Route::post('/Kosada/Status-Macet',[Kosada_Macet::class, 'statusMacet']);
+
+// Kosada - Transfer Harian
+Route::get('/Kosada/Transfer-Harian',[Kosada_Transfer::class, 'getTransferHarian']);
+Route::get('/Kosada/Transfer-Harian/Print',[Kosada_Transfer::class, 'printTransferHarian']);
+Route::get('/Kosada/Transfer-Harian/Kredit-Member/{memberID}',[Kosada_Transfer::class, 'getKreditMember']);
+Route::post('/Kosada/Tambah-Transfer',[Kosada_Transfer::class, 'addTransfer']);
+Route::post('/Kosada/Hapus-Transfer',[Kosada_Transfer::class, 'deleteTransfer']);
 
 // Layescent - Master Product
 Route::post('/POS/Master-Product', [POS_Master::class, 'masterProduct']);
