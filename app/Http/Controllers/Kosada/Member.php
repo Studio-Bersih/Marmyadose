@@ -79,6 +79,41 @@ class Member extends Controller
         ],200);
     }
 
+    /*
+    | Typeahead search for the member pickers on Tambah Kredit and Transfer Harian.
+    |
+    | Returns at most 20 matches and nothing at all for an empty query, so it can
+    | never become "download the whole member table" by accident. This replaced the
+    | Data-Kredit dropdown, which shipped all 2,736 members (311 KB) into a single
+    | <select> on every visit to Tambah Kredit.
+    |
+    | Carries the fields both callers auto-fill from: ALAMAT and DATA_MARKETING for
+    | Tambah Kredit, PEKERJAAN for Transfer Harian.
+    */
+    public function cariMember(Request $request){
+        $nama = $request->input('nama');
+
+        if(empty(trim((string) $nama))){
+            return response()->json([],200);
+        }
+
+        $members = AdministratorModel::where('NAMA','LIKE','%' . $nama . '%')
+            ->orderBy('NAMA')
+            ->limit(20)
+            ->get(['ID','NAMA','ALAMAT','PEKERJAAN','DATA_MARKETING'])
+            ->map(function($m){
+                return [
+                    'ID'        => $m->ID,
+                    'NAMA'      => $m->NAMA,
+                    'ALAMAT'    => $m->ALAMAT ?: '',
+                    'PEKERJAAN' => $m->PEKERJAAN ?: '',
+                    'MARKETING' => $m->DATA_MARKETING,
+                ];
+            });
+
+        return response()->json($members,200);
+    }
+
     public function addMember(Request $request){
 
         $ID                 = $request->input('ID');

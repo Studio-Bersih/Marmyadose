@@ -10,7 +10,30 @@ use DB;
 
 class Report extends Controller
 {
+    /*
+    | The Laporan screen — paginated.
+    |
+    | It previously returned every matching loan: ~5,249 rows and 725 KB once the
+    | "SEMUA" marketing option existed. Printing was the reason it stayed
+    | unpaginated, but the print sheet is its own route now and calls
+    | getReportPrint() below, so the screen is free to page.
+    */
     public function getReport(Request $request){
+        return $this->buildReport($request, true);
+    }
+
+    /*
+    | The same report, unpaginated, for /report/print.
+    |
+    | A printed monthly report has to contain every row — never just whichever page
+    | happened to be on screen. Mirrors the Data-Macet/Print and
+    | Transfer-Harian/Print endpoints.
+    */
+    public function getReportPrint(Request $request){
+        return $this->buildReport($request, false);
+    }
+
+    private function buildReport(Request $request, bool $paginate){
         $startDate      = $request->input('TANGGAL_AWAL');
         $endDate        = $request->input('TANGGAL_AKHIR');
         $dataMarketing  = $request->input('MARKETING');
@@ -36,7 +59,17 @@ class Report extends Controller
             $q->where('HIDDEN_FROM_REPORT',0)->orWhereNull('HIDDEN_FROM_REPORT');
         });
 
-        $DB = $query->orderByDesc('ID')->get(['ID','NAMA','NO_KREDIT','LUNAS_BRP','JANGKA_WAKTU','JUMLAH_PENGAJUAN','KASBON','CREATED_AT']);
+        $total   = (clone $query)->count();
+        $perPage = (int) $request->input('per_page', 25);
+        $perPage = max(1, min($perPage, 200));
+        $page    = max(1, (int) $request->input('page', 1));
+
+        $query = $query->orderByDesc('ID');
+        if($paginate){
+            $query = $query->forPage($page, $perPage);
+        }
+
+        $DB = $query->get(['ID','NAMA','NO_KREDIT','LUNAS_BRP','JANGKA_WAKTU','JUMLAH_PENGAJUAN','KASBON','CREATED_AT']);
 
         /*
         | Installment amounts for every loan in the result, in ONE query.
@@ -75,7 +108,23 @@ class Report extends Controller
             ];
         }
 
-        return response()->json($data,200);
+        /*
+        | Totals are summed by the caller from the rows it received. On screen that
+        | means the current page, and the footer says so; the print sheet is
+        | unpaginated, so its footer is the true period total. Computing a
+        | whole-period total here would need a second aggregate over the per-loan
+        | MIN(NOMINAL) grouping, which isn't worth it for a figure the printed
+        | report already gives correctly.
+        */
+        return response()->json([
+            "data" => $data,
+            "meta" => [
+                "page"      => $paginate ? $page : 1,
+                "per_page"  => $paginate ? $perPage : max(1,$total),
+                "total"     => $total,
+                "last_page" => $paginate ? (int) ceil(max(1,$total) / $perPage) : 1,
+            ],
+        ],200);
     }
 
     /*

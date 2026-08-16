@@ -14,10 +14,17 @@ use App\Models\Kosada\KreditModel;
 
 class Kredit extends Controller
 {
+    /*
+    | Setup data for the Tambah Kredit form.
+    |
+    | This used to return every member (2,736 rows, 311 KB) to populate a <select>,
+    | which the browser then rendered as 2,736 options. The page now uses the
+    | typeahead at /Kosada/Cari-Member instead, so only the generated credit number
+    | is needed here.
+    */
     public function getCustomerData(){
         return response()->json([
             "randomize_ID"  => Str::random(40),
-            "memberData"    => AdministratorModel::orderBy('NAMA')->get(['ID','NAMA','ALAMAT','DATA_MARKETING'])
         ],200);
     }
 

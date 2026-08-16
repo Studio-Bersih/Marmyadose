@@ -78,6 +78,7 @@ Route::post('/Kosada/Tambah-Kasbon',[Kosada_Kredit::class, 'addKasbon']);
 
 // Kosada - Member
 Route::get('/Kosada/Semua-Member',[Kosada_Member::class,'getMember']);
+Route::get('/Kosada/Cari-Member',[Kosada_Member::class,'cariMember']);
 Route::post('/Kosada/Tambah-Member',[Kosada_Member::class, 'addMember']);
 Route::post('/Kosada/Update-Member',[Kosada_Member::class, 'updateMember']);
 Route::post('/Kosada/Hapus-Member',[Kosada_Member::class, 'deleteMember']);
@@ -89,6 +90,7 @@ Route::get('/Kosada/Surat-Tugas/Lihat/{ID}', [Kosada_Surat::class, 'lihatSurat']
 
 // Kosada - Report
 Route::post('/Kosada/Report',[Kosada_Report::class, 'getReport']);
+Route::post('/Kosada/Report/Print',[Kosada_Report::class, 'getReportPrint']);
 Route::post('/Kosada/Sembunyikan-Laporan',[Kosada_Report::class, 'toggleHidden']);
 Route::get('/Kosada/Laporan-Tersembunyi',[Kosada_Report::class, 'getHidden']);
 
@@ -105,7 +107,6 @@ Route::post('/Kosada/Status-Macet',[Kosada_Macet::class, 'statusMacet']);
 // Kosada - Transfer Harian
 Route::get('/Kosada/Transfer-Harian',[Kosada_Transfer::class, 'getTransferHarian']);
 Route::get('/Kosada/Transfer-Harian/Print',[Kosada_Transfer::class, 'printTransferHarian']);
-Route::get('/Kosada/Transfer-Harian/Cari-Member',[Kosada_Transfer::class, 'cariMember']);
 Route::get('/Kosada/Transfer-Harian/Kredit-Member/{memberID}',[Kosada_Transfer::class, 'getKreditMember']);
 Route::post('/Kosada/Tambah-Transfer',[Kosada_Transfer::class, 'addTransfer']);
 Route::post('/Kosada/Hapus-Transfer',[Kosada_Transfer::class, 'deleteTransfer']);

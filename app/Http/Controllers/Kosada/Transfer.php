@@ -10,7 +10,6 @@ use DB;
 
 use App\Models\Kosada\TransferHarianModel;
 use App\Models\Kosada\KreditModel;
-use App\Models\Kosada\AdministratorModel;
 
 class Transfer extends Controller
 {
@@ -153,31 +152,8 @@ class Transfer extends Controller
         return response()->json($loans,200);
     }
 
-    /*
-    | Search members by name for the entry form.
-    */
-    public function cariMember(Request $request){
-        $nama = $request->input('nama');
-
-        if(empty($nama)){
-            return response()->json([],200);
-        }
-
-        $members = AdministratorModel::where('NAMA','LIKE','%' . $nama . '%')
-            ->orderBy('NAMA')
-            ->limit(20)
-            ->get(['ID','NAMA','PEKERJAAN','DATA_MARKETING'])
-            ->map(function($m){
-                return [
-                    'ID'        => $m->ID,
-                    'NAMA'      => $m->NAMA,
-                    'PEKERJAAN' => $m->PEKERJAAN ?: '',
-                    'MARKETING' => $m->DATA_MARKETING,
-                ];
-            });
-
-        return response()->json($members,200);
-    }
+    // Member search lives in Member@cariMember (/Kosada/Cari-Member) — one
+    // implementation shared by this page and Tambah Kredit.
 
     public function addTransfer(Request $request){
         $invalid = $this->validateOrFail($request,[
