@@ -200,6 +200,71 @@ class Transfer extends Controller
     }
 
     /*
+    | Correct a line that is already in the day's recap.
+    |
+    | Nominals change after the fact — a nasabah revises what they are taking
+    | before the money actually moves — and the only correction available until
+    | now was delete-and-retype, which loses the original CREATED_AT and with it
+    | the late-entry flag.
+    |
+    | Administrator only, for the same reason deleteTransfer is: Kosada has no
+    | session, so a disabled button in the frontend protects nothing. See
+    | Concerns\RequiresAdmin.
+    |
+    | Three fields, deliberately:
+    |
+    |   JENIS, NOMINAL, KETERANGAN — what a correction is actually about.
+    |
+    |   TANGGAL_TRANSFER, NAMA, INSTANSI, MEMBER_ID and KREDIT_ID are the
+    |   identity of the line. Editing those would turn one nasabah's transfer
+    |   into another's while keeping its history, which is not a correction; a
+    |   row naming the wrong person should be deleted.
+    |
+    |   CREATED_AT is never written here. The page renders any row whose
+    |   TANGGAL_TRANSFER differs from DATE(CREATED_AT) in red so management can
+    |   see late entries, and an edit that moved CREATED_AT would let that flag
+    |   be cleared by editing the very row it accuses. UPDATED_AT moves on its
+    |   own.
+    */
+    public function updateTransfer(Request $request){
+        if($denied = $this->requireAdmin($request)) return $denied;
+
+        $invalid = $this->validateOrFail($request,[
+            'ID'         => ['required','integer'],
+            'JENIS'      => ['required','string','in:' . implode(',', self::JENIS)],
+            'NOMINAL'    => ['required','numeric','min:0'],
+            'KETERANGAN' => ['nullable','string','max:2000'],
+        ],[
+            'ID.required'      => 'Data transfer wajib dipilih',
+            'JENIS.required'   => 'Jenis transfer wajib dipilih',
+            'JENIS.in'         => 'Jenis transfer harus Kasbon, Top Up, atau Pinjaman Baru',
+            'NOMINAL.required' => 'Nominal wajib diisi',
+            'NOMINAL.numeric'  => 'Nominal harus berupa angka',
+            'NOMINAL.min'      => 'Nominal tidak boleh kurang dari nol',
+        ]);
+        if($invalid) return $invalid;
+
+        $record = TransferHarianModel::where('ID',$request->input('ID'))->first();
+
+        if(empty($record)){
+            return response()->json([
+                'status'  => 'error',
+                'message' => 'Data transfer tidak ditemukan!',
+            ],404);
+        }
+
+        $record->JENIS      = $request->input('JENIS');
+        $record->NOMINAL    = (int) $request->input('NOMINAL');
+        $record->KETERANGAN = $request->input('KETERANGAN');
+        $record->save();
+
+        return response()->json([
+            'status'  => 'success',
+            'message' => 'Data transfer berhasil diubah!',
+        ],200);
+    }
+
+    /*
     | Remove a mistaken entry. This is a recap sheet, so a wrong line should be
     | correctable; nothing else references these rows.
     */

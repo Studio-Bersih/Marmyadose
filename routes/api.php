@@ -114,6 +114,7 @@ Route::get('/Kosada/Transfer-Harian',[Kosada_Transfer::class, 'getTransferHarian
 Route::get('/Kosada/Transfer-Harian/Print',[Kosada_Transfer::class, 'printTransferHarian']);
 Route::get('/Kosada/Transfer-Harian/Kredit-Member/{memberID}',[Kosada_Transfer::class, 'getKreditMember']);
 Route::post('/Kosada/Tambah-Transfer',[Kosada_Transfer::class, 'addTransfer']);
+Route::post('/Kosada/Ubah-Transfer',[Kosada_Transfer::class, 'updateTransfer']);
 Route::post('/Kosada/Hapus-Transfer',[Kosada_Transfer::class, 'deleteTransfer']);
 
 // Layescent - Master Product
