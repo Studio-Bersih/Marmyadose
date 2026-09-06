@@ -36,7 +36,7 @@ class Transfer extends Controller
     }
 
     /*
-    | One day's transfers.
+    | One day's transfers — all of them.
     |
     | Returns TANGGAL_TRANSFER and CREATED_AT separately so the page can flag rows
     | entered on a different day than the one they are recorded against. The
@@ -54,26 +54,26 @@ class Transfer extends Controller
 
         $tanggal = Carbon::parse($request->input('tanggal'))->toDateString();
 
-        $perPage = (int) $request->input('per_page', 50);
-        $perPage = max(1, min($perPage, 500));
-        $page    = max(1, (int) $request->input('page', 1));
-
-        $query = TransferHarianModel::where('TANGGAL_TRANSFER',$tanggal);
-        $total = (clone $query)->count();
-
-        $records = $query->orderBy('ID')
-            ->forPage($page, $perPage)
+        /*
+        | The whole day, deliberately unpaginated.
+        |
+        | This used to default to 50 rows a page, but the page that consumes it
+        | is one day's recap sheet: it scrolls, it has no pager, and its footer
+        | sums the whole day. So a day past 50 transfers showed 50 lines under a
+        | total that counted all of them, and the rest were unreachable. The
+        | query is bounded by a single date, and printTransferHarian below
+        | already returns that same day whole.
+        */
+        $records = TransferHarianModel::where('TANGGAL_TRANSFER',$tanggal)
+            ->orderBy('ID')
             ->get();
 
         return response()->json([
             'data'  => $this->buildRows($records),
             'meta'  => [
-                'tanggal'   => $tanggal,
-                'page'      => $page,
-                'per_page'  => $perPage,
-                'total'     => $total,
-                'last_page' => (int) ceil(max(1,$total) / $perPage),
-                'total_nominal' => (int) (clone $query)->sum('NOMINAL'),
+                'tanggal'       => $tanggal,
+                'total'         => $records->count(),
+                'total_nominal' => (int) $records->sum('NOMINAL'),
             ],
         ],200);
     }
