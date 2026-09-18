@@ -146,6 +146,82 @@ class Macet extends Controller
     }
 
     /*
+    | Correct a case: the reason and the date it went bad.
+    |
+    | Administrator only, like Selesai. Nothing else on the row is editable —
+    | every money figure is derived from the installments, and the loan itself
+    | belongs to kosada_kredit, not to this register.
+    */
+    public function updateMacet(Request $request){
+        if($denied = $this->requireAdmin($request)) return $denied;
+
+        $invalid = $this->validateOrFail($request,[
+            'ID'            => ['required','integer'],
+            'ALASAN_MACET'  => ['required','string','max:2000'],
+            'TANGGAL_MACET' => ['required','date_format:Y-m-d','before_or_equal:today'],
+        ],[
+            'ID.required'                   => 'Data macet wajib dipilih',
+            'ALASAN_MACET.required'         => 'Alasan kredit macet wajib diisi',
+            'ALASAN_MACET.max'              => 'Alasan kredit macet terlalu panjang',
+            'TANGGAL_MACET.required'        => 'Tanggal macet wajib diisi',
+            'TANGGAL_MACET.date_format'     => 'Format tanggal macet tidak valid',
+            'TANGGAL_MACET.before_or_equal' => 'Tanggal macet tidak boleh melewati hari ini',
+        ]);
+        if($invalid) return $invalid;
+
+        $macet = KreditMacetModel::find($request->input('ID'));
+
+        if(empty($macet)){
+            return response()->json([
+                'status'  => 'error',
+                'message' => 'Data macet tidak ditemukan!',
+            ],404);
+        }
+
+        $macet->ALASAN_MACET  = $request->input('ALASAN_MACET');
+        $macet->TANGGAL_MACET = $request->input('TANGGAL_MACET');
+        $macet->save();
+
+        return response()->json([
+            'status'  => 'success',
+            'message' => 'Data macet berhasil diubah.',
+        ],200);
+    }
+
+    /*
+    | Remove a case from the register entirely.
+    |
+    | Administrator only. This deletes the macet row and nothing else: the loan,
+    | its installments and its place on the Dashboard are untouched, and the loan
+    | can be registered as macet again afterwards. Use Selesai instead when the
+    | case was real and has been settled — that keeps its history.
+    */
+    public function deleteMacet(Request $request){
+        if($denied = $this->requireAdmin($request)) return $denied;
+
+        $invalid = $this->validateOrFail($request,[
+            'ID' => ['required','integer'],
+        ],[
+            'ID.required' => 'Data macet wajib dipilih',
+        ]);
+        if($invalid) return $invalid;
+
+        $deleted = KreditMacetModel::where('ID',$request->input('ID'))->delete();
+
+        if($deleted === 0){
+            return response()->json([
+                'status'  => 'error',
+                'message' => 'Data macet tidak ditemukan!',
+            ],404);
+        }
+
+        return response()->json([
+            'status'  => 'success',
+            'message' => 'Data macet berhasil dihapus.',
+        ],200);
+    }
+
+    /*
     | Paginated list for the screen.
     */
     public function getDataMacet(Request $request){
@@ -193,6 +269,7 @@ class Macet extends Controller
                 'm.TANGGAL_MACET','m.TANGGAL_SELESAI','m.ALASAN_SELESAI',
                 'k.NO_KREDIT','k.NAMA as KREDIT_NAMA','k.ALAMAT as KREDIT_ALAMAT',
                 'k.MARKETING','k.JUMLAH_PENGAJUAN','k.KETERANGAN',
+                'k.CREATED_AT as TANGGAL_PINJAMAN',
                 'mb.NAMA as MEMBER_NAMA','mb.ALAMAT as MEMBER_ALAMAT',
                 'mb.PEKERJAAN','mb.TELEPON',
             ]);
@@ -269,8 +346,16 @@ class Macet extends Controller
                 'KETERANGAN'        => $row->KETERANGAN,
                 'ALASAN_MACET'      => $row->ALASAN_MACET,
 
+                // When the loan was taken out — the same date the Laporan shows as
+                // Tanggal Pinjaman.
+                'TANGGAL_PINJAMAN'  => $row->TANGGAL_PINJAMAN
+                    ? Carbon::parse($row->TANGGAL_PINJAMAN)->translatedFormat('d F Y') : '-',
+
                 'TANGGAL_MACET'     => $row->TANGGAL_MACET
                     ? Carbon::parse($row->TANGGAL_MACET)->translatedFormat('d F Y') : '-',
+                // Unformatted, for the edit form's date input.
+                'TANGGAL_MACET_ISO' => $row->TANGGAL_MACET
+                    ? Carbon::parse($row->TANGGAL_MACET)->toDateString() : null,
                 'TANGGAL_SELESAI'   => $row->TANGGAL_SELESAI
                     ? Carbon::parse($row->TANGGAL_SELESAI)->translatedFormat('d F Y') : null,
                 'ALASAN_SELESAI'    => $row->ALASAN_SELESAI,

@@ -93,6 +93,7 @@ Route::get('/Kosada/Surat-Tugas/Lihat/{ID}', [Kosada_Surat::class, 'lihatSurat']
 Route::post('/Kosada/Report',[Kosada_Report::class, 'getReport']);
 Route::post('/Kosada/Report/Print',[Kosada_Report::class, 'getReportPrint']);
 Route::post('/Kosada/Sembunyikan-Laporan',[Kosada_Report::class, 'toggleHidden']);
+Route::post('/Kosada/Urutan-ATM',[Kosada_Report::class, 'setUrutanAtm']);
 Route::get('/Kosada/Laporan-Tersembunyi',[Kosada_Report::class, 'getHidden']);
 
 // Kosada - Akun
@@ -107,6 +108,8 @@ Route::get('/Kosada/Data-Macet',[Kosada_Macet::class, 'getDataMacet']);
 Route::get('/Kosada/Data-Macet/Print',[Kosada_Macet::class, 'printDataMacet']);
 Route::post('/Kosada/Tambah-Macet',[Kosada_Macet::class, 'addMacet']);
 Route::post('/Kosada/Selesai-Macet',[Kosada_Macet::class, 'selesaiMacet']);
+Route::post('/Kosada/Ubah-Macet',[Kosada_Macet::class, 'updateMacet']);
+Route::post('/Kosada/Hapus-Macet',[Kosada_Macet::class, 'deleteMacet']);
 Route::post('/Kosada/Status-Macet',[Kosada_Macet::class, 'statusMacet']);
 
 // Kosada - Transfer Harian

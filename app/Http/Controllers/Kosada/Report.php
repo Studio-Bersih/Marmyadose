@@ -64,12 +64,25 @@ class Report extends Controller
         $perPage = max(1, min($perPage, 200));
         $page    = max(1, (int) $request->input('page', 1));
 
-        $query = $query->orderByDesc('ID');
+        /*
+        | Order of the ATM book each marketing keeps — see setUrutanAtm(). Loans
+        | nobody has numbered yet follow, newest first, which is exactly the old
+        | order: until staff start numbering, the report reads as it always did.
+        |
+        | The numbers are per marketing, so an all-marketing report groups by
+        | marketing first; otherwise every book's #1 would land together.
+        */
+        if(!$dataMarketing || $dataMarketing == 'SEMUA'){
+            $query = $query->orderBy('MARKETING');
+        }
+        $query = $query->orderByRaw('URUTAN_ATM IS NULL')
+            ->orderBy('URUTAN_ATM')
+            ->orderByDesc('ID');
         if($paginate){
             $query = $query->forPage($page, $perPage);
         }
 
-        $DB = $query->get(['ID','NAMA','NO_KREDIT','LUNAS_BRP','JANGKA_WAKTU','JUMLAH_PENGAJUAN','KASBON','CREATED_AT']);
+        $DB = $query->get(['ID','NAMA','MARKETING','NO_KREDIT','LUNAS_BRP','JANGKA_WAKTU','JUMLAH_PENGAJUAN','KASBON','URUTAN_ATM','CREATED_AT']);
 
         /*
         | Installment amounts for every loan in the result, in ONE query.
@@ -99,6 +112,8 @@ class Report extends Controller
             $data[] = [
                 "ID"            => $row->ID,
                 "NAMA"          => $row->NAMA,
+                "MARKETING"     => $row->MARKETING,
+                "URUTAN_ATM"    => $row->URUTAN_ATM === null ? null : (int) $row->URUTAN_ATM,
                 "CICILAN_TOTAL" => $cicilan,
                 "KASBON"        => $kasbon,
                 // Rightmost TOTAL column: what this member owes this month.
@@ -172,6 +187,53 @@ class Report extends Controller
             "message" => $request->boolean('HIDDEN')
                 ? "Data disembunyikan dari laporan!"
                 : "Data ditampilkan kembali di laporan!",
+        ],200);
+    }
+
+    /*
+    | Set a loan's position in its marketing's ATM book, or clear it.
+    |
+    | Data entry, not a decision about money, so — like toggleHidden — no
+    | administrator password. Duplicates are allowed on purpose: one member with
+    | two loans sits at one place in the book.
+    */
+    public function setUrutanAtm(Request $request){
+        $validator = Validator::make($request->all(),[
+            'ID'         => ['required','integer'],
+            'URUTAN_ATM' => ['nullable','integer','min:1','max:99999'],
+        ],[
+            'ID.required'        => 'Data kredit wajib dipilih',
+            'URUTAN_ATM.integer' => 'Nomor urut ATM harus berupa angka',
+            'URUTAN_ATM.min'     => 'Nomor urut ATM minimal 1',
+            'URUTAN_ATM.max'     => 'Nomor urut ATM terlalu besar',
+        ]);
+
+        if($validator->fails()){
+            return response()->json([
+                "status"  => "error",
+                "message" => $validator->errors()->first(),
+            ],422);
+        }
+
+        $kredit = DB::table('kosada_kredit')->where('ID',$request->input('ID'));
+
+        if(!(clone $kredit)->exists()){
+            return response()->json([
+                "status"  => "error",
+                "message" => "Data kredit tidak ditemukan!",
+            ],404);
+        }
+
+        // update() returns 0 when the value did not change, so existence is
+        // checked above rather than inferred from the affected-row count.
+        $urutan = $request->input('URUTAN_ATM');
+        $kredit->update(['URUTAN_ATM' => $urutan === null || $urutan === '' ? null : (int) $urutan]);
+
+        return response()->json([
+            "status"  => "success",
+            "message" => $urutan === null || $urutan === ''
+                ? "Nomor urut ATM dihapus."
+                : "Nomor urut ATM disimpan.",
         ],200);
     }
 
